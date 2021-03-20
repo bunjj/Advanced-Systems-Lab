@@ -1,0 +1,99 @@
+{
+  "camera": {
+    "fov": 25,
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "pointlight": {
+    "position": {
+      "x": 0,
+      "y": 5,
+      "z": -10
+    },
+    "emission": {
+      "x": 70,
+      "y": 70,
+      "z": 70
+    }
+  },
+  "objects": [
+    {
+      "kind": "plane",
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 5
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "reflection": 0,
+      "shininess": 15,
+      "color": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "params": {
+        "normal": {
+          "x": 0,
+          "y": 1,
+          "z": 0
+        },
+        "displacement": -1.5
+      }
+    },
+    {
+      "kind": "mandelbulb",
+      "position": {
+        "x": 1.2,
+        "y": 0,
+        "z": 6
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "reflection": 0,
+      "shininess": 15,
+      "color": {
+        "x": 0,
+        "y": 0.1,
+        "z": 0.6
+      },
+      "params": {}
+    },
+    {
+      "kind": "mandelbulb",
+      "position": {
+        "x": -1.2,
+        "y": 0,
+        "z": 6
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "reflection": 0,
+      "shininess": 15,
+      "color": {
+        "x": 0.1,
+        "y": 0.6,
+        "z": 0.1
+      },
+      "params": {}
+    }
+  ]
+}

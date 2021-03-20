@@ -1,0 +1,24 @@
+A scene containts the following:
+
+- A "camera" with the following parameters:
+  * "fov": field of view (angle)
+  * The camera "position" in the camera coordinate system (3D vector)
+  * The camera "rotation" about the camera coordinate system axis (3D vector)
+
+- A "pointlight" with the following parameters:
+  * The "position" of the light in the camera coordinate system (3D vector)
+  * The "emission" intensity of the light source (3D vector)
+
+- A list of scene "objects". Each object has the following parameters:
+    * Object "kind": e.g, "torus", "sphere" etc
+    * its "position" in the camera coordinate system (3D vector)
+    * its "rotation" about the camera coordinate system axis (3D vector)
+    * its reflection coefficient (number, used for shading)
+    * its shininess coefficient (number, used for shading)
+    * its color (3D vector, used for shading)
+    * additional "params" which depend on the object's "kind"
+    
+
+The sample outputs are meant for sanity checks. Depending on your
+implementation details (how you handle reflections, shading,
+anti-aliasing, etc) the final result may look different.
