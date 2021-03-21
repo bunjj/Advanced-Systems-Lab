@@ -1,8 +1,67 @@
+#include <dbg.h>
 #include <inttypes.h>
 #include <stdio.h>
 
+#include <cmath>
 #include <iostream>
 #include <memory>
+
+static float M_PI_F = M_PI;
+
+#define TO_RAD(angle) ((angle) / 180.0f * M_PI_F)
+
+struct vec {
+    float x;
+    float y;
+    float z;
+};
+
+std::ostream& operator<<(std::ostream& out, const vec& v) {
+    out << "{" << v.x << ", " << v.y << ", " << v.z << "}";
+    return out;
+}
+
+struct light {
+    vec pos;
+    vec color;
+    float intensity;
+};
+
+struct hit {
+    bool is_hit;
+    float distance;
+    int steps;
+    vec color;
+};
+
+struct sphere {
+    vec center;
+    float radius;
+};
+
+float vec_norm(vec v) { return v.x * v.x + v.y * v.y + v.z * v.z; }
+
+float vec_length(vec v) { return sqrtf(vec_norm(v)); }
+
+#define VEC_OP(v1, v2, OP) \
+    vec { (v1).x OP(v2).x, (v1).y OP(v2).y, (v1).z OP(v2).z }
+
+vec vec_add(vec v1, vec v2) { return VEC_OP(v1, v2, +); }
+
+vec vec_sub(vec v1, vec v2) { return VEC_OP(v1, v2, -); }
+
+vec vec_mul(vec v1, float factor) {
+    return VEC_OP(v1, (vec{factor, factor, factor}), *);
+}
+
+vec vec_normalize(vec v) {
+    float len = vec_length(v);
+    return vec{v.x / len, v.y / len, v.z / len};
+}
+
+float vec_dot(vec v1, vec v2) {
+    return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
+}
 
 static void dump_image(int width, int height, const float* pixels) {
     printf("P3\n%d %d\n255\n", width, height);
@@ -10,7 +69,8 @@ static void dump_image(int width, int height, const float* pixels) {
     for (int j = 0; j < height; j++) {
         for (int i = 0; i < width; i++) {
             for (int k = 0; k < 3; k++) {
-                uint8_t channel = pixels[3 * (width * j + i) + k] * 255;
+                uint8_t channel =
+                    std::min(1.0f, pixels[3 * (width * j + i) + k]) * 255;
                 printf("%03" PRIu8 " ", channel);
             }
         }
@@ -19,18 +79,161 @@ static void dump_image(int width, int height, const float* pixels) {
     }
 }
 
+static sphere spheres[] = {
+    {{1, -5, -20}, 7},
+    {{0, 1, -15}, 2},
+    {{0, 120, -200}, 100},
+};
+
+int num_spheres = 3;
+
+/*
+ * Static light sources
+ */
+static light lights[] = {
+    {{0, 10, 0}, {1.0, 0.9, 0.7}, 3000},
+    {{20, 10, -15}, {0, 0, 1.0}, 6000},
+    {{-20, 10, -15}, {0.847, 0.2588, 0.2588}, 6000},
+    {{-100, 40, -80}, {0, 0.9, 0.7}, 90000},
+    {{100, 40, -80}, {1.0, 0, 0.7}, 90000},
+};
+
+int num_lights = 5;
+
+// max distance
+static float D = 2048;
+static float EPS = 0.001;
+
+static bool sphere_trace_shadow(vec point, vec light_dir, float max_distance) {
+    // TODO if we start with t = 0 this function causes some pixels to be black because it
+    // erroneously detects a collision with the original object
+    float t = EPS;
+
+    while (t < max_distance) {
+        vec pos = vec_add(point, vec_mul(light_dir, t));
+
+        float min_distance = INFINITY;
+        int sphere = -1;
+
+        for (int k = 0; k < num_spheres; k++) {
+            float distance =
+                vec_length(vec_sub(pos, spheres[k].center)) - spheres[k].radius;
+
+            if (distance < min_distance) {
+                min_distance = distance;
+                sphere = k;
+
+                if (min_distance <= EPS * t) {
+                    return true;
+                }
+            }
+        }
+
+        t += min_distance;
+    }
+
+    return false;
+}
+
+static hit sphere_trace(vec origin, vec dir) {
+    float t = 0;
+
+    int steps = 0;
+
+    while (t < D) {
+        vec pos = vec_add(origin, vec_mul(dir, t));
+
+        float min_distance = INFINITY;
+        int sphere = -1;
+
+        for (int k = 0; k < num_spheres; k++) {
+            float distance =
+                vec_length(vec_sub(pos, spheres[k].center)) - spheres[k].radius;
+
+            if (distance < min_distance) {
+                min_distance = distance;
+                sphere = k;
+            }
+        }
+
+        if (min_distance < EPS) {
+            vec normal = vec_normalize(vec_sub(pos, spheres[sphere].center));
+            vec color{0, 0, 0};
+
+            for (int i = 0; i < num_lights; i++) {
+                vec light_point = vec_sub(lights[i].pos, pos);
+
+                if (vec_dot(light_point, normal) > 0) {
+                    vec light_dir = vec_normalize(light_point);
+                    // Squared distance from light to point
+                    float dist_sq = vec_norm(light_point);
+
+                    if (!sphere_trace_shadow(pos, light_dir, sqrt(dist_sq))) {
+
+                        color =
+                            vec_add(color, vec_mul(lights[i].color,
+                                                   vec_dot(light_dir, normal) *
+                                                       lights[i].intensity /
+                                                       (4 * M_PI_F * dist_sq)));
+                    }
+                }
+            }
+
+            return {true, t, steps, color};
+        }
+
+        t += min_distance;
+        steps++;
+    }
+
+    return hit{false, t, steps, 0};
+}
+
+/**
+ * Very simple sphere tracer
+ *
+ * Everything is done in camera space, so no transformations are performed.
+ *
+ * There is a single hardcoded sphere and multiple hard-coded light sources
+ *
+ */
 int main(void) {
     // Height of the resulting image in pixels
     int height = 720;
     int width = 1280;
 
+    float aspect_ratio = static_cast<float>(width) / height;
+
+    // Field of view in degrees
+    float fov = 60;
+
+    float fov_factor = tanf(TO_RAD(fov / 2));
+
     auto pixels = std::make_unique<float[]>(height * width * 3);
 
-    for (int i = 0; i < height; i++) {
-        for (int j = 0; j < width; j++) {
-            pixels[3 * (width * i + j)] = static_cast<float>(j) / width;
-            pixels[3 * (width * i + j) + 1] = static_cast<float>(i) / height;
-            pixels[3 * (width * i + j) + 2] = 0;
+    for (int py = 0; py < height; py++) {
+        for (int px = 0; px < width; px++) {
+            /*
+             * Position of the pixel in camera space.
+             *
+             * We assume that the camera is a (0, 0, 0), looking towards
+             * negative z and the image plane is one unit away from the camera
+             * (z = -1 in this case).
+             */
+            float x = (2 * (px + 0.5) / width - 1) * aspect_ratio;
+            float y = 1 - 2 * (py + 0.5) / height;
+            float z = -1;
+
+            vec origin{0, 0, 0};
+            vec dir = vec_normalize({x, y, z});
+
+            auto h = sphere_trace(origin, dir);
+
+            vec color = h.is_hit ? h.color : vec{0.1, 0.1, 0.1};
+
+            pixels[3 * (width * py + px)] = color.x;
+            pixels[3 * (width * py + px) + 1] = color.y;
+            pixels[3 * (width * py + px) + 2] = color.z;
         }
     }
 
