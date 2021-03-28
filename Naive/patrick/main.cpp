@@ -8,8 +8,9 @@
 #include <memory>
 
 static float M_PI_F = M_PI;
-
 #define TO_RAD(angle) ((angle) / 180.0f * M_PI_F)
+
+// Vec {{{
 
 struct vec {
     float x;
@@ -21,6 +22,34 @@ std::ostream& operator<<(std::ostream& out, const vec& v) {
     out << "{" << v.x << ", " << v.y << ", " << v.z << "}";
     return out;
 }
+
+float vec_norm(vec v) { return v.x * v.x + v.y * v.y + v.z * v.z; }
+
+float vec_length(vec v) { return sqrtf(vec_norm(v)); }
+
+#define VEC_OP(v1, v2, OP) \
+    vec { (v1).x OP(v2).x, (v1).y OP(v2).y, (v1).z OP(v2).z }
+
+vec vec_add(vec v1, vec v2) { return VEC_OP(v1, v2, +); }
+
+vec vec_sub(vec v1, vec v2) { return VEC_OP(v1, v2, -); }
+
+vec vec_mul(vec v1, float factor) {
+    return VEC_OP(v1, (vec{factor, factor, factor}), *);
+}
+
+vec vec_normalize(vec v) {
+    float len = vec_length(v);
+    return vec{v.x / len, v.y / len, v.z / len};
+}
+
+float vec_dot(vec v1, vec v2) {
+    return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
+}
+
+// }}}
+
+// Vec4 {{{
 
 struct vec4 {
     float x;
@@ -43,6 +72,20 @@ vec4 vec4_from_dir(vec p) { return {p.x, p.y, p.z, 0}; }
 
 vec vec4_to_vec(vec4 p) { return {p.x, p.y, p.z}; }
 
+vec4 get_base_vec4(int idx) {
+    switch (idx) {
+        case 0: return {1, 0, 0, 0};
+        case 1: return {0, 1, 0, 0};
+        case 2: return {0, 0, 1, 0};
+        case 3: return {0, 0, 0, 1};
+        default: return {0, 0, 0, 0};
+    }
+}
+
+// }}}
+
+// M44 {{{
+
 /**
  * Defines a 4x4 matrix.
  *
@@ -55,10 +98,30 @@ struct m44 {
      * This means it is stored in row-major format.
      */
     float val[4][4];
+
+    m44() {};
+
+    m44(vec4 e1, vec4 e2, vec4 e3, vec4 e4) {
+        val[0][0] = e1.x;
+        val[1][0] = e1.y;
+        val[2][0] = e1.z;
+        val[3][0] = e1.t;
+        val[0][1] = e2.x;
+        val[1][1] = e2.y;
+        val[2][1] = e2.z;
+        val[3][1] = e2.t;
+        val[0][2] = e3.x;
+        val[1][2] = e3.y;
+        val[2][2] = e3.z;
+        val[3][2] = e3.t;
+        val[0][3] = e4.x;
+        val[1][3] = e4.y;
+        val[2][3] = e4.z;
+        val[3][3] = e4.t;
+    };
 };
 
-static const m44 identity =
-    m44{.val = {{1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}}};
+static const m44 identity = m44(get_base_vec4(0), get_base_vec4(1), get_base_vec4(2), get_base_vec4(3));
 
 std::ostream& operator<<(std::ostream& out, const m44& m) {
     int width = 8;
@@ -70,45 +133,6 @@ std::ostream& operator<<(std::ostream& out, const m44& m) {
     out << "└ " << std::setw(width) << m.val[3][0] << " " << std::setw(width) << m.val[3][1] << " " << std::setw(width) << m.val[3][2] << " " << std::setw(width) << m.val[3][3] << " ┘" << std::endl;
     // clang-format on
     return out;
-}
-
-m44 get_rot_matrix(float x, float y, float z) {
-    float c = TO_RAD(x);
-    float b = TO_RAD(y);
-    float a = TO_RAD(z);
-
-    float ca = cosf(a);
-    float cb = cosf(b);
-    float cc = cosf(c);
-    float sa = sinf(a);
-    float sb = sinf(b);
-    float sc = sinf(c);
-
-    m44 m = identity;
-
-    m.val[0][0] = ca * cb;
-    m.val[1][0] = sa * cb;
-    m.val[2][0] = -sb;
-
-    m.val[0][1] = ca * sb * sc - sa * cc;
-    m.val[1][1] = sa * sb * sc + ca * cc;
-    m.val[2][1] = cb * sc;
-
-    m.val[0][2] = ca * sb * cc + sa * sc;
-    m.val[1][2] = sa * sb * cc - ca * sc;
-    m.val[2][2] = cb * cc;
-
-    return m;
-}
-
-m44 get_transf_matrix(vec pos, float rot_x, float rot_y, float rot_z) {
-    m44 camera_matrix = get_rot_matrix(rot_x, rot_y, rot_z);
-
-    camera_matrix.val[0][3] = pos.x;
-    camera_matrix.val[1][3] = pos.y;
-    camera_matrix.val[2][3] = pos.z;
-
-    return camera_matrix;
 }
 
 /**
@@ -186,57 +210,57 @@ m44 m44_inv(m44 m) {
     inv.val[3][3] = det * (a11 * A1212 - a12 * A0212 + a13 * A0112);
     return inv;
 }
-float vec_norm(vec v) { return v.x * v.x + v.y * v.y + v.z * v.z; }
 
-float vec_length(vec v) { return sqrtf(vec_norm(v)); }
+m44 get_rot_matrix(float x, float y, float z) {
+    float c = TO_RAD(x);
+    float b = TO_RAD(y);
+    float a = TO_RAD(z);
 
-#define VEC_OP(v1, v2, OP) \
-    vec { (v1).x OP(v2).x, (v1).y OP(v2).y, (v1).z OP(v2).z }
+    float ca = cosf(a);
+    float cb = cosf(b);
+    float cc = cosf(c);
+    float sa = sinf(a);
+    float sb = sinf(b);
+    float sc = sinf(c);
 
-vec vec_add(vec v1, vec v2) { return VEC_OP(v1, v2, +); }
+    m44 m = identity;
 
-vec vec_sub(vec v1, vec v2) { return VEC_OP(v1, v2, -); }
+    m.val[0][0] = ca * cb;
+    m.val[1][0] = sa * cb;
+    m.val[2][0] = -sb;
 
-vec vec_mul(vec v1, float factor) {
-    return VEC_OP(v1, (vec{factor, factor, factor}), *);
+    m.val[0][1] = ca * sb * sc - sa * cc;
+    m.val[1][1] = sa * sb * sc + ca * cc;
+    m.val[2][1] = cb * sc;
+
+    m.val[0][2] = ca * sb * cc + sa * sc;
+    m.val[1][2] = sa * sb * cc - ca * sc;
+    m.val[2][2] = cb * cc;
+
+    return m;
 }
 
-vec vec_normalize(vec v) {
-    float len = vec_length(v);
-    return vec{v.x / len, v.y / len, v.z / len};
+/**
+ * Creates a object-space to world-space transformation matrix 
+ */
+m44 get_transf_matrix(vec pos, float rot_x, float rot_y, float rot_z) {
+    m44 camera_matrix = get_rot_matrix(rot_x, rot_y, rot_z);
+
+    camera_matrix.val[0][3] = pos.x;
+    camera_matrix.val[1][3] = pos.y;
+    camera_matrix.val[2][3] = pos.z;
+
+    return camera_matrix;
 }
 
-float vec_dot(vec v1, vec v2) {
-    return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
-}
+// }}}
 
-static void dump_image(int width, int height, const float* pixels) {
-    printf("P3\n%d %d\n255\n", width, height);
-
-    for (int j = 0; j < height; j++) {
-        for (int i = 0; i < width; i++) {
-            for (int k = 0; k < 3; k++) {
-                uint8_t channel =
-                    std::min(1.0f, pixels[3 * (width * j + i) + k]) * 255;
-                printf("%03" PRIu8 " ", channel);
-            }
-        }
-
-        printf("\n");
-    }
-}
+// Scene {{{
 
 struct light {
     vec pos;
     vec color;
     float intensity;
-};
-
-struct hit {
-    bool is_hit;
-    float distance;
-    int steps;
-    vec color;
 };
 
 struct sphere {
@@ -317,11 +341,22 @@ static light lights[] = {
     {{100, 40, -80}, {1.0, 0, 0.7}, 90000},
 };
 
-int num_lights = 5;
+int num_lights = sizeof(lights)/sizeof(light);
+
+// }}}
+
+// Sphere Tracing {{{
 
 // max distance
 static float D = 2048;
 static float EPS = 0.001;
+
+struct hit {
+    bool is_hit;
+    float distance;
+    int steps;
+    vec color;
+};
 
 static bool sphere_trace_shadow(vec point, vec light_dir, float max_distance) {
     // TODO if we start with t = 0 this function causes some pixels to be black
@@ -416,6 +451,24 @@ static hit sphere_trace(vec origin, vec dir) {
     return hit{false, t, steps, 0};
 }
 
+// }}}
+
+static void dump_image(int width, int height, const float* pixels) {
+    printf("P3\n%d %d\n255\n", width, height);
+
+    for (int j = 0; j < height; j++) {
+        for (int i = 0; i < width; i++) {
+            for (int k = 0; k < 3; k++) {
+                uint8_t channel =
+                    std::min(1.0f, pixels[3 * (width * j + i) + k]) * 255;
+                printf("%03" PRIu8 " ", channel);
+            }
+        }
+
+        printf("\n");
+    }
+}
+
 /**
  * Very simple sphere tracer
  *
@@ -441,12 +494,6 @@ int main(void) {
     float fov_factor = tanf(TO_RAD(fov / 2));
 
     auto pixels = std::make_unique<float[]>(height * width * 3);
-
-    /* dbg(camera_matrix); */
-    /* dbg(m44_inv(camera_matrix)); */
-    /* dbg(m44_inv(identity)); */
-    /* dbg(m44_inv(m44{.val = {{1, 1, 1, -1}, {1, 1, -1, 1}, {1, -1, 1, 1}, {-1,
-     * 1, 1, 1}}})); */
 
     vec origin =
         vec4_to_vec(m44_mul_vec(camera_matrix, vec4_from_point({0, 0, 0})));
