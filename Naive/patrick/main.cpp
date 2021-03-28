@@ -21,6 +21,91 @@ std::ostream& operator<<(std::ostream& out, const vec& v) {
     return out;
 }
 
+struct vec4 {
+    float x;
+    float y;
+    float z;
+    float t;
+};
+
+vec4 vec4_init(float *values) {
+    return {values[0], values[1], values[2], values[3]};
+}
+
+float vec4_dot(vec4 v1, vec4 v2) {
+    return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z + v1.t * v2.t;
+}
+
+vec4 vec4_from_point(vec p) {
+    return {p.x, p.y, p.z, 1};
+}
+
+vec4 vec4_from_dir(vec p) {
+    return {p.x, p.y, p.z, 0};
+}
+
+vec vec4_to_vec(vec4 p) {
+    return {p.x, p.y, p.z};
+}
+
+
+/**
+ * Defines a 4x4 matrix.
+ *
+ * Used for transformations
+ */
+struct m44 {
+    /**
+     * val[i][j] is the i-th row, j-th column
+     *
+     * This means it is stored in row-major format.
+     */
+    float val[4][4];
+};
+
+static const m44 identity = m44{.val = {{1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}}};
+
+m44 get_rot_matrix(float x, float y, float z) {
+    float c = TO_RAD(x);
+    float b = TO_RAD(y);
+    float a = TO_RAD(z);
+
+    float ca = cosf(a);
+    float cb = cosf(b);
+    float cc = cosf(c);
+    float sa = sinf(a);
+    float sb = sinf(b);
+    float sc = sinf(c);
+
+    m44 m = identity;
+
+    m.val[0][0] = ca * cb;
+    m.val[1][0] = sa * cb;
+    m.val[2][0] = -sb;
+
+    m.val[0][1] = ca * sb * sc - sa * cc;
+    m.val[1][1] = sa * sb * sc + ca * cc;
+    m.val[2][1] = cb * sc;
+
+    m.val[0][2] = ca * sb * cc + sa * sc;
+    m.val[1][2] = sa * sb * cc - ca * sc;
+    m.val[2][2] = cb * cc;
+
+    return m;
+}
+
+/**
+ * Calculates m * v
+ */
+vec4 m44_mul_vec(m44 m, vec4 v) {
+    float x = vec4_dot(vec4_init(m.val[0]), v);
+    float y = vec4_dot(vec4_init(m.val[1]), v);
+    float z = vec4_dot(vec4_init(m.val[2]), v);
+    float t = vec4_dot(vec4_init(m.val[3]), v);
+
+    return {x, y, z, t};
+}
+
 struct light {
     vec pos;
     vec color;
@@ -105,8 +190,8 @@ static float D = 2048;
 static float EPS = 0.001;
 
 static bool sphere_trace_shadow(vec point, vec light_dir, float max_distance) {
-    // TODO if we start with t = 0 this function causes some pixels to be black because it
-    // erroneously detects a collision with the original object
+    // TODO if we start with t = 0 this function causes some pixels to be black
+    // because it erroneously detects a collision with the original object
     float t = EPS;
 
     while (t < max_distance) {
@@ -169,7 +254,6 @@ static hit sphere_trace(vec origin, vec dir) {
                     float dist_sq = vec_norm(light_point);
 
                     if (!sphere_trace_shadow(pos, light_dir, sqrt(dist_sq))) {
-
                         color =
                             vec_add(color, vec_mul(lights[i].color,
                                                    vec_dot(light_dir, normal) *
@@ -189,45 +273,63 @@ static hit sphere_trace(vec origin, vec dir) {
     return hit{false, t, steps, 0};
 }
 
+m44 get_camera_matrix(vec pos, float rot_x, float rot_y, float rot_z) {
+    m44 camera_matrix = get_rot_matrix(rot_x, rot_y, rot_z);
+
+    camera_matrix.val[0][3] = pos.x;
+    camera_matrix.val[1][3] = pos.y;
+    camera_matrix.val[2][3] = pos.z;
+
+    return camera_matrix;
+}
+
 /**
  * Very simple sphere tracer
  *
- * Everything is done in camera space, so no transformations are performed.
+ * All objects are in world coordinates.
  *
- * There is a single hardcoded sphere and multiple hard-coded light sources
+ * The camera can be positioned and rotated arbitrarily
+ *
+ * There are hard-coded spheres and lights.
  *
  */
 int main(void) {
     // Height of the resulting image in pixels
-    int height = 720;
-    int width = 1280;
+    int height = 480;
+    int width = 640;
+
+    vec camera_pos = {0, 0, 0};
+    m44 camera_matrix = get_camera_matrix(camera_pos, 0, 0, 0);
 
     float aspect_ratio = static_cast<float>(width) / height;
 
     // Field of view in degrees
-    float fov = 60;
-
+    float fov = 80;
     float fov_factor = tanf(TO_RAD(fov / 2));
 
     auto pixels = std::make_unique<float[]>(height * width * 3);
+
+    vec origin = vec4_to_vec(m44_mul_vec(camera_matrix, vec4_from_point({0, 0, 0})));
 
     for (int py = 0; py < height; py++) {
         for (int px = 0; px < width; px++) {
             /*
              * Position of the pixel in camera space.
              *
-             * We assume that the camera is a (0, 0, 0), looking towards
-             * negative z and the image plane is one unit away from the camera
-             * (z = -1 in this case).
+             * We assume that the camera is  looking towards negative z and the
+             * image plane is one unit away from the camera (z = -1 in this
+             * case).
              */
-            float x = (2 * (px + 0.5) / width - 1) * aspect_ratio;
-            float y = 1 - 2 * (py + 0.5) / height;
+            float x = (2 * (px + 0.5) / width - 1) * aspect_ratio * fov_factor;
+            float y = (1 - 2 * (py + 0.5) / height) * fov_factor;
             float z = -1;
 
-            vec origin{0, 0, 0};
+            // Direction in camera space.
             vec dir = vec_normalize({x, y, z});
 
-            auto h = sphere_trace(origin, dir);
+            vec4 world_dir = m44_mul_vec(camera_matrix, vec4_from_dir(dir));
+
+            auto h = sphere_trace(origin, vec4_to_vec(world_dir));
 
             vec color = h.is_hit ? h.color : vec{0.1, 0.1, 0.1};
 
