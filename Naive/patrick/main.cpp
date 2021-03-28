@@ -34,7 +34,7 @@ vec vec_add(vec v1, vec v2) { return VEC_OP(v1, v2, +); }
 
 vec vec_sub(vec v1, vec v2) { return VEC_OP(v1, v2, -); }
 
-vec vec_mul(vec v1, float factor) {
+vec vec_scale(vec v1, float factor) {
     return VEC_OP(v1, (vec{factor, factor, factor}), *);
 }
 
@@ -47,6 +47,46 @@ float vec_dot(vec v1, vec v2) {
     return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
 }
 
+vec vec_abs(vec v) { return {fabsf(v.x), fabsf(v.y), fabsf(v.z)}; }
+
+vec vec_max(vec v, float val) {
+    return {std::max(v.x, val), std::max(v.y, val), std::max(v.z, val)};
+}
+
+// }}}
+
+// Vec2 {{{
+struct vec2 {
+    float x;
+    float y;
+};
+
+float vec2_length(vec2 v) {
+    return std::sqrt(v.x * v.x + v.y * v.y);
+}
+
+#define VEC2_OP(v1, v2, OP) \
+    vec2{ (v1).x OP(v2).x, (v1).y OP(v2).y }
+
+vec2 vec2_sub(vec2 v1, vec2 v2) {
+    return VEC2_OP(v1, v2, -);
+}
+
+vec2 vec2_add(vec2 v1, vec2 v2) {
+    return VEC2_OP(v1, v2, +);
+}
+
+vec2 vec2_scale(vec2 v, float f) {
+    return VEC2_OP(v, (vec2{f, f}), *);
+}
+
+float vec2_dot(vec2 v1, vec2 v2) {
+    return v1.x * v2.x + v1.y * v2.y;
+}
+
+float vec2_dot2(vec2 v) {
+    return vec2_dot(v, v);
+}
 // }}}
 
 // Vec4 {{{
@@ -74,11 +114,16 @@ vec vec4_to_vec(vec4 p) { return {p.x, p.y, p.z}; }
 
 vec4 get_base_vec4(int idx) {
     switch (idx) {
-        case 0: return {1, 0, 0, 0};
-        case 1: return {0, 1, 0, 0};
-        case 2: return {0, 0, 1, 0};
-        case 3: return {0, 0, 0, 1};
-        default: return {0, 0, 0, 0};
+        case 0:
+            return {1, 0, 0, 0};
+        case 1:
+            return {0, 1, 0, 0};
+        case 2:
+            return {0, 0, 1, 0};
+        case 3:
+            return {0, 0, 0, 1};
+        default:
+            return {0, 0, 0, 0};
     }
 }
 
@@ -99,7 +144,7 @@ struct m44 {
      */
     float val[4][4];
 
-    m44() {};
+    m44(){};
 
     m44(vec4 e1, vec4 e2, vec4 e3, vec4 e4) {
         val[0][0] = e1.x;
@@ -121,7 +166,8 @@ struct m44 {
     };
 };
 
-static const m44 identity = m44(get_base_vec4(0), get_base_vec4(1), get_base_vec4(2), get_base_vec4(3));
+static const m44 identity =
+    m44(get_base_vec4(0), get_base_vec4(1), get_base_vec4(2), get_base_vec4(3));
 
 std::ostream& operator<<(std::ostream& out, const m44& m) {
     int width = 8;
@@ -211,10 +257,10 @@ m44 m44_inv(m44 m) {
     return inv;
 }
 
-m44 get_rot_matrix(float x, float y, float z) {
-    float c = TO_RAD(x);
-    float b = TO_RAD(y);
-    float a = TO_RAD(z);
+m44 get_rot_matrix(vec rot) {
+    float c = TO_RAD(rot.x);
+    float b = TO_RAD(rot.y);
+    float a = TO_RAD(rot.z);
 
     float ca = cosf(a);
     float cb = cosf(b);
@@ -241,10 +287,13 @@ m44 get_rot_matrix(float x, float y, float z) {
 }
 
 /**
- * Creates a object-space to world-space transformation matrix 
+ * Creates a object-space to world-space transformation matrix
+ *
+ * pos is the origin of the object space and the direction of the axis is given
+ * as rotation along the three axis in degrees.
  */
-m44 get_transf_matrix(vec pos, float rot_x, float rot_y, float rot_z) {
-    m44 camera_matrix = get_rot_matrix(rot_x, rot_y, rot_z);
+m44 get_transf_matrix(vec pos, vec rot) {
+    m44 camera_matrix = get_rot_matrix(rot);
 
     camera_matrix.val[0][3] = pos.x;
     camera_matrix.val[1][3] = pos.y;
@@ -264,7 +313,6 @@ struct light {
 };
 
 struct sphere {
-    m44 matrix;
     vec center;
     float radius;
 };
@@ -276,17 +324,56 @@ struct plane {
     vec point;
 };
 
-struct shape {
-    float (*distance)(const struct shape s, const vec pos);
-    char data[std::max({sizeof(sphere), sizeof(plane)})];
+struct box {
+    vec bottom_left;
+    vec extents;
 };
+
+struct torus {
+    vec center;
+    float r1;
+    float r2;
+};
+
+struct cone {
+    vec center;
+    float r1;
+    float r2;
+    float height;
+};
+
+struct octa {
+    vec center;
+    float s;
+};
+
+typedef float (*distance_fun)(const struct shape s, const vec pos);
+
+struct shape {
+    distance_fun distance;
+    char data[std::max({sizeof(sphere), sizeof(plane), sizeof(box), sizeof(torus), sizeof(cone), sizeof(octa)})];
+    // The matrix for transforming any point in the object space into the world
+    // space.
+    m44 matrix;
+    // Inverse of the above matrix. Transforms points in the world space into
+    // the object space.
+    m44 inv_matrix;
+};
+
+shape make_shape(const m44 matrix, distance_fun f, void* data,
+                 size_t data_size) {
+    shape shap;
+    shap.distance = f;
+    shap.matrix = matrix;
+    shap.inv_matrix = m44_inv(matrix);
+    memcpy(&shap.data, data, data_size);
+    return shap;
+}
 
 // Sphere {{{
 float sphere_distance(const shape s, const vec from) {
     sphere sp = *((sphere*)s.data);
-    m44 m = m44_inv(sp.matrix);
-    return vec_length(vec4_to_vec(m44_mul_vec(m, vec4_from_point(from)))) -
-           sp.radius;
+    return vec_length(vec_sub(sp.center, from)) - sp.radius;
 }
 
 vec sphere_normal(sphere s, vec pos) {
@@ -294,13 +381,26 @@ vec sphere_normal(sphere s, vec pos) {
 }
 
 shape make_sphere(float x, float y, float z, float r) {
-    sphere s = {.matrix = get_transf_matrix({x, y, z}, 0, 0, 0),
-                .center = {x, y, z},
-                .radius = r};
-    shape shap;
-    shap.distance = sphere_distance;
-    memcpy(&shap.data, &s, sizeof(s));
-    return shap;
+    sphere s = {.center = {x, y, z}, .radius = r};
+    return make_shape(get_transf_matrix({x, y, z}, {0, 0, 0}), sphere_distance,
+                      &s, sizeof(s));
+}
+
+// }}}
+
+// Box {{{
+float box_distance(const shape s, const vec from) {
+    box b = *((box*)s.data);
+    vec pos = vec4_to_vec(m44_mul_vec(s.inv_matrix, vec4_from_point(from)));
+    vec q = vec_sub(vec_abs(pos), b.extents);
+    return vec_length(vec_max(q, 0)) +
+           std::min(0.0f, std::max({q.x, q.y, q.z}));
+}
+
+shape make_box(vec bottom_left, vec extents, vec rot) {
+    box s = {bottom_left, extents};
+    return make_shape(get_transf_matrix(bottom_left, rot), box_distance, &s,
+                      sizeof(s));
 }
 
 // }}}
@@ -308,40 +408,155 @@ shape make_sphere(float x, float y, float z, float r) {
 // Plane {{{
 
 float plane_distance(const shape s, const vec from) {
-    plane p = *((plane *)s.data);
+    plane p = *((plane*)s.data);
     return vec_dot(p.normal, vec_sub(from, p.point));
 }
 
 shape make_plane(vec normal, vec point) {
     plane p = {.normal = vec_normalize(normal), .point = point};
-    shape shap;
-    shap.distance = plane_distance;
-    memcpy(&shap.data, &p, sizeof(p));
-    return shap;
+    return make_shape(identity, plane_distance, &p, sizeof(p));
 }
 // }}}
 
+// Torus {{{
+float torus_distance(const shape s, const vec from) {
+    torus t = *((torus*)s.data);
+    vec pos = vec4_to_vec(m44_mul_vec(s.inv_matrix, vec4_from_point(from)));
+    vec2 posxz = {pos.x, pos.z};
+    vec2 q = {vec2_length(posxz) - t.r1, pos.y};
+
+    return vec2_length(q) - t.r2;
+}
+
+shape make_torus(vec center, float r1, float r2, vec rot) {
+    torus t = {center, r1, r2};
+    return make_shape(get_transf_matrix(center, rot), torus_distance, &t,
+                      sizeof(t));
+}
+
+// }}}
+
+// Cone {{{
+float cone_distance(const shape shap, const vec from) {
+    cone c = *((cone*)shap.data);
+    vec pos = vec4_to_vec(m44_mul_vec(shap.inv_matrix, vec4_from_point(from)));
+
+    float r1 = c.r1;
+    float r2 = c.r2;
+    float h = c.height;
+
+    vec2 q = {vec2_length({pos.x, pos.z}), pos.y};
+    vec2 k1 = {r2, h};
+    vec2 k2 = {r2 - r1, 2 * h};
+    vec2 ca = {q.x - std::min(q.x, (q.y < 0? r1 : r2)), fabsf(q.y) - h};
+    vec2 cb = vec2_add(vec2_sub(q, k1), vec2_scale(k2, std::clamp(vec2_dot(vec2_sub(k1, q), k2) / vec2_dot2(k2), 0.0f, 1.0f)));
+    float s = (cb.x < 0 && ca.y < 0) ? -1 : 1;
+
+    return s * std::sqrt(std::min(vec2_dot2(ca), vec2_dot2(cb)));
+}
+
+shape make_cone(vec center, float r1, float r2, float height, vec rot) {
+    cone c = {center, r1, r2, height};
+    return make_shape(get_transf_matrix(center, rot), cone_distance, &c, sizeof(c));
+}
+
+// }}}
+
+// Octahedron {{{
+float octahedron_distance(const shape shap, const vec from) {
+    octa o = *((octa*)shap.data);
+    vec pos = vec4_to_vec(m44_mul_vec(shap.inv_matrix, vec4_from_point(from)));
+    pos = vec_abs(pos);
+
+    float s = o.s;
+
+    float m = pos.x + pos.y + pos.z - s;
+    vec q;
+
+    if (3 * pos.x < m) {
+        q = pos;
+    } else if (3 * pos.y < m) {
+        q = {pos.y, pos.x, pos.z};
+    } else if (3 * pos.z < m) {
+        q = {pos.z, pos.x, pos.y};
+    } else {
+        return m * 0.57735027;
+    }
+
+    float k = std::clamp(0.5f * (q.z - q.y + s), 0.0f, s);
+
+    return vec_length({q.x, q.y - s + k, q.z - k});
+}
+
+shape make_octahedron(vec center, float s, vec rot) {
+    octa o = {center, s};
+    return make_shape(get_transf_matrix(center, rot), octahedron_distance, &o, sizeof(o));
+}
+
+// }}}
+
+#ifdef SCENE0
+
+// clang-format off
 static shape shapes[] = {
-    make_sphere(1, -5, -20, 7),
-    make_sphere(0, 1, -15, 2),
-    make_sphere(0, 120, -200, 100),
-    make_plane({0, 0, 1}, {0, 0, -200}),
-    make_plane({0, 1, 0}, {0, -20, 0}),
+    make_plane({0, 1, 0}, {0, -3, 0}),
+    make_box({-4, -1.5, 15}, {0.25, 0.5, 1}, {-1.5, -1.5, 12}),
+    make_sphere(0, 0, 20, 3),         
+    make_cone({1.5, -1.5, 12}, 1, 0.5, 1, {0, 0, 0}),
+    make_torus({4, -1.5, 15}, 1, 0.5, {0, 0, 0}),
+    make_octahedron({-1.5, -1.5, 12}, 1, {0, 0, 0}),
 };
-int num_shapes = sizeof(shapes)/sizeof(shape);
+// clang-format on
+static int num_shapes = sizeof(shapes) / sizeof(shape);
+
+/*
+ * Static light sources
+ */
+static light lights[] = {
+    {{0, 100, 0}, {200.0f/255, 200.0f/255, 200.0f/255}, 150000},
+};
+
+static int num_lights = sizeof(lights) / sizeof(light);
+
+static vec camera_pos = {0, 0, 0};
+static vec camera_rot = {0, 0, 0};
+
+// Field of view in degrees
+static float fov = 30;
+
+#else
+
+// clang-format off
+static shape shapes[] = {
+    make_sphere(1, -5, 20, 7),         
+    make_sphere(0, 1, 15, 2),
+    make_sphere(0, 120, 200, 100),     
+    make_plane({0, 0, -1}, {0, 0, 200}),
+    make_plane({0, 1, 0}, {0, -20, 0}),
+    make_box({40, 10, 80}, {10, 20, 10}, {0, -30, 0}),
+};
+// clang-format on
+static int num_shapes = sizeof(shapes) / sizeof(shape);
 
 /*
  * Static light sources
  */
 static light lights[] = {
     {{0, 10, 0}, {1.0, 0.9, 0.7}, 3000},
-    {{20, 10, -15}, {0, 0, 1.0}, 6000},
-    {{-20, 10, -15}, {0.847, 0.2588, 0.2588}, 6000},
-    {{-100, 40, -80}, {0, 0.9, 0.7}, 90000},
-    {{100, 40, -80}, {1.0, 0, 0.7}, 90000},
+    {{20, 10, 15}, {0, 0, 1.0}, 6000},
+    {{-20, 10, 15}, {0.847, 0.2588, 0.2588}, 6000},
+    {{-100, 40, 80}, {0, 0.9, 0.7}, 90000},
+    {{100, 40, 80}, {1.0, 0, 0.7}, 90000},
 };
 
-int num_lights = sizeof(lights)/sizeof(light);
+static int num_lights = sizeof(lights) / sizeof(light);
+
+static vec camera_pos = {0, 0, 0};
+static vec camera_rot = {0, 0, 0};
+
+// Field of view in degrees
+static float fov = 80;
+#endif
 
 // }}}
 
@@ -364,7 +579,7 @@ static bool sphere_trace_shadow(vec point, vec light_dir, float max_distance) {
     float t = EPS;
 
     while (t < max_distance) {
-        vec pos = vec_add(point, vec_mul(light_dir, t));
+        vec pos = vec_add(point, vec_scale(light_dir, t));
 
         float min_distance = INFINITY;
 
@@ -392,7 +607,7 @@ static hit sphere_trace(vec origin, vec dir) {
     int steps = 0;
 
     while (t < D) {
-        vec pos = vec_add(origin, vec_mul(dir, t));
+        vec pos = vec_add(origin, vec_scale(dir, t));
 
         float min_distance = INFINITY;
         int shape_idx = -1;
@@ -433,7 +648,7 @@ static hit sphere_trace(vec origin, vec dir) {
 
                     if (!sphere_trace_shadow(pos, light_dir, sqrt(dist_sq))) {
                         color =
-                            vec_add(color, vec_mul(lights[i].color,
+                            vec_add(color, vec_scale(lights[i].color,
                                                    vec_dot(light_dir, normal) *
                                                        lights[i].intensity /
                                                        (4 * M_PI_F * dist_sq)));
@@ -484,13 +699,10 @@ int main(void) {
     int height = 480;
     int width = 640;
 
-    vec camera_pos = {0, 0, 0};
-    m44 camera_matrix = get_transf_matrix(camera_pos, 0, 0, 0);
+    m44 camera_matrix = get_transf_matrix(camera_pos, camera_rot);
 
     float aspect_ratio = static_cast<float>(width) / height;
 
-    // Field of view in degrees
-    float fov = 80;
     float fov_factor = tanf(TO_RAD(fov / 2));
 
     auto pixels = std::make_unique<float[]>(height * width * 3);
@@ -503,13 +715,13 @@ int main(void) {
             /*
              * Position of the pixel in camera space.
              *
-             * We assume that the camera is  looking towards negative z and the
+             * We assume that the camera is looking towards positive z and the
              * image plane is one unit away from the camera (z = -1 in this
              * case).
              */
             float x = (2 * (px + 0.5) / width - 1) * aspect_ratio * fov_factor;
             float y = (1 - 2 * (py + 0.5) / height) * fov_factor;
-            float z = -1;
+            float z = 1;
 
             // Direction in camera space.
             vec dir = vec_normalize({x, y, z});
@@ -518,7 +730,7 @@ int main(void) {
 
             auto h = sphere_trace(origin, vec4_to_vec(world_dir));
 
-            vec color = h.is_hit ? h.color : vec{0.1, 0.1, 0.1};
+            vec color = h.is_hit ? h.color : vec{0, 0, 0};
 
             pixels[3 * (width * py + px)] = color.x;
             pixels[3 * (width * py + px) + 1] = color.y;
