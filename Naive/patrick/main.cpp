@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #include <cmath>
+#include <cstring>
 #include <iostream>
 #include <memory>
 
@@ -28,7 +29,7 @@ struct vec4 {
     float t;
 };
 
-vec4 vec4_init(float *values) {
+vec4 vec4_init(float* values) {
     return {values[0], values[1], values[2], values[3]};
 }
 
@@ -36,18 +37,11 @@ float vec4_dot(vec4 v1, vec4 v2) {
     return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z + v1.t * v2.t;
 }
 
-vec4 vec4_from_point(vec p) {
-    return {p.x, p.y, p.z, 1};
-}
+vec4 vec4_from_point(vec p) { return {p.x, p.y, p.z, 1}; }
 
-vec4 vec4_from_dir(vec p) {
-    return {p.x, p.y, p.z, 0};
-}
+vec4 vec4_from_dir(vec p) { return {p.x, p.y, p.z, 0}; }
 
-vec vec4_to_vec(vec4 p) {
-    return {p.x, p.y, p.z};
-}
-
+vec vec4_to_vec(vec4 p) { return {p.x, p.y, p.z}; }
 
 /**
  * Defines a 4x4 matrix.
@@ -63,7 +57,20 @@ struct m44 {
     float val[4][4];
 };
 
-static const m44 identity = m44{.val = {{1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}}};
+static const m44 identity =
+    m44{.val = {{1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}}};
+
+std::ostream& operator<<(std::ostream& out, const m44& m) {
+    int width = 8;
+    out << std::fixed << std::setprecision(2) << std::right << std::endl;
+    // clang-format off
+    out << "┌ " << std::setw(width) << m.val[0][0] << " " << std::setw(width) << m.val[0][1] << " " << std::setw(width) << m.val[0][2] << " " << std::setw(width) << m.val[0][3] << " ┐" << std::endl;
+    out << "│ " << std::setw(width) << m.val[1][0] << " " << std::setw(width) << m.val[1][1] << " " << std::setw(width) << m.val[1][2] << " " << std::setw(width) << m.val[1][3] << " │" << std::endl;
+    out << "│ " << std::setw(width) << m.val[2][0] << " " << std::setw(width) << m.val[2][1] << " " << std::setw(width) << m.val[2][2] << " " << std::setw(width) << m.val[2][3] << " │" << std::endl;
+    out << "└ " << std::setw(width) << m.val[3][0] << " " << std::setw(width) << m.val[3][1] << " " << std::setw(width) << m.val[3][2] << " " << std::setw(width) << m.val[3][3] << " ┘" << std::endl;
+    // clang-format on
+    return out;
+}
 
 m44 get_rot_matrix(float x, float y, float z) {
     float c = TO_RAD(x);
@@ -94,6 +101,16 @@ m44 get_rot_matrix(float x, float y, float z) {
     return m;
 }
 
+m44 get_transf_matrix(vec pos, float rot_x, float rot_y, float rot_z) {
+    m44 camera_matrix = get_rot_matrix(rot_x, rot_y, rot_z);
+
+    camera_matrix.val[0][3] = pos.x;
+    camera_matrix.val[1][3] = pos.y;
+    camera_matrix.val[2][3] = pos.z;
+
+    return camera_matrix;
+}
+
 /**
  * Calculates m * v
  */
@@ -106,24 +123,69 @@ vec4 m44_mul_vec(m44 m, vec4 v) {
     return {x, y, z, t};
 }
 
-struct light {
-    vec pos;
-    vec color;
-    float intensity;
-};
+m44 m44_inv(m44 m) {
+    float a11 = m.val[0][0];
+    float a12 = m.val[0][1];
+    float a13 = m.val[0][2];
+    float a14 = m.val[0][3];
+    float a21 = m.val[1][0];
+    float a22 = m.val[1][1];
+    float a23 = m.val[1][2];
+    float a24 = m.val[1][3];
+    float a31 = m.val[2][0];
+    float a32 = m.val[2][1];
+    float a33 = m.val[2][2];
+    float a34 = m.val[2][3];
+    float a41 = m.val[3][0];
+    float a42 = m.val[3][1];
+    float a43 = m.val[3][2];
+    float a44 = m.val[3][3];
 
-struct hit {
-    bool is_hit;
-    float distance;
-    int steps;
-    vec color;
-};
+    float A2323 = a33 * a44 - a34 * a43;
+    float A1323 = a32 * a44 - a34 * a42;
+    float A1223 = a32 * a43 - a33 * a42;
+    float A0323 = a31 * a44 - a34 * a41;
+    float A0223 = a31 * a43 - a33 * a41;
+    float A0123 = a31 * a42 - a32 * a41;
+    float A2313 = a23 * a44 - a24 * a43;
+    float A1313 = a22 * a44 - a24 * a42;
+    float A1213 = a22 * a43 - a23 * a42;
+    float A2312 = a23 * a34 - a24 * a33;
+    float A1312 = a22 * a34 - a24 * a32;
+    float A1212 = a22 * a33 - a23 * a32;
+    float A0313 = a21 * a44 - a24 * a41;
+    float A0213 = a21 * a43 - a23 * a41;
+    float A0312 = a21 * a34 - a24 * a31;
+    float A0212 = a21 * a33 - a23 * a31;
+    float A0113 = a21 * a42 - a22 * a41;
+    float A0112 = a21 * a32 - a22 * a31;
 
-struct sphere {
-    vec center;
-    float radius;
-};
+    float det = a11 * (a22 * A2323 - a23 * A1323 + a24 * A1223) -
+                a12 * (a21 * A2323 - a23 * A0323 + a24 * A0223) +
+                a13 * (a21 * A1323 - a22 * A0323 + a24 * A0123) -
+                a14 * (a21 * A1223 - a22 * A0223 + a23 * A0123);
+    det = 1 / det;
 
+    m44 inv;
+
+    inv.val[0][0] = det * (a22 * A2323 - a23 * A1323 + a24 * A1223);
+    inv.val[0][1] = det * -(a12 * A2323 - a13 * A1323 + a14 * A1223);
+    inv.val[0][2] = det * (a12 * A2313 - a13 * A1313 + a14 * A1213);
+    inv.val[0][3] = det * -(a12 * A2312 - a13 * A1312 + a14 * A1212);
+    inv.val[1][0] = det * -(a21 * A2323 - a23 * A0323 + a24 * A0223);
+    inv.val[1][1] = det * (a11 * A2323 - a13 * A0323 + a14 * A0223);
+    inv.val[1][2] = det * -(a11 * A2313 - a13 * A0313 + a14 * A0213);
+    inv.val[1][3] = det * (a11 * A2312 - a13 * A0312 + a14 * A0212);
+    inv.val[2][0] = det * (a21 * A1323 - a22 * A0323 + a24 * A0123);
+    inv.val[2][1] = det * -(a11 * A1323 - a12 * A0323 + a14 * A0123);
+    inv.val[2][2] = det * (a11 * A1313 - a12 * A0313 + a14 * A0113);
+    inv.val[2][3] = det * -(a11 * A1312 - a12 * A0312 + a14 * A0112);
+    inv.val[3][0] = det * -(a21 * A1223 - a22 * A0223 + a23 * A0123);
+    inv.val[3][1] = det * (a11 * A1223 - a12 * A0223 + a13 * A0123);
+    inv.val[3][2] = det * -(a11 * A1213 - a12 * A0213 + a13 * A0113);
+    inv.val[3][3] = det * (a11 * A1212 - a12 * A0212 + a13 * A0112);
+    return inv;
+}
 float vec_norm(vec v) { return v.x * v.x + v.y * v.y + v.z * v.z; }
 
 float vec_length(vec v) { return sqrtf(vec_norm(v)); }
@@ -164,13 +226,85 @@ static void dump_image(int width, int height, const float* pixels) {
     }
 }
 
-static sphere spheres[] = {
-    {{1, -5, -20}, 7},
-    {{0, 1, -15}, 2},
-    {{0, 120, -200}, 100},
+struct light {
+    vec pos;
+    vec color;
+    float intensity;
 };
 
-int num_spheres = 3;
+struct hit {
+    bool is_hit;
+    float distance;
+    int steps;
+    vec color;
+};
+
+struct sphere {
+    m44 matrix;
+    vec center;
+    float radius;
+};
+
+struct plane {
+    // Normal vector
+    vec normal;
+    // Point on the plane
+    vec point;
+};
+
+struct shape {
+    float (*distance)(const struct shape s, const vec pos);
+    char data[std::max({sizeof(sphere), sizeof(plane)})];
+};
+
+// Sphere {{{
+float sphere_distance(const shape s, const vec from) {
+    sphere sp = *((sphere*)s.data);
+    m44 m = m44_inv(sp.matrix);
+    return vec_length(vec4_to_vec(m44_mul_vec(m, vec4_from_point(from)))) -
+           sp.radius;
+}
+
+vec sphere_normal(sphere s, vec pos) {
+    return vec_normalize(vec_sub(pos, s.center));
+}
+
+shape make_sphere(float x, float y, float z, float r) {
+    sphere s = {.matrix = get_transf_matrix({x, y, z}, 0, 0, 0),
+                .center = {x, y, z},
+                .radius = r};
+    shape shap;
+    shap.distance = sphere_distance;
+    memcpy(&shap.data, &s, sizeof(s));
+    return shap;
+}
+
+// }}}
+
+// Plane {{{
+
+float plane_distance(const shape s, const vec from) {
+    plane p = *((plane *)s.data);
+    return vec_dot(p.normal, vec_sub(from, p.point));
+}
+
+shape make_plane(vec normal, vec point) {
+    plane p = {.normal = vec_normalize(normal), .point = point};
+    shape shap;
+    shap.distance = plane_distance;
+    memcpy(&shap.data, &p, sizeof(p));
+    return shap;
+}
+// }}}
+
+static shape shapes[] = {
+    make_sphere(1, -5, -20, 7),
+    make_sphere(0, 1, -15, 2),
+    make_sphere(0, 120, -200, 100),
+    make_plane({0, 0, 1}, {0, 0, -200}),
+    make_plane({0, 1, 0}, {0, -20, 0}),
+};
+int num_shapes = sizeof(shapes)/sizeof(shape);
 
 /*
  * Static light sources
@@ -198,15 +332,12 @@ static bool sphere_trace_shadow(vec point, vec light_dir, float max_distance) {
         vec pos = vec_add(point, vec_mul(light_dir, t));
 
         float min_distance = INFINITY;
-        int sphere = -1;
 
-        for (int k = 0; k < num_spheres; k++) {
-            float distance =
-                vec_length(vec_sub(pos, spheres[k].center)) - spheres[k].radius;
+        for (int k = 0; k < num_shapes; k++) {
+            float distance = shapes[k].distance(shapes[k], pos);
 
             if (distance < min_distance) {
                 min_distance = distance;
-                sphere = k;
 
                 if (min_distance <= EPS * t) {
                     return true;
@@ -229,20 +360,32 @@ static hit sphere_trace(vec origin, vec dir) {
         vec pos = vec_add(origin, vec_mul(dir, t));
 
         float min_distance = INFINITY;
-        int sphere = -1;
+        int shape_idx = -1;
 
-        for (int k = 0; k < num_spheres; k++) {
-            float distance =
-                vec_length(vec_sub(pos, spheres[k].center)) - spheres[k].radius;
+        for (int k = 0; k < num_shapes; k++) {
+            float distance = shapes[k].distance(shapes[k], pos);
 
             if (distance < min_distance) {
                 min_distance = distance;
-                sphere = k;
+                shape_idx = k;
             }
         }
 
         if (min_distance < EPS) {
-            vec normal = vec_normalize(vec_sub(pos, spheres[sphere].center));
+            shape s = shapes[shape_idx];
+            static const float delta = 10e-5;
+            vec delta1 = {delta, 0, 0};
+            vec delta2 = {0, delta, 0};
+            vec delta3 = {0, 0, delta};
+            // Some shapes can calculate this directly
+            vec normal = vec_normalize({
+                s.distance(s, vec_add(pos, delta1)) -
+                    s.distance(s, vec_sub(pos, delta1)),
+                s.distance(s, vec_add(pos, delta2)) -
+                    s.distance(s, vec_sub(pos, delta2)),
+                s.distance(s, vec_add(pos, delta3)) -
+                    s.distance(s, vec_sub(pos, delta3)),
+            });
             vec color{0, 0, 0};
 
             for (int i = 0; i < num_lights; i++) {
@@ -273,16 +416,6 @@ static hit sphere_trace(vec origin, vec dir) {
     return hit{false, t, steps, 0};
 }
 
-m44 get_camera_matrix(vec pos, float rot_x, float rot_y, float rot_z) {
-    m44 camera_matrix = get_rot_matrix(rot_x, rot_y, rot_z);
-
-    camera_matrix.val[0][3] = pos.x;
-    camera_matrix.val[1][3] = pos.y;
-    camera_matrix.val[2][3] = pos.z;
-
-    return camera_matrix;
-}
-
 /**
  * Very simple sphere tracer
  *
@@ -299,7 +432,7 @@ int main(void) {
     int width = 640;
 
     vec camera_pos = {0, 0, 0};
-    m44 camera_matrix = get_camera_matrix(camera_pos, 0, 0, 0);
+    m44 camera_matrix = get_transf_matrix(camera_pos, 0, 0, 0);
 
     float aspect_ratio = static_cast<float>(width) / height;
 
@@ -309,7 +442,14 @@ int main(void) {
 
     auto pixels = std::make_unique<float[]>(height * width * 3);
 
-    vec origin = vec4_to_vec(m44_mul_vec(camera_matrix, vec4_from_point({0, 0, 0})));
+    /* dbg(camera_matrix); */
+    /* dbg(m44_inv(camera_matrix)); */
+    /* dbg(m44_inv(identity)); */
+    /* dbg(m44_inv(m44{.val = {{1, 1, 1, -1}, {1, 1, -1, 1}, {1, -1, 1, 1}, {-1,
+     * 1, 1, 1}}})); */
+
+    vec origin =
+        vec4_to_vec(m44_mul_vec(camera_matrix, vec4_from_point({0, 0, 0})));
 
     for (int py = 0; py < height; py++) {
         for (int px = 0; px < width; px++) {
