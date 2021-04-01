@@ -1,12 +1,15 @@
-#include <dbg.h>
+#include "dbg.h"
 #include <inttypes.h>
 #include <stdio.h>
 
 #include <cmath>
 #include <cstring>
 #include <iostream>
+#include <fstream>
 #include <memory>
+#include "nlohmann/json.hpp"
 
+using json = nlohmann::json;
 static float M_PI_F = M_PI;
 #define TO_RAD(angle) ((angle) / 180.0f * M_PI_F)
 
@@ -305,6 +308,11 @@ m44 get_transf_matrix(vec pos, vec rot) {
 // }}}
 
 // Scene {{{
+struct camera {
+    float fov;
+    vec pos;
+    vec rotation;
+};
 
 struct light {
     vec pos;
@@ -684,6 +692,41 @@ static void dump_image(int width, int height, const float* pixels) {
     }
 }
 
+
+/**
+ * 
+ * Methods to read in the data from the json file
+ * 
+ */
+
+static camera load_camera(json& j){
+    camera cam;
+    cam.fov = j["camera"]["fov"];
+    cam.pos.x = j["camera"]["position"]["x"];
+    cam.pos.y = j["camera"]["position"]["y"];
+    cam.pos.z = j["camera"]["position"]["z"];
+    cam.rotation.x = j["camera"]["rotation"]["x"];
+    cam.rotation.y = j["camera"]["rotation"]["y"];
+    cam.rotation.z = j["camera"]["rotation"]["z"];
+
+    return cam;
+}
+
+static light load_light(json& j){
+    //Loads a single light since all the scenes seem to only have one light.
+    //But can simply be adjusted to load multiple lights instead
+    light l;
+    l.pos.x = j["pointlight"]["position"]["x"];
+    l.pos.y = j["pointlight"]["position"]["y"];
+    l.pos.z = j["pointlight"]["position"]["z"];
+    l.color.x = j["pointlight"]["emission"]["x"];
+    l.color.y = j["pointlight"]["emission"]["y"];
+    l.color.z = j["pointlight"]["emission"]["z"];
+
+    return l;
+}
+
+
 /**
  * Very simple sphere tracer
  *
@@ -698,6 +741,24 @@ int main(void) {
     // Height of the resulting image in pixels
     int height = 480;
     int width = 640;
+
+    //Path to scene
+    std::string path = "../../scenes/scene2.json";
+    std::ifstream i(path);
+    json j;
+    i>> j;
+
+    //load camera paremters
+    camera cam = load_camera(j);
+    //load light (as defined in scene, not with intensity parameter)
+    light l = load_light(j);
+    std::cout << cam.fov << " " << cam.pos.x << " "<< cam.pos.y << " " << cam.pos.z <<" " <<
+        cam.rotation.x << " " << cam.rotation.y << " " << cam.rotation.z << std::endl;
+    std::cout << l.pos.x << " " << l.pos.y << " " << l.pos.z << " " << l.color.x << " " <<
+    l.color.y << " " << l.color.z <<std::endl;
+    int test_fov = j["camera"]["fov"];
+    std::cout << j["objects"][0].dump(2) <<std::endl;
+
 
     m44 camera_matrix = get_transf_matrix(camera_pos, camera_rot);
 
@@ -737,8 +798,8 @@ int main(void) {
             pixels[3 * (width * py + px) + 2] = color.z;
         }
     }
-
-    dump_image(width, height, pixels.get());
+    std::cout << "fertisch" << std::endl;
+    //dump_image(width, height, pixels.get());
 
     return 0;
 }
