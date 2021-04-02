@@ -394,6 +394,16 @@ shape make_sphere(float x, float y, float z, float r) {
                       &s, sizeof(s));
 }
 
+shape load_sphere(json& j){
+    float x,y,z,r;
+    x = j["position"]["x"];
+    y = j["position"]["y"];
+    z = j["position"]["z"];
+    r = j["params"]["radius"];
+    return make_sphere(x,y,z,r);
+
+}
+
 // }}}
 
 // Box {{{
@@ -411,6 +421,20 @@ shape make_box(vec bottom_left, vec extents, vec rot) {
                       sizeof(s));
 }
 
+shape load_box(json& j){
+    vec pos, extents, rot;
+    pos.x = j["position"]["x"];
+    pos.y = j["position"]["y"];
+    pos.z = j["position"]["z"];
+    extents.x = j["params"]["extents"]["x"];
+    extents.y = j["params"]["extents"]["y"];
+    extents.z = j["params"]["extents"]["z"];
+    rot.x = j["rotation"]["x"];
+    rot.y = j["rotation"]["y"];
+    rot.z = j["rotation"]["z"];
+    return make_box(pos, extents, rot);
+}
+
 // }}}
 
 // Plane {{{
@@ -423,6 +447,17 @@ float plane_distance(const shape s, const vec from) {
 shape make_plane(vec normal, vec point) {
     plane p = {.normal = vec_normalize(normal), .point = point};
     return make_shape(identity, plane_distance, &p, sizeof(p));
+}
+
+shape load_plane(json& j){
+    vec normal, point;
+    float displacement = j["params"]["displacement"];
+    normal.x = j["params"]["normal"]["x"];
+    normal.y = j["params"]["normal"]["y"];
+    normal.z = j["params"]["normal"]["z"];
+    point = vec_scale(normal, displacement);
+    return make_plane(normal, point);  
+    
 }
 // }}}
 
@@ -440,6 +475,22 @@ shape make_torus(vec center, float r1, float r2, vec rot) {
     torus t = {center, r1, r2};
     return make_shape(get_transf_matrix(center, rot), torus_distance, &t,
                       sizeof(t));
+}
+
+shape load_torus(json& j){
+    vec pos, rot;
+    float r1, r2;
+    pos.x = j["position"]["x"];
+    pos.y = j["position"]["y"];
+    pos.z = j["position"]["z"];
+    rot.x = j["rotation"]["x"];
+    rot.y = j["rotation"]["y"];
+    rot.z = j["rotation"]["z"];
+
+    r1 = j["params"]["r1"];
+    r2 = j["params"]["r2"];
+
+    return make_torus(pos, r1, r2, rot);
 }
 
 // }}}
@@ -466,6 +517,24 @@ float cone_distance(const shape shap, const vec from) {
 shape make_cone(vec center, float r1, float r2, float height, vec rot) {
     cone c = {center, r1, r2, height};
     return make_shape(get_transf_matrix(center, rot), cone_distance, &c, sizeof(c));
+}
+
+shape load_cone(json& j){
+    //TODO: adjust cone definition according to mail!
+    vec pos, rot;
+    float r1,r2,height;
+    pos.x = j["position"]["x"];
+    pos.y = j["position"]["y"];
+    pos.z = j["position"]["z"];
+    rot.x = j["rotation"]["x"];
+    rot.y = j["rotation"]["y"];
+    rot.z = j["rotation"]["z"];
+
+    r1 = j["params"][0];
+    r2 = j["params"][1];
+    height = j["params"][2];
+
+    return make_cone(pos, r1,r2,height, rot);
 }
 
 // }}}
@@ -501,6 +570,20 @@ shape make_octahedron(vec center, float s, vec rot) {
     return make_shape(get_transf_matrix(center, rot), octahedron_distance, &o, sizeof(o));
 }
 
+shape load_octa(json& j){
+    vec pos, rot; float s;
+    pos.x = j["position"]["x"];
+    pos.y = j["position"]["y"];
+    pos.z = j["position"]["z"];
+    rot.x = j["rotation"]["x"];
+    rot.y = j["rotation"]["y"];
+    rot.z = j["rotation"]["z"];
+
+    s = j["params"]["s"];
+    return make_octahedron(pos, s, rot);
+
+}
+
 // }}}
 
 #ifdef SCENE0
@@ -534,6 +617,7 @@ static float fov = 30;
 
 #else
 
+
 // clang-format off
 static shape shapes[] = {
     make_sphere(1, -5, 20, 7),         
@@ -545,6 +629,8 @@ static shape shapes[] = {
 };
 // clang-format on
 static int num_shapes = sizeof(shapes) / sizeof(shape);
+
+
 
 /*
  * Static light sources
@@ -565,7 +651,7 @@ static vec camera_rot = {0, 0, 0};
 // Field of view in degrees
 static float fov = 80;
 #endif
-
+static shape* shape_load;
 // }}}
 
 // Sphere Tracing {{{
@@ -722,10 +808,42 @@ static light load_light(json& j){
     l.color.x = j["pointlight"]["emission"]["x"];
     l.color.y = j["pointlight"]["emission"]["y"];
     l.color.z = j["pointlight"]["emission"]["z"];
+    l.intensity = 150000;
 
     return l;
 }
 
+
+static void load_shapes(json& j){
+    num_shapes = j["objects"].size();
+    //TODO check out implementation of shapes!
+    shape_load = (shape*) malloc(sizeof(shape) * num_shapes);
+
+    for(int i = 0; i < num_shapes; i++){
+        shape new_shape;
+        json current_shape = j["objects"][i];
+        std::string current = current_shape["kind"].get<std::string>();
+        if(current == "sphere"){
+           new_shape = load_sphere(current_shape); 
+        }else if(current == "plane"){
+            new_shape = load_plane(current_shape);
+        }else if(current == "box"){
+            new_shape = load_box(current_shape);
+        }else if(current == "torus"){
+            new_shape = load_torus(current_shape);
+        }else if(current == "cone"){
+            new_shape = load_cone(current_shape);
+        }else if(current == "octahedron"){
+            new_shape = load_octa(current_shape);
+        }else{
+            std::cout << "something went wrong" << std::endl;
+            break;
+        }
+        shape_load[i] = new_shape;
+
+    }
+
+}
 
 /**
  * Very simple sphere tracer
@@ -743,7 +861,7 @@ int main(void) {
     int width = 640;
 
     //Path to scene
-    std::string path = "../../scenes/scene2.json";
+    std::string path = "../../scenes/scene0.json";
     std::ifstream i(path);
     json j;
     i>> j;
@@ -752,12 +870,9 @@ int main(void) {
     camera cam = load_camera(j);
     //load light (as defined in scene, not with intensity parameter)
     light l = load_light(j);
-    std::cout << cam.fov << " " << cam.pos.x << " "<< cam.pos.y << " " << cam.pos.z <<" " <<
-        cam.rotation.x << " " << cam.rotation.y << " " << cam.rotation.z << std::endl;
-    std::cout << l.pos.x << " " << l.pos.y << " " << l.pos.z << " " << l.color.x << " " <<
-    l.color.y << " " << l.color.z <<std::endl;
-    int test_fov = j["camera"]["fov"];
-    std::cout << j["objects"][0].dump(2) <<std::endl;
+    //don't have to save shapes since it uses static variable
+    load_shapes(j);
+
 
 
     m44 camera_matrix = get_transf_matrix(camera_pos, camera_rot);
@@ -798,8 +913,7 @@ int main(void) {
             pixels[3 * (width * py + px) + 2] = color.z;
         }
     }
-    std::cout << "fertisch" << std::endl;
-    //dump_image(width, height, pixels.get());
+    dump_image(width, height, pixels.get());
 
     return 0;
 }
