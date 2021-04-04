@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#define NOP do {} while(0)
+#define NOP ((void)0)
 
 typedef struct {
     uint64_t add;
@@ -39,4 +39,5 @@ static inline void ins_rst(void) {
 #define FMUL(x, y) (INS_MUL, ((x) * (y)))
 #define FMA(x, y, z) (INS_FMA, (((x) * (y)) + (z)))
 #define FDIV(x, y) (INS_DIV, ((x) / (y)))
+
 // TODO add macros for vector operations
