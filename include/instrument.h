@@ -1,6 +1,8 @@
 #pragma once
 
 #include <stdint.h>
+#include <inttypes.h>
+#include <stdio.h>
 #include <string.h>
 
 #define NOP ((void)0)
@@ -10,9 +12,25 @@ typedef struct {
     uint64_t mul;
     uint64_t fma;
     uint64_t div;
+    uint64_t sqrt;
+    uint64_t abs;
+    uint64_t max;
 } flops_t;
 
 extern flops_t flops_counter;
+
+static inline void ins_dump() {
+    printf("==============\n");
+    printf("FLOPS COUNTER\n");
+    printf("ADD : %8" PRIu64 "\n", flops_counter.add);
+    printf("MUL : %8" PRIu64 "\n", flops_counter.mul);
+    printf("FMA : %8" PRIu64 "\n", flops_counter.fma);
+    printf("DIV : %8" PRIu64 "\n", flops_counter.div);
+    printf("SQRT: %8" PRIu64 "\n", flops_counter.sqrt);
+    printf("ABS : %8" PRIu64 "\n", flops_counter.abs);
+    printf("MAX : %8" PRIu64 "\n", flops_counter.max);
+    printf("==============\n");
+}
 
 #define DO_INSTRUMENT
 
@@ -34,10 +52,15 @@ static inline void ins_rst(void) {
 #define INS_MUL INS_INC(mul)
 #define INS_FMA INS_INC(fma)
 #define INS_DIV INS_INC(div)
+#define INS_SQRT INS_INC(sqrt)
+#define INS_ABS INS_INC(abs)
+#define INS_MAX INS_INC(max)
 
 #define FADD(x, y) (INS_ADD, ((x) + (y)))
 #define FMUL(x, y) (INS_MUL, ((x) * (y)))
 #define FMA(x, y, z) (INS_FMA, (((x) * (y)) + (z)))
 #define FDIV(x, y) (INS_DIV, ((x) / (y)))
+#define FSQRT(x) (INS_SQRT, sqrtf((x)))
+#define FABS(x) (INS_ABS, fabsf((x)))
 
 // TODO add macros for vector operations
