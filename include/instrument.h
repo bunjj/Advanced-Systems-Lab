@@ -20,19 +20,17 @@ typedef struct {
 extern flops_t flops_counter;
 
 static inline void ins_dump() {
-    printf("==============\n");
-    printf("FLOPS COUNTER\n");
-    printf("ADD : %8" PRIu64 "\n", flops_counter.add);
-    printf("MUL : %8" PRIu64 "\n", flops_counter.mul);
-    printf("FMA : %8" PRIu64 "\n", flops_counter.fma);
-    printf("DIV : %8" PRIu64 "\n", flops_counter.div);
-    printf("SQRT: %8" PRIu64 "\n", flops_counter.sqrt);
-    printf("ABS : %8" PRIu64 "\n", flops_counter.abs);
-    printf("MAX : %8" PRIu64 "\n", flops_counter.max);
-    printf("==============\n");
+    fprintf(stderr, "==================\n");
+    fprintf(stderr, "= FLOPS COUNTER =\n");
+    fprintf(stderr, "ADD : %12" PRIu64 "\n", flops_counter.add);
+    fprintf(stderr, "MUL : %12" PRIu64 "\n", flops_counter.mul);
+    fprintf(stderr, "FMA : %12" PRIu64 "\n", flops_counter.fma);
+    fprintf(stderr, "DIV : %12" PRIu64 "\n", flops_counter.div);
+    fprintf(stderr, "SQRT: %12" PRIu64 "\n", flops_counter.sqrt);
+    fprintf(stderr, "ABS : %12" PRIu64 "\n", flops_counter.abs);
+    fprintf(stderr, "MAX : %12" PRIu64 "\n", flops_counter.max);
+    fprintf(stderr, "==================\n");
 }
-
-#define DO_INSTRUMENT
 
 #ifndef DO_INSTRUMENT
 

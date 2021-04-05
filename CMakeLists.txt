@@ -16,7 +16,7 @@ set(name "main")
 
 find_package(nlohmann_json REQUIRED)
 
-add_executable(${name} main.cpp)
+add_executable(${name} src/main.cpp src/loader.cpp)
 target_include_directories(${name} PUBLIC include)
 target_compile_options(${name} PUBLIC -Wall -Wextra -Wpedantic $<$<CONFIG:Instrument>:-fsanitize=undefined,address -g -O0 -DDEBUG>)
 target_link_options(${name} PUBLIC $<$<CONFIG:Instrument>:-fsanitize=undefined,address>)
