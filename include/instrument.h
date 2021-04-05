@@ -21,7 +21,7 @@ extern flops_t flops_counter;
 
 static inline void ins_dump() {
     fprintf(stderr, "==================\n");
-    fprintf(stderr, "= FLOPS COUNTER =\n");
+    fprintf(stderr, "== FLOPS COUNTER =\n");
     fprintf(stderr, "ADD : %12" PRIu64 "\n", flops_counter.add);
     fprintf(stderr, "MUL : %12" PRIu64 "\n", flops_counter.mul);
     fprintf(stderr, "FMA : %12" PRIu64 "\n", flops_counter.fma);

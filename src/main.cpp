@@ -273,37 +273,11 @@ shape load_octa(json& j) {
 
 // }}}
 
-// clang-format off
-static shape shapes[] = {
-    make_sphere(1, -5, 20, 7),         
-    make_sphere(0, 1, 15, 2),
-    make_sphere(0, 120, 200, 100),     
-    make_plane({0, 0, -1}, {0, 0, 200}),
-    make_plane({0, 1, 0}, {0, -20, 0}),
-    make_box({40, 10, 80}, {10, 20, 10}, {0, -30, 0}),
-};
-// clang-format on
-static int num_shapes = sizeof(shapes) / sizeof(shape);
+static int num_shapes;
+static int num_lights;
 
-/*
- * Static light sources
- */
-static light lights[] = {
-    {{0, 10, 0}, {1.0, 0.9, 0.7}, 3000},
-    {{20, 10, 15}, {0, 0, 1.0}, 6000},
-    {{-20, 10, 15}, {0.847, 0.2588, 0.2588}, 6000},
-    {{-100, 40, 80}, {0, 0.9, 0.7}, 90000},
-    {{100, 40, 80}, {1.0, 0, 0.7}, 90000},
-};
-
-static int num_lights = sizeof(lights) / sizeof(light);
-
-static vec camera_pos = {0, 0, 0};
-static vec camera_rot = {0, 0, 0};
-
-// Field of view in degrees
-static float fov = 80;
 static shape* shape_load;
+static light* light_load;
 // }}}
 
 // Sphere Tracing {{{
@@ -385,7 +359,7 @@ static hit sphere_trace(vec origin, vec dir) {
             vec color{0, 0, 0};
 
             for (int i = 0; i < num_lights; i++) {
-                vec light_point = vec_sub(lights[i].pos, pos);
+                vec light_point = vec_sub(light_load[i].pos, pos);
 
                 if (vec_dot(light_point, normal) > 0) {
                     vec light_dir = vec_normalize(light_point);
@@ -394,9 +368,9 @@ static hit sphere_trace(vec origin, vec dir) {
 
                     if (!sphere_trace_shadow(pos, light_dir, sqrt(dist_sq))) {
                         color = vec_add(color,
-                                        vec_scale(lights[i].color,
+                                        vec_scale(light_load[i].color,
                                                   vec_dot(light_dir, normal) *
-                                                      lights[i].intensity /
+                                                      light_load[i].intensity /
                                                       (4 * M_PI_F * dist_sq)));
                     }
                 }
@@ -441,17 +415,33 @@ static camera load_camera(json& j) {
     return cam;
 }
 
-static light load_light(json& j) {
-    // Loads a single light since all the scenes seem to only have one light.
-    // But can simply be adjusted to load multiple lights instead
+static light load_single_light(json& j) {
     light l;
-    json light = j["pointlight"];
-    l.pos = load_pos(light);
-    l.color = load_vec(light["emission"]);
+    l.pos = load_pos(j);
+    l.color = load_vec(j["emission"]);
     l.color = vec_scale(l.color, 1.f / 255.f);
-    l.intensity = 150000;
 
+    if (j.contains("intensity")) {
+        l.intensity = j["intensity"];
+    } else {
+        l.intensity = 150000;
+    }
     return l;
+}
+
+static std::vector<light> load_light(json& j) {
+    std::vector<light> lights;
+    json light = j["pointlight"];
+
+    if (light.is_array()) {
+        for (auto& l : light) {
+            lights.push_back(load_single_light(l));
+        }
+    } else {
+        lights.push_back(load_single_light(light));
+    }
+
+    return lights;
 }
 
 static void load_shapes(json& j) {
@@ -476,7 +466,7 @@ static void load_shapes(json& j) {
         } else if (current == "octahedron") {
             new_shape = load_octa(current_shape);
         } else {
-            std::cout << "something went wrong" << std::endl;
+            std::cerr << "Unknown shape " << current << std::endl;
             break;
         }
         shape_load[i] = new_shape;
@@ -502,36 +492,25 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
-    std::ofstream o;
-    o.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-
-    try {
-        o.open(output);
-    } catch (std::system_error& e) {
-        std::cerr << "Failed to open output file '" << output << "': " << strerror(errno) << std::endl;
-        return EXIT_FAILURE;
-    }
-
     json j;
     i >> j;
 
     ins_rst();
 
     // Height of the resulting image in pixels
-    int height = 480;
-    int width = 640;
+    int height = 1080;
+    int width = 1920;
 
     // load camera paremters
     camera cam = load_camera(j);
     // load light (as defined in scene, not with intensity parameter)
-    light l = load_light(j);
+    std::vector<light> lights = load_light(j);
+
+    light_load = lights.data();
+    num_lights = lights.size();
+
     // don't have to save shapes since it uses static variable
     load_shapes(j);
-
-    // TODO support multiple lights
-
-    lights[0] = l;
-    num_lights = 1;
 
     m44 camera_matrix = get_transf_matrix(cam.pos, cam.rotation);
 
@@ -571,6 +550,18 @@ int main(int argc, char** argv) {
             pixels[3 * (width * py + px) + 2] = color.z;
         }
     }
+
+
+    std::ofstream o;
+    o.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+
+    try {
+        o.open(output);
+    } catch (std::system_error& e) {
+        std::cerr << "Failed to open output file '" << output << "': " << strerror(errno) << std::endl;
+        return EXIT_FAILURE;
+    }
+
     dump_image(o, width, height, pixels.get());
 
     ins_dump();
