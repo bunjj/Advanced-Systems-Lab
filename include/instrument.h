@@ -15,11 +15,15 @@ typedef struct {
     uint64_t sqrt;
     uint64_t abs;
     uint64_t max;
+    uint64_t cmp;
 } flops_t;
 
 extern flops_t flops_counter;
 
-static inline void ins_dump() {
+static inline void ins_dump(const char *title) {
+    if (title) {
+        fprintf(stderr, "%s\n", title);
+    }
     fprintf(stderr, "==================\n");
     fprintf(stderr, "== FLOPS COUNTER =\n");
     fprintf(stderr, "ADD : %12" PRIu64 "\n", flops_counter.add);
@@ -29,6 +33,7 @@ static inline void ins_dump() {
     fprintf(stderr, "SQRT: %12" PRIu64 "\n", flops_counter.sqrt);
     fprintf(stderr, "ABS : %12" PRIu64 "\n", flops_counter.abs);
     fprintf(stderr, "MAX : %12" PRIu64 "\n", flops_counter.max);
+    fprintf(stderr, "CMP : %12" PRIu64 "\n", flops_counter.cmp);
     fprintf(stderr, "==================\n");
 }
 
@@ -53,6 +58,7 @@ static inline void ins_rst(void) {
 #define INS_SQRT INS_INC(sqrt)
 #define INS_ABS INS_INC(abs)
 #define INS_MAX INS_INC(max)
+#define INS_CMP INS_INC(cmp)
 
 #define FADD(x, y) (INS_ADD, ((x) + (y)))
 #define FMUL(x, y) (INS_MUL, ((x) * (y)))

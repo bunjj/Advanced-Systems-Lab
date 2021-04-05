@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #include <cmath>
+#include <assert.h>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -92,6 +93,7 @@ shape make_shape(const m44 matrix, distance_fun f, void* data,
 // Sphere {{{
 float sphere_distance(const shape s, const vec from) {
     sphere sp = *((sphere*)s.data);
+    INS_ADD;
     return vec_length(vec_sub(sp.center, from)) - sp.radius;
 }
 
@@ -100,9 +102,8 @@ vec sphere_normal(sphere s, vec pos) {
 }
 
 shape make_sphere(float x, float y, float z, float r) {
-    sphere s = {.center = {x, y, z}, .radius = r};
-    return make_shape(get_transf_matrix({x, y, z}, {0, 0, 0}), sphere_distance,
-                      &s, sizeof(s));
+    sphere s = {{x, y, z}, r};
+    return make_shape(get_transf_matrix({x, y, z}, {0, 0, 0}), sphere_distance, &s, sizeof(s));
 }
 
 shape load_sphere(json& j) {
@@ -119,8 +120,8 @@ float box_distance(const shape s, const vec from) {
     box b = *((box*)s.data);
     vec pos = vec4_to_vec(m44_mul_vec(s.inv_matrix, vec4_from_point(from)));
     vec q = vec_sub(vec_abs(pos), b.extents);
-    return vec_length(vec_max(q, 0)) +
-           std::min(0.0f, std::max({q.x, q.y, q.z}));
+    INS_INC1(max, 3);
+    return FADD(vec_length(vec_max(q, 0)), std::min(0.0f, std::max({q.x, q.y, q.z})));
 }
 
 shape make_box(vec bottom_left, vec extents, vec rot) {
@@ -146,7 +147,7 @@ float plane_distance(const shape s, const vec from) {
 }
 
 shape make_plane(vec normal, vec point) {
-    plane p = {.normal = vec_normalize(normal), .point = point};
+    plane p = {vec_normalize(normal), point};
     return make_shape(identity, plane_distance, &p, sizeof(p));
 }
 
@@ -163,8 +164,10 @@ float torus_distance(const shape s, const vec from) {
     torus t = *((torus*)s.data);
     vec pos = vec4_to_vec(m44_mul_vec(s.inv_matrix, vec4_from_point(from)));
     vec2 posxz = {pos.x, pos.z};
+    INS_ADD;
     vec2 q = {vec2_length(posxz) - t.r1, pos.y};
 
+    INS_ADD;
     return vec2_length(q) - t.r2;
 }
 
@@ -198,12 +201,21 @@ float cone_distance(const shape shap, const vec from) {
 
     vec2 q = {vec2_length({pos.x, pos.z}), pos.y};
     vec2 k1 = {r2, h};
+    INS_ADD;
+    INS_MUL;
     vec2 k2 = {r2 - r1, 2 * h};
+    INS_INC1(add, 2);
+    INS_ABS;
+    INS_CMP;
+    INS_MAX;
     vec2 ca = {q.x - std::min(q.x, (q.y < 0 ? r1 : r2)), fabsf(q.y) - h};
+    INS_DIV;
+    // TODO instrument clamp call
     vec2 cb = vec2_add(
         vec2_sub(q, k1),
         vec2_scale(k2, std::clamp(vec2_dot(vec2_sub(k1, q), k2) / vec2_dot2(k2),
                                   0.0f, 1.0f)));
+    INS_INC1(cmp, 2);
     float s = (cb.x < 0 && ca.y < 0) ? -1 : 1;
 
     return s * std::sqrt(std::min(vec2_dot2(ca), vec2_dot2(cb)));
@@ -238,21 +250,34 @@ float octahedron_distance(const shape shap, const vec from) {
 
     float s = o.s;
 
+    INS_INC1(add, 3);
     float m = pos.x + pos.y + pos.z - s;
     vec q;
 
     if (3 * pos.x < m) {
+        INS_INC1(mul, 1);
+        INS_INC1(cmp, 1);
         q = pos;
     } else if (3 * pos.y < m) {
+        INS_INC1(mul, 2);
+        INS_INC1(cmp, 2);
         q = {pos.y, pos.x, pos.z};
     } else if (3 * pos.z < m) {
+        INS_INC1(mul, 3);
+        INS_INC1(cmp, 3);
         q = {pos.z, pos.x, pos.y};
     } else {
+        INS_INC1(mul, 4);
+        INS_INC1(cmp, 3);
         return m * 0.57735027;
     }
 
+    // TODO instrument clamp
+    INS_MUL;
+    INS_INC1(add, 2);
     float k = std::clamp(0.5f * (q.z - q.y + s), 0.0f, s);
 
+    INS_INC1(add, 3);
     return vec_length({q.x, q.y - s + k, q.z - k});
 }
 
@@ -273,11 +298,10 @@ shape load_octa(json& j) {
 
 // }}}
 
+static shape* shapes;
 static int num_shapes;
+static light* lights;
 static int num_lights;
-
-static shape* shape_load;
-static light* light_load;
 // }}}
 
 // Sphere Tracing {{{
@@ -304,18 +328,20 @@ static bool sphere_trace_shadow(vec point, vec light_dir, float max_distance) {
         float min_distance = INFINITY;
 
         for (int k = 0; k < num_shapes; k++) {
-            float distance = shape_load[k].distance(shape_load[k], pos);
+            float distance = shapes[k].distance(shapes[k], pos);
 
+            INS_CMP;
             if (distance < min_distance) {
                 min_distance = distance;
 
+                INS_CMP;
                 if (min_distance <= EPS * t) {
                     return true;
                 }
             }
         }
 
-        t += min_distance;
+        t = FADD(t, min_distance);
     }
 
     return false;
@@ -333,20 +359,29 @@ static hit sphere_trace(vec origin, vec dir) {
         int shape_idx = -1;
 
         for (int k = 0; k < num_shapes; k++) {
-            float distance = shape_load[k].distance(shape_load[k], pos);
+            float distance = shapes[k].distance(shapes[k], pos);
 
+            INS_CMP;
             if (distance < min_distance) {
                 min_distance = distance;
                 shape_idx = k;
+
+                INS_CMP;
+                if (min_distance <= EPS) {
+                    break;
+                }
             }
         }
 
-        if (min_distance < EPS) {
-            shape s = shape_load[shape_idx];
+        INS_CMP;
+        if (min_distance <= EPS) {
+            shape s = shapes[shape_idx];
             static const float delta = 10e-5;
             vec delta1 = {delta, 0, 0};
             vec delta2 = {0, delta, 0};
             vec delta3 = {0, 0, delta};
+
+            INS_INC1(add, 3);
             // Some shapes can calculate this directly
             vec normal = vec_normalize({
                 s.distance(s, vec_add(pos, delta1)) -
@@ -359,19 +394,21 @@ static hit sphere_trace(vec origin, vec dir) {
             vec color{0, 0, 0};
 
             for (int i = 0; i < num_lights; i++) {
-                vec light_point = vec_sub(light_load[i].pos, pos);
+                vec light_point = vec_sub(lights[i].pos, pos);
 
+                INS_CMP;
                 if (vec_dot(light_point, normal) > 0) {
                     vec light_dir = vec_normalize(light_point);
                     // Squared distance from light to point
                     float dist_sq = vec_dot2(light_point);
 
-                    if (!sphere_trace_shadow(pos, light_dir, sqrt(dist_sq))) {
-                        color = vec_add(color,
-                                        vec_scale(light_load[i].color,
-                                                  vec_dot(light_dir, normal) *
-                                                      light_load[i].intensity /
-                                                      (4 * M_PI_F * dist_sq)));
+                    if (!sphere_trace_shadow(pos, light_dir, FSQRT(dist_sq))) {
+                        // TODO do we need to average over all lights?
+                        INS_INC1(mul, 3);
+                        INS_DIV;
+                        float factor = vec_dot(light_dir, normal) * lights[i].intensity / (4 * M_PI_F * dist_sq);
+                        vec color_add = vec_scale(lights[i].color, factor);
+                        color = vec_add(color, color_add);
                     }
                 }
             }
@@ -379,7 +416,7 @@ static hit sphere_trace(vec origin, vec dir) {
             return {true, t, steps, color};
         }
 
-        t += min_distance;
+        t = FADD(t, min_distance);
         steps++;
     }
 
@@ -394,12 +431,14 @@ static void dump_image(std::ostream& out, int width, int height, const float* pi
     for (int j = 0; j < height; j++) {
         for (int i = 0; i < width; i++) {
             for (int k = 0; k < 3; k++) {
-                char channel = std::min(1.0f, pixels[3 * (width * j + i) + k]) * 255;
+                unsigned char channel = std::clamp(pixels[3 * (width * j + i) + k], 0.f, 1.f) * 255.f;
                 out << channel;
             }
         }
     }
 }
+
+// Load JSON {{{
 
 /**
  *
@@ -419,6 +458,13 @@ static light load_single_light(json& j) {
     light l;
     l.pos = load_pos(j);
     l.color = load_vec(j["emission"]);
+    assert(l.color.x >= 0);
+    assert(l.color.x < 256);
+    assert(l.color.y >= 0);
+    assert(l.color.y < 256);
+    assert(l.color.z >= 0);
+    assert(l.color.z < 256);
+
     l.color = vec_scale(l.color, 1.f / 255.f);
 
     if (j.contains("intensity")) {
@@ -426,6 +472,7 @@ static light load_single_light(json& j) {
     } else {
         l.intensity = 150000;
     }
+
     return l;
 }
 
@@ -446,8 +493,7 @@ static std::vector<light> load_light(json& j) {
 
 static void load_shapes(json& j) {
     num_shapes = j["objects"].size();
-    // TODO check out implementation of shapes!
-    shape_load = (shape*)malloc(sizeof(shape) * num_shapes);
+    shapes = (shape*)malloc(sizeof(shape) * num_shapes);
 
     for (int i = 0; i < num_shapes; i++) {
         shape new_shape;
@@ -469,9 +515,11 @@ static void load_shapes(json& j) {
             std::cerr << "Unknown shape " << current << std::endl;
             break;
         }
-        shape_load[i] = new_shape;
+        shapes[i] = new_shape;
     }
 }
+
+// }}}
 
 int main(int argc, char** argv) {
     if (argc < 3) {
@@ -504,10 +552,10 @@ int main(int argc, char** argv) {
     // load camera paremters
     camera cam = load_camera(j);
     // load light (as defined in scene, not with intensity parameter)
-    std::vector<light> lights = load_light(j);
+    std::vector<light> lights_vector = load_light(j);
 
-    light_load = lights.data();
-    num_lights = lights.size();
+    lights = lights_vector.data();
+    num_lights = lights_vector.size();
 
     // don't have to save shapes since it uses static variable
     load_shapes(j);
@@ -522,6 +570,9 @@ int main(int argc, char** argv) {
 
     vec origin =
         vec4_to_vec(m44_mul_vec(camera_matrix, vec4_from_point({0, 0, 0})));
+
+    ins_dump("Setup");
+    ins_rst();
 
     for (int py = 0; py < height; py++) {
         for (int px = 0; px < width; px++) {
@@ -564,7 +615,7 @@ int main(int argc, char** argv) {
 
     dump_image(o, width, height, pixels.get());
 
-    ins_dump();
+    ins_dump(NULL);
 
     return 0;
 }
