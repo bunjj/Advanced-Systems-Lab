@@ -1,0 +1,15 @@
+---
+Language: Cpp
+Standard: c++17
+BasedOnStyle: Google
+ColumnLimit: 120
+IndentWidth: 4
+UseTab: Never
+NamespaceIndentation: All
+AlignAfterOpenBracket: DontAlign
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: false
+BreakConstructorInitializersBeforeComma: true
+DerivePointerAlignment: false
+PointerAlignment: Left
+---
