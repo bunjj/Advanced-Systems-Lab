@@ -1,13 +1,38 @@
 #pragma once
 
 #include <math.h>
-#include <iostream>
+
 #include <iomanip>
+#include <iostream>
 
 #include "instrument.h"
 
 extern float M_PI_F;
 #define TO_RAD(angle) ((angle) / 180.0f * M_PI_F)
+
+static inline float max(float x, float y) {
+    INS_CMP;
+    return x > y ? x : y;
+}
+
+static inline float min(float x, float y) {
+    INS_CMP;
+    return x < y ? x : y;
+}
+
+static inline float clamp(float x, float lo, float hi) {
+    INS_CMP;
+    if (x < lo) {
+        return lo;
+    }
+
+    INS_CMP;
+    if (x > hi) {
+        return hi;
+    }
+
+    return x;
+}
 
 // Vec {{{
 
@@ -19,15 +44,17 @@ struct vec {
 
 std::ostream& operator<<(std::ostream& out, const vec& v);
 
-#define VEC_OP(v1, v2, OP) \
-    vec { (v1).x OP(v2).x, (v1).y OP(v2).y, (v1).z OP(v2).z }
+#define VEC_OP(v1, v2, OP)                                \
+    vec {                                                 \
+        (v1).x OP(v2).x, (v1).y OP(v2).y, (v1).z OP(v2).z \
+    }
 
-static inline vec vec_add(vec v1, vec v2) { 
+static inline vec vec_add(vec v1, vec v2) {
     INS_INC1(add, 3);
     return VEC_OP(v1, v2, +);
 }
 
-static inline vec vec_sub(vec v1, vec v2) { 
+static inline vec vec_sub(vec v1, vec v2) {
     INS_INC1(add, 3);
     return VEC_OP(v1, v2, -);
 }
@@ -47,7 +74,7 @@ static inline float vec_dot2(vec v) {
     return vec_dot(v, v);
 }
 
-static inline float vec_length(vec v) { 
+static inline float vec_length(vec v) {
     return FSQRT(vec_dot2(v));
 }
 
@@ -57,14 +84,13 @@ static inline vec vec_normalize(vec v) {
     return vec{v.x / len, v.y / len, v.z / len};
 }
 
-static inline vec vec_abs(vec v) { 
+static inline vec vec_abs(vec v) {
     INS_INC1(abs, 3);
-    return {fabsf(v.x), fabsf(v.y), fabsf(v.z)}; 
+    return {fabsf(v.x), fabsf(v.y), fabsf(v.z)};
 }
 
 static inline vec vec_max(vec v, float val) {
-    INS_INC1(max, 3);
-    return {std::max(v.x, val), std::max(v.y, val), std::max(v.z, val)};
+    return {max(v.x, val), max(v.y, val), max(v.z, val)};
 }
 // }}}
 
@@ -74,8 +100,10 @@ struct vec2 {
     float y;
 };
 
-#define VEC2_OP(v1, v2, OP) \
-    vec2{ (v1).x OP(v2).x, (v1).y OP(v2).y }
+#define VEC2_OP(v1, v2, OP)              \
+    vec2 {                               \
+        (v1).x OP(v2).x, (v1).y OP(v2).y \
+    }
 
 static inline vec2 vec2_sub(vec2 v1, vec2 v2) {
     INS_INC1(add, 2);
@@ -126,11 +154,17 @@ static inline float vec4_dot(vec4 v1, vec4 v2) {
     return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z + v1.t * v2.t;
 }
 
-static inline vec4 vec4_from_point(vec p) { return {p.x, p.y, p.z, 1}; }
+static inline vec4 vec4_from_point(vec p) {
+    return {p.x, p.y, p.z, 1};
+}
 
-static inline vec4 vec4_from_dir(vec p) { return {p.x, p.y, p.z, 0}; }
+static inline vec4 vec4_from_dir(vec p) {
+    return {p.x, p.y, p.z, 0};
+}
 
-static inline vec vec4_to_vec(vec4 p) { return {p.x, p.y, p.z}; }
+static inline vec vec4_to_vec(vec4 p) {
+    return {p.x, p.y, p.z};
+}
 
 static inline vec4 get_base_vec4(int idx) {
     switch (idx) {
@@ -186,8 +220,7 @@ struct m44 {
     };
 };
 
-static const m44 identity =
-    m44(get_base_vec4(0), get_base_vec4(1), get_base_vec4(2), get_base_vec4(3));
+static const m44 identity = m44(get_base_vec4(0), get_base_vec4(1), get_base_vec4(2), get_base_vec4(3));
 
 m44 get_transf_matrix(vec pos, vec rot);
 m44 get_rot_matrix(vec rot);

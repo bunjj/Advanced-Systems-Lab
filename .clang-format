@@ -1,8 +1,10 @@
 ---
 Language: Cpp
-Standard: Cpp17
+Standard: c++17
 BasedOnStyle: Google
 ColumnLimit: 120
+IndentWidth: 4
+UseTab: Never
 NamespaceIndentation: All
 AlignAfterOpenBracket: DontAlign
 AllowShortFunctionsOnASingleLine: Empty

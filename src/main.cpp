@@ -1,9 +1,9 @@
+#include <assert.h>
 #include <dbg.h>
 #include <inttypes.h>
 #include <stdio.h>
 
 #include <cmath>
-#include <assert.h>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -11,8 +11,8 @@
 #include <nlohmann/json.hpp>
 
 #include "geometry.h"
-#include "loader.h"
 #include "instrument.h"
+#include "loader.h"
 
 flops_t flops_counter;
 
@@ -70,8 +70,7 @@ typedef float (*distance_fun)(const struct shape s, const vec pos);
 
 struct shape {
     distance_fun distance;
-    char data[std::max({sizeof(sphere), sizeof(plane), sizeof(box),
-                        sizeof(torus), sizeof(cone), sizeof(octa)})];
+    char data[std::max({sizeof(sphere), sizeof(plane), sizeof(box), sizeof(torus), sizeof(cone), sizeof(octa)})];
     // The matrix for transforming any point in the object space into the world
     // space.
     m44 matrix;
@@ -80,8 +79,7 @@ struct shape {
     m44 inv_matrix;
 };
 
-shape make_shape(const m44 matrix, distance_fun f, void* data,
-                 size_t data_size) {
+shape make_shape(const m44 matrix, distance_fun f, void* data, size_t data_size) {
     shape shap;
     shap.distance = f;
     shap.matrix = matrix;
@@ -92,6 +90,7 @@ shape make_shape(const m44 matrix, distance_fun f, void* data,
 
 // Sphere {{{
 float sphere_distance(const shape s, const vec from) {
+    INS_INC(sphere);
     sphere sp = *((sphere*)s.data);
     INS_ADD;
     return vec_length(vec_sub(sp.center, from)) - sp.radius;
@@ -117,17 +116,16 @@ shape load_sphere(json& j) {
 
 // Box {{{
 float box_distance(const shape s, const vec from) {
+    INS_INC(box);
     box b = *((box*)s.data);
     vec pos = vec4_to_vec(m44_mul_vec(s.inv_matrix, vec4_from_point(from)));
     vec q = vec_sub(vec_abs(pos), b.extents);
-    INS_INC1(max, 3);
-    return FADD(vec_length(vec_max(q, 0)), std::min(0.0f, std::max({q.x, q.y, q.z})));
+    return FADD(vec_length(vec_max(q, 0)), min(0.0f, max(max(q.x, q.y), q.z)));
 }
 
 shape make_box(vec bottom_left, vec extents, vec rot) {
     box s = {bottom_left, extents};
-    return make_shape(get_transf_matrix(bottom_left, rot), box_distance, &s,
-                      sizeof(s));
+    return make_shape(get_transf_matrix(bottom_left, rot), box_distance, &s, sizeof(s));
 }
 
 shape load_box(json& j) {
@@ -142,6 +140,7 @@ shape load_box(json& j) {
 // Plane {{{
 
 float plane_distance(const shape s, const vec from) {
+    INS_INC(plane);
     plane p = *((plane*)s.data);
     return vec_dot(p.normal, vec_sub(from, p.point));
 }
@@ -161,6 +160,7 @@ shape load_plane(json& j) {
 
 // Torus {{{
 float torus_distance(const shape s, const vec from) {
+    INS_INC(torus);
     torus t = *((torus*)s.data);
     vec pos = vec4_to_vec(m44_mul_vec(s.inv_matrix, vec4_from_point(from)));
     vec2 posxz = {pos.x, pos.z};
@@ -173,8 +173,7 @@ float torus_distance(const shape s, const vec from) {
 
 shape make_torus(vec center, float r1, float r2, vec rot) {
     torus t = {center, r1, r2};
-    return make_shape(get_transf_matrix(center, rot), torus_distance, &t,
-                      sizeof(t));
+    return make_shape(get_transf_matrix(center, rot), torus_distance, &t, sizeof(t));
 }
 
 shape load_torus(json& j) {
@@ -192,6 +191,7 @@ shape load_torus(json& j) {
 
 // Cone {{{
 float cone_distance(const shape shap, const vec from) {
+    INS_INC(cone);
     cone c = *((cone*)shap.data);
     vec pos = vec4_to_vec(m44_mul_vec(shap.inv_matrix, vec4_from_point(from)));
 
@@ -207,24 +207,21 @@ float cone_distance(const shape shap, const vec from) {
     INS_INC1(add, 2);
     INS_ABS;
     INS_CMP;
-    INS_MAX;
-    vec2 ca = {q.x - std::min(q.x, (q.y < 0 ? r1 : r2)), fabsf(q.y) - h};
+    vec2 ca = {q.x - min(q.x, (q.y < 0 ? r1 : r2)), fabsf(q.y) - h};
     INS_DIV;
-    // TODO instrument clamp call
-    vec2 cb = vec2_add(
-        vec2_sub(q, k1),
-        vec2_scale(k2, std::clamp(vec2_dot(vec2_sub(k1, q), k2) / vec2_dot2(k2),
-                                  0.0f, 1.0f)));
+    vec2 cb =
+        vec2_add(vec2_sub(q, k1), vec2_scale(k2, clamp(vec2_dot(vec2_sub(k1, q), k2) / vec2_dot2(k2), 0.0f, 1.0f)));
     INS_INC1(cmp, 2);
     float s = (cb.x < 0 && ca.y < 0) ? -1 : 1;
 
-    return s * std::sqrt(std::min(vec2_dot2(ca), vec2_dot2(cb)));
+    INS_MUL;
+    INS_SQRT;
+    return s * sqrtf(min(vec2_dot2(ca), vec2_dot2(cb)));
 }
 
 shape make_cone(vec center, float r1, float r2, float height, vec rot) {
     cone c = {center, r1, r2, height};
-    return make_shape(get_transf_matrix(center, rot), cone_distance, &c,
-                      sizeof(c));
+    return make_shape(get_transf_matrix(center, rot), cone_distance, &c, sizeof(c));
 }
 
 shape load_cone(json& j) {
@@ -244,6 +241,7 @@ shape load_cone(json& j) {
 
 // Octahedron {{{
 float octahedron_distance(const shape shap, const vec from) {
+    INS_INC(octa);
     octa o = *((octa*)shap.data);
     vec pos = vec4_to_vec(m44_mul_vec(shap.inv_matrix, vec4_from_point(from)));
     pos = vec_abs(pos);
@@ -272,10 +270,9 @@ float octahedron_distance(const shape shap, const vec from) {
         return m * 0.57735027;
     }
 
-    // TODO instrument clamp
     INS_MUL;
     INS_INC1(add, 2);
-    float k = std::clamp(0.5f * (q.z - q.y + s), 0.0f, s);
+    float k = clamp(0.5f * (q.z - q.y + s), 0.0f, s);
 
     INS_INC1(add, 3);
     return vec_length({q.x, q.y - s + k, q.z - k});
@@ -283,14 +280,13 @@ float octahedron_distance(const shape shap, const vec from) {
 
 shape make_octahedron(vec center, float s, vec rot) {
     octa o = {center, s};
-    return make_shape(get_transf_matrix(center, rot), octahedron_distance, &o,
-                      sizeof(o));
+    return make_shape(get_transf_matrix(center, rot), octahedron_distance, &o, sizeof(o));
 }
 
 shape load_octa(json& j) {
     float s;
     vec pos = load_pos(j);
-    vec rot =  load_rot(j);
+    vec rot = load_rot(j);
 
     s = j["params"]["s"];
     return make_octahedron(pos, s, rot);
@@ -384,12 +380,9 @@ static hit sphere_trace(vec origin, vec dir) {
             INS_INC1(add, 3);
             // Some shapes can calculate this directly
             vec normal = vec_normalize({
-                s.distance(s, vec_add(pos, delta1)) -
-                    s.distance(s, vec_sub(pos, delta1)),
-                s.distance(s, vec_add(pos, delta2)) -
-                    s.distance(s, vec_sub(pos, delta2)),
-                s.distance(s, vec_add(pos, delta3)) -
-                    s.distance(s, vec_sub(pos, delta3)),
+                s.distance(s, vec_add(pos, delta1)) - s.distance(s, vec_sub(pos, delta1)),
+                s.distance(s, vec_add(pos, delta2)) - s.distance(s, vec_sub(pos, delta2)),
+                s.distance(s, vec_add(pos, delta3)) - s.distance(s, vec_sub(pos, delta3)),
             });
             vec color{0, 0, 0};
 
@@ -403,7 +396,6 @@ static hit sphere_trace(vec origin, vec dir) {
                     float dist_sq = vec_dot2(light_point);
 
                     if (!sphere_trace_shadow(pos, light_dir, FSQRT(dist_sq))) {
-                        // TODO do we need to average over all lights?
                         INS_INC1(mul, 3);
                         INS_DIV;
                         float factor = vec_dot(light_dir, normal) * lights[i].intensity / (4 * M_PI_F * dist_sq);
@@ -568,8 +560,7 @@ int main(int argc, char** argv) {
 
     auto pixels = std::make_unique<float[]>(height * width * 3);
 
-    vec origin =
-        vec4_to_vec(m44_mul_vec(camera_matrix, vec4_from_point({0, 0, 0})));
+    vec origin = vec4_to_vec(m44_mul_vec(camera_matrix, vec4_from_point({0, 0, 0})));
 
     ins_dump("Setup");
     ins_rst();
@@ -583,6 +574,9 @@ int main(int argc, char** argv) {
              * image plane is one unit away from the camera (z = -1 in this
              * case).
              */
+            INS_INC1(add, 4);
+            INS_INC1(mul, 5);
+            INS_INC1(div, 2);
             float x = (2 * (px + 0.5) / width - 1) * aspect_ratio * fov_factor;
             float y = (1 - 2 * (py + 0.5) / height) * fov_factor;
             float z = 1;
@@ -601,7 +595,6 @@ int main(int argc, char** argv) {
             pixels[3 * (width * py + px) + 2] = color.z;
         }
     }
-
 
     std::ofstream o;
     o.exceptions(std::ifstream::failbit | std::ifstream::badbit);

@@ -1,7 +1,7 @@
 #pragma once
 
-#include <stdint.h>
 #include <inttypes.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -14,27 +14,37 @@ typedef struct {
     uint64_t div;
     uint64_t sqrt;
     uint64_t abs;
-    uint64_t max;
     uint64_t cmp;
+    uint64_t sphere;
+    uint64_t plane;
+    uint64_t box;
+    uint64_t torus;
+    uint64_t cone;
+    uint64_t octa;
 } flops_t;
 
 extern flops_t flops_counter;
 
-static inline void ins_dump(const char *title) {
+static inline void ins_dump(const char* title) {
     if (title) {
         fprintf(stderr, "%s\n", title);
     }
-    fprintf(stderr, "==================\n");
-    fprintf(stderr, "== FLOPS COUNTER =\n");
-    fprintf(stderr, "ADD : %12" PRIu64 "\n", flops_counter.add);
-    fprintf(stderr, "MUL : %12" PRIu64 "\n", flops_counter.mul);
-    fprintf(stderr, "FMA : %12" PRIu64 "\n", flops_counter.fma);
-    fprintf(stderr, "DIV : %12" PRIu64 "\n", flops_counter.div);
-    fprintf(stderr, "SQRT: %12" PRIu64 "\n", flops_counter.sqrt);
-    fprintf(stderr, "ABS : %12" PRIu64 "\n", flops_counter.abs);
-    fprintf(stderr, "MAX : %12" PRIu64 "\n", flops_counter.max);
-    fprintf(stderr, "CMP : %12" PRIu64 "\n", flops_counter.cmp);
-    fprintf(stderr, "==================\n");
+    fprintf(stderr, "====================\n");
+    fprintf(stderr, "=== FLOPS COUNTER ==\n");
+    fprintf(stderr, "ADD   : %12" PRIu64 "\n", flops_counter.add);
+    fprintf(stderr, "MUL   : %12" PRIu64 "\n", flops_counter.mul);
+    fprintf(stderr, "FMA   : %12" PRIu64 "\n", flops_counter.fma);
+    fprintf(stderr, "DIV   : %12" PRIu64 "\n", flops_counter.div);
+    fprintf(stderr, "SQRT  : %12" PRIu64 "\n", flops_counter.sqrt);
+    fprintf(stderr, "ABS   : %12" PRIu64 "\n", flops_counter.abs);
+    fprintf(stderr, "CMP   : %12" PRIu64 "\n", flops_counter.cmp);
+    fprintf(stderr, "SPHERE: %12" PRIu64 "\n", flops_counter.sphere);
+    fprintf(stderr, "PLANE : %12" PRIu64 "\n", flops_counter.plane);
+    fprintf(stderr, "BOX   : %12" PRIu64 "\n", flops_counter.box);
+    fprintf(stderr, "TORUS : %12" PRIu64 "\n", flops_counter.torus);
+    fprintf(stderr, "CONE  : %12" PRIu64 "\n", flops_counter.cone);
+    fprintf(stderr, "OCTA  : %12" PRIu64 "\n", flops_counter.octa);
+    fprintf(stderr, "====================\n");
 }
 
 #ifndef DO_INSTRUMENT
@@ -57,7 +67,6 @@ static inline void ins_rst(void) {
 #define INS_DIV INS_INC(div)
 #define INS_SQRT INS_INC(sqrt)
 #define INS_ABS INS_INC(abs)
-#define INS_MAX INS_INC(max)
 #define INS_CMP INS_INC(cmp)
 
 #define FADD(x, y) (INS_ADD, ((x) + (y)))
