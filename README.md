@@ -19,6 +19,9 @@ Several options can be set for the `cmake` command:
 * `-DSANITIZE=ON`: Turns on the address and undefined behavior sanitizer for debugging.
 * `-DCMAKE_BUILD_TYPE=Release`/`-DCMAKE_BUILD_TYPE=Debug` Use release mode or debug mode.
 
+On macOS:
+* `-DCMAKE_C_COMPILER=/usr/local/bin/gcc-10` and `-DCMAKE_CXX_COMPILER=/usr/local/bin/g++-10`: Actually use gcc instead of Apple clang. `gcc-10` can be installed using Homebrew.
+
 For benchmarking 
 
 ```bash
