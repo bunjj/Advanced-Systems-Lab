@@ -14,16 +14,12 @@ endif()
 
 set(name "main")
 
-find_package(nlohmann_json REQUIRED)
-
 option(INSTRUMENT "Instrument code with flop counters" OFF)
+option(SANITIZE "Adds UB and Address Sanitizers" OFF)
 
 add_executable(${name} src/main.cpp src/loader.cpp src/geometry.cpp)
 target_include_directories(${name} PUBLIC include)
-target_compile_options(${name} PUBLIC -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-fsanitize=undefined,address -g -O0 -DDEBUG>)
-target_link_options(${name} PUBLIC $<$<CONFIG:Debug>:-fsanitize=undefined,address>)
-target_link_libraries(${name} PRIVATE nlohmann_json::nlohmann_json)
-
-if (INSTRUMENT)
-    add_compile_definitions(DO_INSTRUMENT) 
-endif()
+target_include_directories(${name} SYSTEM PRIVATE ${CMAKE_SOURCE_DIR}/ext)
+target_compile_options(${name} PUBLIC -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-g -O0 -DDEBUG> $<$<BOOL:${SANITIZE}>:-fsanitize=undefined,address>)
+target_link_options(${name} PUBLIC $<$<BOOL:${SANITIZE}>:-fsanitize=undefined,address>)
+add_compile_definitions($<$<BOOL:${INSTRUMENT}>:DO_INSTRUMENT> $<$<CONFIG:Release>:DBG_MACRO_DISABLE> DBG_MACRO_NO_WARNING)

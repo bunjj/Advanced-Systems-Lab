@@ -25,6 +25,14 @@ typedef struct {
 
 extern flops_t flops_counter;
 
+#ifndef DO_INSTRUMENT
+
+#define ins_dump(title) NOP
+#define ins_rst() NOP
+#define INS_INC1(name, offset) NOP
+
+#else
+
 static inline void ins_dump(const char* title) {
     if (title) {
         fprintf(stderr, "%s\n", title);
@@ -47,12 +55,6 @@ static inline void ins_dump(const char* title) {
     fprintf(stderr, "====================\n");
 }
 
-#ifndef DO_INSTRUMENT
-
-#define ins_rst() NOP
-#define INS_INC1(name, offset) NOP
-
-#else
 static inline void ins_rst(void) {
     memset(&flops_counter, 0, sizeof(flops_counter));
 }
