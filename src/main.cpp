@@ -386,6 +386,8 @@ static hit sphere_trace(vec origin, vec dir) {
             });
             vec color{0, 0, 0};
 
+            vec diffuse = {0.f, 0.f, 0.f};
+            vec specular = {0.f, 0.f, 0.f};
             for (int i = 0; i < num_lights; i++) {
                 vec light_point = vec_sub(lights[i].pos, pos);
 
@@ -398,12 +400,26 @@ static hit sphere_trace(vec origin, vec dir) {
                     if (!sphere_trace_shadow(pos, light_dir, FSQRT(dist_sq))) {
                         INS_INC1(mul, 3);
                         INS_DIV;
-                        float factor = vec_dot(light_dir, normal) * lights[i].intensity / (4 * M_PI_F * dist_sq);
-                        vec color_add = vec_scale(lights[i].color, factor);
-                        color = vec_add(color, color_add);
+
+                        float light_intensity = lights[i].intensity / (4 * M_PI_F * dist_sq);
+
+                        // diffuse
+                        diffuse = vec_add(diffuse, vec_scale(lights[i].color, light_intensity * max(0.f, vec_dot(normal, light_dir))));
+                        
+                        // specular
+                        float n = 1.f;
+                        vec r = vec_add(vec_scale(normal, 2 * vec_dot(normal, vec_scale(light_dir, -1.f))), light_dir);
+                        specular = vec_add(specular, vec_scale(lights[i].color, light_intensity * pow(max(0.f, vec_dot(r, dir)), n)));
+
+
+                        // TODO: take into account the object's color
                     }
                 }
             }
+
+            float kd = 0.6f; // diffuse parameter
+            float ks = 0.1f; // specular parameter
+            color = vec_add(color, vec_add(vec_scale(diffuse, kd), vec_scale(specular, ks)));
 
             return {true, t, steps, color};
         }
