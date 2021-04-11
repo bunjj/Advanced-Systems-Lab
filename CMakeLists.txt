@@ -9,7 +9,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release")
-  message_colored(STATUS "No build type specified; using ${CMAKE_BUILD_TYPE}" 33)
+  message(STATUS "No build type specified; using ${CMAKE_BUILD_TYPE}")
 endif()
 
 set(name "main")
