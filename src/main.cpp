@@ -417,9 +417,8 @@ static hit sphere_trace(vec origin, vec dir) {
                     float dist_sq = vec_dot2(light_point);
 
                     if (!sphere_trace_shadow(pos, light_dir, FSQRT(dist_sq))) {
-                        INS_INC1(mul, 3);
+                        INS_INC1(mul, 2);
                         INS_DIV;
-
                         vec light_intensity = vec_scale(lights[i].color, lights[i].intensity / (4 * M_PI_F * dist_sq));
 
                         // diffuse
@@ -428,27 +427,30 @@ static hit sphere_trace(vec origin, vec dir) {
                         // specular
                         // TODO: how to choose n?
                         float n = 4.f;
+                        INS_MUL;
                         vec r = vec_add(vec_scale(normal, 2 * vec_dot(normal, vec_scale(light_dir, -1.f))), light_dir);
+                        INS_POW;
                         specular = vec_add(specular, vec_scale(light_intensity, pow(max(0.f, vec_dot(r, dir)), n)));
-
-
-                        // TODO: take into account the object's color
                     }
                 }
             }
 
             // TODO: not clear what the unit of the shininess parameter in the scenes is
             // TODO: is ks + kd == 1 really a requirement?
-            float ks = s.shininess / 100.f; // specular parameter
+            INS_MUL;
+            float ks = s.shininess * 0.01f; // specular parameter
+            INS_ADD;
             float kd = 1 - ks; // diffuse parameter
 
             vec object_color = s.color;
 
             // scale object color s.t. intensity of most prominent color is 1
             float max_color = max(max(object_color.x, object_color.y), object_color.z);
+            INS_DIV;
             float scale_factor = 1.f / max_color;
             object_color = vec_scale(object_color, scale_factor);
 
+            INS_INC1(mul, 3);
             diffuse = {diffuse.x * object_color.x, diffuse.y * object_color.y, diffuse.z * object_color.z};
             color = vec_add(color, vec_add(vec_scale(diffuse, kd), vec_scale(specular, ks)));
 

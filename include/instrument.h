@@ -15,6 +15,7 @@ typedef struct {
     uint64_t sqrt;
     uint64_t abs;
     uint64_t cmp;
+    uint64_t pow;
     uint64_t sphere;
     uint64_t plane;
     uint64_t box;
@@ -46,6 +47,7 @@ static inline void ins_dump(const char* title) {
     fprintf(stderr, "SQRT  : %12" PRIu64 "\n", flops_counter.sqrt);
     fprintf(stderr, "ABS   : %12" PRIu64 "\n", flops_counter.abs);
     fprintf(stderr, "CMP   : %12" PRIu64 "\n", flops_counter.cmp);
+    fprintf(stderr, "POW   : %12" PRIu64 "\n", flops_counter.pow);
     fprintf(stderr, "SPHERE: %12" PRIu64 "\n", flops_counter.sphere);
     fprintf(stderr, "PLANE : %12" PRIu64 "\n", flops_counter.plane);
     fprintf(stderr, "BOX   : %12" PRIu64 "\n", flops_counter.box);
@@ -70,6 +72,7 @@ static inline void ins_rst(void) {
 #define INS_SQRT INS_INC(sqrt)
 #define INS_ABS INS_INC(abs)
 #define INS_CMP INS_INC(cmp)
+#define INS_POW INS_INC(pow)
 
 #define FADD(x, y) (INS_ADD, ((x) + (y)))
 #define FMUL(x, y) (INS_MUL, ((x) * (y)))
