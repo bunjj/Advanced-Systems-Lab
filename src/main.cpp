@@ -77,13 +77,17 @@ struct shape {
     // Inverse of the above matrix. Transforms points in the world space into
     // the object space.
     m44 inv_matrix;
+    vec color;
+    float shininess;
 };
 
-shape make_shape(const m44 matrix, distance_fun f, void* data, size_t data_size) {
+shape make_shape(vec color, float shininess, const m44 matrix, distance_fun f, void* data, size_t data_size) {
     shape shap;
     shap.distance = f;
     shap.matrix = matrix;
     shap.inv_matrix = m44_inv(matrix);
+    shap.color = color;
+    shap.shininess = shininess;
     memcpy(&shap.data, data, data_size);
     return shap;
 }
@@ -100,16 +104,18 @@ vec sphere_normal(sphere s, vec pos) {
     return vec_normalize(vec_sub(pos, s.center));
 }
 
-shape make_sphere(float x, float y, float z, float r) {
+shape make_sphere(float x, float y, float z, float r, vec color, float shininess) {
     sphere s = {{x, y, z}, r};
-    return make_shape(get_transf_matrix({x, y, z}, {0, 0, 0}), sphere_distance, &s, sizeof(s));
+    return make_shape(color, shininess, get_transf_matrix({x, y, z}, {0, 0, 0}), sphere_distance, &s, sizeof(s));
 }
 
 shape load_sphere(json& j) {
     float r;
     vec pos = load_pos(j);
     r = j["params"]["radius"];
-    return make_sphere(pos.x, pos.y, pos.z, r);
+    vec color = load_vec(j["color"]);
+    float shininess = j["shininess"];
+    return make_sphere(pos.x, pos.y, pos.z, r, color, shininess);
 }
 
 // }}}
@@ -123,16 +129,18 @@ float box_distance(const shape s, const vec from) {
     return FADD(vec_length(vec_max(q, 0)), min(0.0f, max(max(q.x, q.y), q.z)));
 }
 
-shape make_box(vec bottom_left, vec extents, vec rot) {
+shape make_box(vec bottom_left, vec extents, vec rot, vec color, float shininess) {
     box s = {bottom_left, extents};
-    return make_shape(get_transf_matrix(bottom_left, rot), box_distance, &s, sizeof(s));
+    return make_shape(color, shininess, get_transf_matrix(bottom_left, rot), box_distance, &s, sizeof(s));
 }
 
 shape load_box(json& j) {
     vec pos = load_pos(j);
     vec extents = load_vec(j["params"]["extents"]);
     vec rot = load_rot(j);
-    return make_box(pos, extents, rot);
+    vec color = load_vec(j["color"]);
+    float shininess = j["shininess"];
+    return make_box(pos, extents, rot, color, shininess);
 }
 
 // }}}
@@ -145,16 +153,18 @@ float plane_distance(const shape s, const vec from) {
     return vec_dot(p.normal, vec_sub(from, p.point));
 }
 
-shape make_plane(vec normal, vec point) {
+shape make_plane(vec normal, vec point, vec color, float shininess) {
     plane p = {vec_normalize(normal), point};
-    return make_shape(identity, plane_distance, &p, sizeof(p));
+    return make_shape(color, shininess, identity, plane_distance, &p, sizeof(p));
 }
 
 shape load_plane(json& j) {
     float displacement = j["params"]["displacement"];
     vec normal = load_vec(j["params"]["normal"]);
     vec point = vec_scale(normal, displacement);
-    return make_plane(normal, point);
+    vec color = load_vec(j["color"]);
+    float shininess = j["shininess"];
+    return make_plane(normal, point, color, shininess);
 }
 // }}}
 
@@ -171,9 +181,9 @@ float torus_distance(const shape s, const vec from) {
     return vec2_length(q) - t.r2;
 }
 
-shape make_torus(vec center, float r1, float r2, vec rot) {
+shape make_torus(vec center, float r1, float r2, vec rot, vec color, float shininess) {
     torus t = {center, r1, r2};
-    return make_shape(get_transf_matrix(center, rot), torus_distance, &t, sizeof(t));
+    return make_shape(color, shininess, get_transf_matrix(center, rot), torus_distance, &t, sizeof(t));
 }
 
 shape load_torus(json& j) {
@@ -184,7 +194,10 @@ shape load_torus(json& j) {
     r1 = j["params"]["r1"];
     r2 = j["params"]["r2"];
 
-    return make_torus(pos, r1, r2, rot);
+    vec color = load_vec(j["color"]);
+    float shininess = j["shininess"];
+
+    return make_torus(pos, r1, r2, rot, color, shininess);
 }
 
 // }}}
@@ -219,9 +232,9 @@ float cone_distance(const shape shap, const vec from) {
     return s * sqrtf(min(vec2_dot2(ca), vec2_dot2(cb)));
 }
 
-shape make_cone(vec center, float r1, float r2, float height, vec rot) {
+shape make_cone(vec center, float r1, float r2, float height, vec rot, vec color, float shininess) {
     cone c = {center, r1, r2, height};
-    return make_shape(get_transf_matrix(center, rot), cone_distance, &c, sizeof(c));
+    return make_shape(color, shininess, get_transf_matrix(center, rot), cone_distance, &c, sizeof(c));
 }
 
 shape load_cone(json& j) {
@@ -234,7 +247,10 @@ shape load_cone(json& j) {
     r2 = j["params"][1];
     height = j["params"][2];
 
-    return make_cone(pos, r1, r2, height, rot);
+    vec color = load_vec(j["color"]);
+    float shininess = j["shininess"];
+
+    return make_cone(pos, r1, r2, height, rot, color, shininess);
 }
 
 // }}}
@@ -278,9 +294,9 @@ float octahedron_distance(const shape shap, const vec from) {
     return vec_length({q.x, q.y - s + k, q.z - k});
 }
 
-shape make_octahedron(vec center, float s, vec rot) {
+shape make_octahedron(vec center, float s, vec rot, vec color, float shininess) {
     octa o = {center, s};
-    return make_shape(get_transf_matrix(center, rot), octahedron_distance, &o, sizeof(o));
+    return make_shape(color, shininess, get_transf_matrix(center, rot), octahedron_distance, &o, sizeof(o));
 }
 
 shape load_octa(json& j) {
@@ -289,7 +305,10 @@ shape load_octa(json& j) {
     vec rot = load_rot(j);
 
     s = j["params"]["s"];
-    return make_octahedron(pos, s, rot);
+    vec color = load_vec(j["color"]);
+    float shininess = j["shininess"];
+
+    return make_octahedron(pos, s, rot, color, shininess);
 }
 
 // }}}
@@ -401,15 +420,16 @@ static hit sphere_trace(vec origin, vec dir) {
                         INS_INC1(mul, 3);
                         INS_DIV;
 
-                        float light_intensity = lights[i].intensity / (4 * M_PI_F * dist_sq);
+                        vec light_intensity = vec_scale(lights[i].color, lights[i].intensity / (4 * M_PI_F * dist_sq));
 
                         // diffuse
-                        diffuse = vec_add(diffuse, vec_scale(lights[i].color, light_intensity * max(0.f, vec_dot(normal, light_dir))));
+                        diffuse = vec_add(diffuse, vec_scale(light_intensity, max(0.f, vec_dot(normal, light_dir))));
                         
                         // specular
-                        float n = 1.f;
+                        // TODO: how to choose n?
+                        float n = 4.f;
                         vec r = vec_add(vec_scale(normal, 2 * vec_dot(normal, vec_scale(light_dir, -1.f))), light_dir);
-                        specular = vec_add(specular, vec_scale(lights[i].color, light_intensity * pow(max(0.f, vec_dot(r, dir)), n)));
+                        specular = vec_add(specular, vec_scale(light_intensity, pow(max(0.f, vec_dot(r, dir)), n)));
 
 
                         // TODO: take into account the object's color
@@ -417,8 +437,19 @@ static hit sphere_trace(vec origin, vec dir) {
                 }
             }
 
-            float kd = 0.6f; // diffuse parameter
-            float ks = 0.1f; // specular parameter
+            // TODO: not clear what the unit of the shininess parameter in the scenes is
+            // TODO: is ks + kd == 1 really a requirement?
+            float ks = s.shininess / 100.f; // specular parameter
+            float kd = 1 - ks; // diffuse parameter
+
+            vec object_color = s.color;
+
+            // scale object color s.t. intensity of most prominent color is 1
+            float max_color = max(max(object_color.x, object_color.y), object_color.z);
+            float scale_factor = 1.f / max_color;
+            object_color = vec_scale(object_color, scale_factor);
+
+            diffuse = {diffuse.x * object_color.x, diffuse.y * object_color.y, diffuse.z * object_color.z};
             color = vec_add(color, vec_add(vec_scale(diffuse, kd), vec_scale(specular, ks)));
 
             return {true, t, steps, color};
