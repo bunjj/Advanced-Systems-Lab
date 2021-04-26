@@ -466,6 +466,11 @@ static hit sphere_trace(vec origin, vec dir) {
 
 // }}}
 
+// PPM Files and Output Validation {{{
+
+/**
+ * Writes a PPM file.
+ */
 static void dump_image(std::ostream& out, int width, int height, const float* pixels) {
     out << "P6\n" << width << " " << height << "\n255\n";
 
@@ -484,56 +489,45 @@ static void dump_image(std::ostream& out, int width, int height, const float* pi
  * Adapted from here: http://www.cplusplus.com/forum/general/208835/
  */
 static void read_image(std::string filename, unsigned char* pixels_in) {
-
-    FILE* fr = fopen(filename.c_str(), "rb");
+    FILE* fp = fopen(filename.c_str(), "rb");
 
     // read header
     char pSix[10];
-    fscanf(fr, "%s", pSix);
+    fscanf(fp, "%s", pSix);
 
-    // check to see if it's a PPM image file
+    // check if it is a PPM file
     if (strncmp(pSix, "P6" , 10) != 0) {
-        printf("Input file is not PPM!\n");
+        std::cerr << "Input file is not PPM!" << std::endl;
         exit(EXIT_FAILURE);
     }
 
     // read the rest of header
     int width, height;
-    fscanf(fr, "%d\n %d\n", &width, &height);
-
     int maximum;
-    fscanf(fr, "%d\n", &maximum);
-
-    // check to see if they were stored properly
-    printf("PSix: %s\n", pSix);
-    printf("Width: %d\n", width);
-    printf("Height: %d\n", height);
-    printf("Maximum: %d\n", maximum);
-
-    int size = width * height;
+    fscanf(fp, "%d\n %d\n", &width, &height);
+    fscanf(fp, "%d\n", &maximum);
 
     // unformatted read of binary pixel data
-    fread(pixels_in, sizeof(unsigned char), size * 3, fr);
+    fread(pixels_in, sizeof(unsigned char), width * height * 3, fp);
 
-    if (ferror(fr)) {
-        printf("file error\n");
+    if (ferror(fp)) {
+        std::cerr << "error while reading file" << std::endl;
         exit(EXIT_FAILURE);
     }
-    if (feof(fr)) {
-        printf("eof error\n");
+    if (feof(fp)) {
+        std::cerr << "EOF reached earlier than expected" << std::endl;
         exit(EXIT_FAILURE);
     }
 
-    fclose(fr);
+    // close file
+    fclose(fp);
 }
 
 /**
- *
  * Returns the fraction of pixels that are significantly different from the reference image.
- * Significantly different means the difference in RGB values (summed) is greater than tol.
- *
+ * Significantly different means the difference in RGB values (summed) is greater than rgb_tol.
  */
-static float validate_output(int tol, unsigned char* pixels_reference, unsigned char* pixels_out, size_t size) {
+static float compare_pixels(int rgb_tol, unsigned char* pixels_reference, unsigned char* pixels_out, size_t size) {
 
     int num_different = 0;
 
@@ -547,15 +541,38 @@ static float validate_output(int tol, unsigned char* pixels_reference, unsigned 
         unsigned char br = pixels_reference[3*i+2];
 
         int difference = abs(ro-rr) + abs(go-gr) + abs(bo-br);
-        if (difference > tol) {
+        if (difference > rgb_tol) {
             num_different++;
         }
     }
 
-    float fraction_different = (float) num_different / size;
-    printf("%d pixels differ significantly (%.2f%%)\n", num_different, fraction_different * 100);
-    return fraction_different;
+    // return fraction of pixels that are different
+    return (float) num_different / size;
 }
+
+/**
+ * Asserts that no more than overall_tol (= fraction) pixels are significantly different from the reference image.
+ * Significantly different means that the difference in RGB values (range 0..255) (summed) is greater than rgb_tol.
+ */
+static void validate_output(int rgb_tol, float overall_tol, std::string ref_filename, std::string out_filename, int height, int width) {
+    int size = height * width;
+
+    // read the two images
+    auto pixels_ref = std::make_unique<unsigned char[]>(size * 3);
+    read_image(ref_filename, pixels_ref.get());
+    auto pixels_out = std::make_unique<unsigned char[]>(size * 3);
+    read_image(out_filename, pixels_out.get());
+
+    float fraction_different = compare_pixels(rgb_tol, pixels_ref.get(), pixels_out.get(), height * width);
+    if (fraction_different > overall_tol) {
+        std::cerr << "OUTPUT VALIDATION FAILED: " << std::setprecision(4) << fraction_different * 100 << "% different" << std::endl;
+        exit(EXIT_FAILURE);
+    } else {
+        std::cout << "output validation OK: " << std::setprecision(4) << fraction_different * 100 << "% different" << std::endl;
+    }
+}
+
+// }}}
 
 // Load JSON {{{
 
@@ -739,20 +756,7 @@ int main(int argc, char** argv) {
 
     // compare against reference image
     if (!reference.empty()) {
-        auto pixels_ref = std::make_unique<unsigned char[]>(height * width * 3);
-        read_image(reference, pixels_ref.get());
-
-        auto pixels_out = std::make_unique<unsigned char[]>(height * width * 3);
-        read_image(output, pixels_out.get());
-
-        // by how much the pixels can differ (rgb units) but still be considered equal
-        int tol = 5;
-        float fraction_different = validate_output(tol, pixels_ref.get(), pixels_out.get(), height * width);
-        if (fraction_different > 0.01) {
-            printf("OUTPUT VALIDATION FAILED\n");
-        } else {
-            printf("output validation OK\n");
-        }
+        validate_output(5, 0.01, reference, output, height, width);
     }
 
     ins_dump(NULL);
