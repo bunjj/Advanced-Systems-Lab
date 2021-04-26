@@ -472,11 +472,89 @@ static void dump_image(std::ostream& out, int width, int height, const float* pi
     for (int j = 0; j < height; j++) {
         for (int i = 0; i < width; i++) {
             for (int k = 0; k < 3; k++) {
-                unsigned char channel = std::clamp(pixels[3 * (width * j + i) + k], 0.f, 1.f) * 255.f;
+                unsigned char channel = clamp(pixels[3 * (width * j + i) + k], 0.f, 1.f) * 255.f;
                 out << channel;
             }
         }
     }
+}
+
+/**
+ * Reads a PPM file into the given buffer.
+ * Adapted from here: http://www.cplusplus.com/forum/general/208835/
+ */
+static void read_image(std::string filename, unsigned char* pixels_in) {
+
+    FILE* fr = fopen(filename.c_str(), "rb");
+
+    // read header
+    char pSix[10];
+    fscanf(fr, "%s", pSix);
+
+    // check to see if it's a PPM image file
+    if (strncmp(pSix, "P6" , 10) != 0) {
+        printf("Input file is not PPM!\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // read the rest of header
+    int width, height;
+    fscanf(fr, "%d\n %d\n", &width, &height);
+
+    int maximum;
+    fscanf(fr, "%d\n", &maximum);
+
+    // check to see if they were stored properly
+    printf("PSix: %s\n", pSix);
+    printf("Width: %d\n", width);
+    printf("Height: %d\n", height);
+    printf("Maximum: %d\n", maximum);
+
+    int size = width * height;
+
+    // unformatted read of binary pixel data
+    fread(pixels_in, sizeof(unsigned char), size * 3, fr);
+
+    if (ferror(fr)) {
+        printf("file error\n");
+        exit(EXIT_FAILURE);
+    }
+    if (feof(fr)) {
+        printf("eof error\n");
+        exit(EXIT_FAILURE);
+    }
+
+    fclose(fr);
+}
+
+/**
+ *
+ * Returns the fraction of pixels that are significantly different from the reference image.
+ * Significantly different means the difference in RGB values (summed) is greater than tol.
+ *
+ */
+static float validate_output(int tol, unsigned char* pixels_reference, unsigned char* pixels_out, size_t size) {
+
+    int num_different = 0;
+
+    for (size_t i = 0; i < size; i++) {
+        unsigned char ro = pixels_out[3*i];
+        unsigned char go = pixels_out[3*i+1];
+        unsigned char bo = pixels_out[3*i+2];
+
+        unsigned char rr = pixels_reference[3*i];
+        unsigned char gr = pixels_reference[3*i+1];
+        unsigned char br = pixels_reference[3*i+2];
+
+        int difference = abs(ro-rr) + abs(go-gr) + abs(bo-br);
+        if (difference > tol) {
+            num_different++;
+        }
+    }
+
+    float fraction_different = (float) num_different / size;
+    printf("%d pixels differ significantly (%.2f%%)\n", num_different, fraction_different * 100);
+    return fraction_different;
 }
 
 // Load JSON {{{
@@ -564,12 +642,13 @@ static void load_shapes(json& j) {
 
 int main(int argc, char** argv) {
     if (argc < 3) {
-        fprintf(stderr, "Usage: %s <input> <output>\n", argv[0]);
+        fprintf(stderr, "Usage: %s <input> <output> [<reference>]\n", argv[0]);
         return EXIT_FAILURE;
     }
 
     std::string input = argv[1];
     std::string output = argv[2];
+    std::string reference = argc > 3 ? argv[3] : "";
 
     std::ifstream i;
     i.exceptions(std::ifstream::failbit | std::ifstream::badbit);
@@ -656,6 +735,25 @@ int main(int argc, char** argv) {
     }
 
     dump_image(o, width, height, pixels.get());
+    o.close();
+
+    // compare against reference image
+    if (!reference.empty()) {
+        auto pixels_ref = std::make_unique<unsigned char[]>(height * width * 3);
+        read_image(reference, pixels_ref.get());
+
+        auto pixels_out = std::make_unique<unsigned char[]>(height * width * 3);
+        read_image(output, pixels_out.get());
+
+        // by how much the pixels can differ (rgb units) but still be considered equal
+        int tol = 5;
+        float fraction_different = validate_output(tol, pixels_ref.get(), pixels_out.get(), height * width);
+        if (fraction_different > 0.01) {
+            printf("OUTPUT VALIDATION FAILED\n");
+        } else {
+            printf("output validation OK\n");
+        }
+    }
 
     ins_dump(NULL);
 
