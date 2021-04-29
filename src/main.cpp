@@ -67,9 +67,11 @@ struct octa {
 };
 
 typedef float (*distance_fun)(const struct shape s, const vec pos);
+typedef vec (*normal_fun)(const struct shape s, const vec pos);
 
 struct shape {
     distance_fun distance;
+    normal_fun normal;
     char data[std::max({sizeof(sphere), sizeof(plane), sizeof(box), sizeof(torus), sizeof(cone), sizeof(octa)})];
     // The matrix for transforming any point in the object space into the world
     // space.
@@ -81,15 +83,34 @@ struct shape {
     float shininess;
 };
 
-shape make_shape(vec color, float shininess, const m44 matrix, distance_fun f, void* data, size_t data_size) {
+shape make_shape(vec color, float shininess, const m44 matrix, distance_fun f, normal_fun n, void* data, size_t data_size) {
     shape shap;
     shap.distance = f;
+    shap.normal = n;
     shap.matrix = matrix;
     shap.inv_matrix = m44_inv(matrix);
     shap.color = color;
     shap.shininess = shininess;
     memcpy(&shap.data, data, data_size);
     return shap;
+}
+
+
+vec shape_normal(const shape s, const vec pos){
+    static const float delta = 10e-5;
+    vec delta1 = {delta, 0, 0};
+    vec delta2 = {0, delta, 0};
+    vec delta3 = {0, 0, delta};
+
+    INS_INC1(add, 3);
+    // Some shapes can calculate this directly
+    vec normal = vec_normalize({
+        s.distance(s, vec_add(pos, delta1)) - s.distance(s, vec_sub(pos, delta1)),
+        s.distance(s, vec_add(pos, delta2)) - s.distance(s, vec_sub(pos, delta2)),
+        s.distance(s, vec_add(pos, delta3)) - s.distance(s, vec_sub(pos, delta3)),
+    });
+
+    return normal;
 }
 
 // Sphere {{{
@@ -106,7 +127,7 @@ vec sphere_normal(sphere s, vec pos) {
 
 shape make_sphere(float x, float y, float z, float r, vec color, float shininess) {
     sphere s = {{x, y, z}, r};
-    return make_shape(color, shininess, get_transf_matrix({x, y, z}, {0, 0, 0}), sphere_distance, &s, sizeof(s));
+    return make_shape(color, shininess, get_transf_matrix({x, y, z}, {0, 0, 0}), sphere_distance, shape_normal, &s, sizeof(s));
 }
 
 shape load_sphere(json& j) {
@@ -131,7 +152,7 @@ float box_distance(const shape s, const vec from) {
 
 shape make_box(vec bottom_left, vec extents, vec rot, vec color, float shininess) {
     box s = {bottom_left, extents};
-    return make_shape(color, shininess, get_transf_matrix(bottom_left, rot), box_distance, &s, sizeof(s));
+    return make_shape(color, shininess, get_transf_matrix(bottom_left, rot), box_distance, shape_normal, &s, sizeof(s));
 }
 
 shape load_box(json& j) {
@@ -155,7 +176,7 @@ float plane_distance(const shape s, const vec from) {
 
 shape make_plane(vec normal, vec point, vec color, float shininess) {
     plane p = {vec_normalize(normal), point};
-    return make_shape(color, shininess, identity, plane_distance, &p, sizeof(p));
+    return make_shape(color, shininess, identity, plane_distance, shape_normal, &p, sizeof(p));
 }
 
 shape load_plane(json& j) {
@@ -183,7 +204,7 @@ float torus_distance(const shape s, const vec from) {
 
 shape make_torus(vec center, float r1, float r2, vec rot, vec color, float shininess) {
     torus t = {center, r1, r2};
-    return make_shape(color, shininess, get_transf_matrix(center, rot), torus_distance, &t, sizeof(t));
+    return make_shape(color, shininess, get_transf_matrix(center, rot), torus_distance, shape_normal, &t, sizeof(t));
 }
 
 shape load_torus(json& j) {
@@ -234,7 +255,7 @@ float cone_distance(const shape shap, const vec from) {
 
 shape make_cone(vec center, float r1, float r2, float height, vec rot, vec color, float shininess) {
     cone c = {center, r1, r2, height};
-    return make_shape(color, shininess, get_transf_matrix(center, rot), cone_distance, &c, sizeof(c));
+    return make_shape(color, shininess, get_transf_matrix(center, rot), cone_distance, shape_normal, &c, sizeof(c));
 }
 
 shape load_cone(json& j) {
@@ -296,7 +317,7 @@ float octahedron_distance(const shape shap, const vec from) {
 
 shape make_octahedron(vec center, float s, vec rot, vec color, float shininess) {
     octa o = {center, s};
-    return make_shape(color, shininess, get_transf_matrix(center, rot), octahedron_distance, &o, sizeof(o));
+    return make_shape(color, shininess, get_transf_matrix(center, rot), octahedron_distance, shape_normal, &o, sizeof(o));
 }
 
 shape load_octa(json& j) {
@@ -391,18 +412,7 @@ static hit sphere_trace(vec origin, vec dir) {
         INS_CMP;
         if (min_distance <= EPS) {
             shape s = shapes[shape_idx];
-            static const float delta = 10e-5;
-            vec delta1 = {delta, 0, 0};
-            vec delta2 = {0, delta, 0};
-            vec delta3 = {0, 0, delta};
-
-            INS_INC1(add, 3);
-            // Some shapes can calculate this directly
-            vec normal = vec_normalize({
-                s.distance(s, vec_add(pos, delta1)) - s.distance(s, vec_sub(pos, delta1)),
-                s.distance(s, vec_add(pos, delta2)) - s.distance(s, vec_sub(pos, delta2)),
-                s.distance(s, vec_add(pos, delta3)) - s.distance(s, vec_sub(pos, delta3)),
-            });
+            vec normal = s.normal(s, pos);
             vec color{0, 0, 0};
 
             vec diffuse = {0.f, 0.f, 0.f};
