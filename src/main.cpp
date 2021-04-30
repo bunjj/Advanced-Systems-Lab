@@ -78,15 +78,17 @@ struct shape {
     // the object space.
     m44 inv_matrix;
     vec color;
+    float reflection;
     float shininess;
 };
 
-shape make_shape(vec color, float shininess, const m44 matrix, distance_fun f, void* data, size_t data_size) {
+shape make_shape(vec color, float reflection, float shininess, const m44 matrix, distance_fun f, void* data, size_t data_size) {
     shape shap;
     shap.distance = f;
     shap.matrix = matrix;
     shap.inv_matrix = m44_inv(matrix);
     shap.color = color;
+    shap.reflection = reflection;
     shap.shininess = shininess;
     memcpy(&shap.data, data, data_size);
     return shap;
@@ -104,9 +106,9 @@ vec sphere_normal(sphere s, vec pos) {
     return vec_normalize(vec_sub(pos, s.center));
 }
 
-shape make_sphere(float x, float y, float z, float r, vec color, float shininess) {
+shape make_sphere(float x, float y, float z, float r, vec color, float reflection, float shininess) {
     sphere s = {{x, y, z}, r};
-    return make_shape(color, shininess, get_transf_matrix({x, y, z}, {0, 0, 0}), sphere_distance, &s, sizeof(s));
+    return make_shape(color, reflection, shininess, get_transf_matrix({x, y, z}, {0, 0, 0}), sphere_distance, &s, sizeof(s));
 }
 
 shape load_sphere(json& j) {
@@ -114,8 +116,9 @@ shape load_sphere(json& j) {
     vec pos = load_pos(j);
     r = j["params"]["radius"];
     vec color = load_vec(j["color"]);
+    float reflection = j["reflection"];
     float shininess = j["shininess"];
-    return make_sphere(pos.x, pos.y, pos.z, r, color, shininess);
+    return make_sphere(pos.x, pos.y, pos.z, r, color, reflection, shininess);
 }
 
 // }}}
@@ -129,9 +132,9 @@ float box_distance(const shape s, const vec from) {
     return FADD(vec_length(vec_max(q, 0)), min(0.0f, max(max(q.x, q.y), q.z)));
 }
 
-shape make_box(vec bottom_left, vec extents, vec rot, vec color, float shininess) {
+shape make_box(vec bottom_left, vec extents, vec rot, vec color, float reflection, float shininess) {
     box s = {bottom_left, extents};
-    return make_shape(color, shininess, get_transf_matrix(bottom_left, rot), box_distance, &s, sizeof(s));
+    return make_shape(color, reflection, shininess, get_transf_matrix(bottom_left, rot), box_distance, &s, sizeof(s));
 }
 
 shape load_box(json& j) {
@@ -139,8 +142,9 @@ shape load_box(json& j) {
     vec extents = load_vec(j["params"]["extents"]);
     vec rot = load_rot(j);
     vec color = load_vec(j["color"]);
+    float reflection = j["reflection"];
     float shininess = j["shininess"];
-    return make_box(pos, extents, rot, color, shininess);
+    return make_box(pos, extents, rot, color, reflection, shininess);
 }
 
 // }}}
@@ -153,9 +157,9 @@ float plane_distance(const shape s, const vec from) {
     return vec_dot(p.normal, vec_sub(from, p.point));
 }
 
-shape make_plane(vec normal, vec point, vec color, float shininess) {
+shape make_plane(vec normal, vec point, vec color, float reflection, float shininess) {
     plane p = {vec_normalize(normal), point};
-    return make_shape(color, shininess, identity, plane_distance, &p, sizeof(p));
+    return make_shape(color, reflection, shininess, identity, plane_distance, &p, sizeof(p));
 }
 
 shape load_plane(json& j) {
@@ -163,8 +167,9 @@ shape load_plane(json& j) {
     vec normal = load_vec(j["params"]["normal"]);
     vec point = vec_scale(normal, displacement);
     vec color = load_vec(j["color"]);
+    float reflection = j["reflection"];
     float shininess = j["shininess"];
-    return make_plane(normal, point, color, shininess);
+    return make_plane(normal, point, color, reflection, shininess);
 }
 // }}}
 
@@ -181,9 +186,9 @@ float torus_distance(const shape s, const vec from) {
     return vec2_length(q) - t.r2;
 }
 
-shape make_torus(vec center, float r1, float r2, vec rot, vec color, float shininess) {
+shape make_torus(vec center, float r1, float r2, vec rot, vec color, float reflection, float shininess) {
     torus t = {center, r1, r2};
-    return make_shape(color, shininess, get_transf_matrix(center, rot), torus_distance, &t, sizeof(t));
+    return make_shape(color, reflection, shininess, get_transf_matrix(center, rot), torus_distance, &t, sizeof(t));
 }
 
 shape load_torus(json& j) {
@@ -195,9 +200,10 @@ shape load_torus(json& j) {
     r2 = j["params"]["r2"];
 
     vec color = load_vec(j["color"]);
+    float reflection = j["reflection"];
     float shininess = j["shininess"];
 
-    return make_torus(pos, r1, r2, rot, color, shininess);
+    return make_torus(pos, r1, r2, rot, color, reflection, shininess);
 }
 
 // }}}
@@ -232,9 +238,9 @@ float cone_distance(const shape shap, const vec from) {
     return s * sqrtf(min(vec2_dot2(ca), vec2_dot2(cb)));
 }
 
-shape make_cone(vec center, float r1, float r2, float height, vec rot, vec color, float shininess) {
+shape make_cone(vec center, float r1, float r2, float height, vec rot, vec color, float reflection, float shininess) {
     cone c = {center, r1, r2, height};
-    return make_shape(color, shininess, get_transf_matrix(center, rot), cone_distance, &c, sizeof(c));
+    return make_shape(color, reflection, shininess, get_transf_matrix(center, rot), cone_distance, &c, sizeof(c));
 }
 
 shape load_cone(json& j) {
@@ -248,9 +254,10 @@ shape load_cone(json& j) {
     height = j["params"][2];
 
     vec color = load_vec(j["color"]);
+    float reflection = j["reflection"];
     float shininess = j["shininess"];
 
-    return make_cone(pos, r1, r2, height, rot, color, shininess);
+    return make_cone(pos, r1, r2, height, rot, color, reflection, shininess);
 }
 
 // }}}
@@ -294,9 +301,9 @@ float octahedron_distance(const shape shap, const vec from) {
     return vec_length({q.x, q.y - s + k, q.z - k});
 }
 
-shape make_octahedron(vec center, float s, vec rot, vec color, float shininess) {
+shape make_octahedron(vec center, float s, vec rot, vec color, float reflection, float shininess) {
     octa o = {center, s};
-    return make_shape(color, shininess, get_transf_matrix(center, rot), octahedron_distance, &o, sizeof(o));
+    return make_shape(color, reflection, shininess, get_transf_matrix(center, rot), octahedron_distance, &o, sizeof(o));
 }
 
 shape load_octa(json& j) {
@@ -306,9 +313,10 @@ shape load_octa(json& j) {
 
     s = j["params"]["s"];
     vec color = load_vec(j["color"]);
+    float reflection = j["reflection"];
     float shininess = j["shininess"];
 
-    return make_octahedron(pos, s, rot, color, shininess);
+    return make_octahedron(pos, s, rot, color, reflection, shininess);
 }
 
 // }}}
