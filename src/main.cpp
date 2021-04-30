@@ -433,12 +433,11 @@ static hit sphere_trace(vec origin, vec dir) {
                         diffuse = vec_add(diffuse, vec_scale(light_intensity, max(0.f, vec_dot(normal, light_dir))));
                         
                         // specular
-                        // TODO: how to choose n?
-                        float n = 4.f;
+                        float alpha = s.shininess;
                         INS_MUL;
                         vec r = vec_add(vec_scale(normal, 2 * vec_dot(normal, vec_scale(light_dir, -1.f))), light_dir);
                         INS_POW;
-                        specular = vec_add(specular, vec_scale(light_intensity, pow(max(0.f, vec_dot(r, dir)), n)));
+                        specular = vec_add(specular, vec_scale(light_intensity, pow(max(0.f, vec_dot(r, dir)), alpha)));
                     }
                 }
             }
@@ -446,7 +445,7 @@ static hit sphere_trace(vec origin, vec dir) {
             // TODO: not clear what the unit of the shininess parameter in the scenes is
             // TODO: is ks + kd == 1 really a requirement?
             INS_MUL;
-            float ks = s.shininess * 0.01f; // specular parameter
+            float ks = s.reflection; // specular parameter
             INS_ADD;
             float kd = 1 - ks; // diffuse parameter
 
@@ -683,7 +682,7 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
-    dump_image(o, width, height, pixels.get());
+    dump_image(o, width, height, pixels.get(), true);
 
     ins_dump(NULL);
 
