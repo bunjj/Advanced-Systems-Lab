@@ -140,7 +140,7 @@
         "y": 0,
         "z": 0
       },
-      "reflection": 0,
+      "reflection": 0.5,
       "shininess": 15,
       "color": {
         "x": 0.5,
