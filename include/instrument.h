@@ -35,10 +35,10 @@ extern flops_t flops_counter;
 #else
 
 static inline void ins_dump(const char* title) {
+    fprintf(stderr, "====================\n");
     if (title) {
         fprintf(stderr, "%s\n", title);
     }
-    fprintf(stderr, "====================\n");
     fprintf(stderr, "=== FLOPS COUNTER ==\n");
     fprintf(stderr, "ADD   : %12" PRIu64 "\n", flops_counter.add);
     fprintf(stderr, "MUL   : %12" PRIu64 "\n", flops_counter.mul);

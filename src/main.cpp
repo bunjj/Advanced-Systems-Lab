@@ -13,6 +13,7 @@
 #include "geometry.h"
 #include "instrument.h"
 #include "loader.h"
+#include "timing.h"
 
 flops_t flops_counter;
 
@@ -634,6 +635,8 @@ int main(int argc, char** argv) {
     ins_dump("Setup");
     ins_rst();
 
+    timing_start();
+
     for (int py = 0; py < height; py++) {
         for (int px = 0; px < width; px++) {
             /*
@@ -665,6 +668,11 @@ int main(int argc, char** argv) {
         }
     }
 
+    timing_t timing = timing_stop();
+    ins_dump(NULL);
+
+    fprintf(stderr, "%" PRIu64 " cycles, %0.2f seconds\n", timing.cycles, timing.usec * 1.0 / 1e6);
+
     std::ofstream o;
     o.exceptions(std::ifstream::failbit | std::ifstream::badbit);
 
@@ -676,8 +684,6 @@ int main(int argc, char** argv) {
     }
 
     dump_image(o, width, height, pixels.get());
-
-    ins_dump(NULL);
 
     return 0;
 }

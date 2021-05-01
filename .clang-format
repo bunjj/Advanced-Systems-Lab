@@ -12,4 +12,5 @@ AllowShortIfStatementsOnASingleLine: false
 BreakConstructorInitializersBeforeComma: true
 DerivePointerAlignment: false
 PointerAlignment: Left
+SpacesBeforeTrailingComments: 1
 ---
