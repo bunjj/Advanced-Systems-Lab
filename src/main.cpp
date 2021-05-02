@@ -27,8 +27,7 @@ struct camera {
 
 struct light {
     vec pos;
-    vec color;
-    float intensity;
+    vec emission;
 };
 
 struct sphere {
@@ -452,13 +451,13 @@ static hit sphere_trace(vec origin, vec dir) {
         INS_CMP;
         if (min_distance <= EPS) {
             shape s = shapes[shape_idx];
-            float scale = 1185.f;
+
             /* Prepare shading parameters */
             INS_ADD;
             float alpha = s.shininess;      // shininess parameter
-            float ks = s.reflection;        // specular parameter
+            float ks = s.reflection * 0.4;  // specular parameter 
             float kd = 1.f;                 // diffuse parameter
-            float ka = 0.0078f;             // ambient parameter
+            float ka = 0.0079f;             // ambient parameter
 
             vec wi;                         // incident direction
             vec wr;                         // reflected direction
@@ -475,14 +474,14 @@ static hit sphere_trace(vec origin, vec dir) {
                 
                 INS_DIV;
                 float dist2 = vec_dot2(wi);     // squared distance of light
-                float dist = FSQRT(dist2);    // distance of light
+                float dist = FSQRT(dist2);      // distance of light
                 wi = vec_scale(wi, 1/dist);     // normalize incident direction
 
                 // incoming light 
                 INS_INC1(mul, 2);
                 INS_DIV;
-                Li = vec_scale(lights[i].color, scale / (4 * M_PI_F * dist2)); // incident light
-                La = vec_add(La, Li);       // incident light contributes to ambient light
+                Li = vec_scale(lights[i].emission, 1 / (4 * M_PI_F * dist2)); // incident light
+                La = vec_add(La, Li);   // incident light contributes to ambient light
 
                 INS_CMP;
                 if (vec_dot(wn, wi) > 0) {    
@@ -494,8 +493,8 @@ static hit sphere_trace(vec origin, vec dir) {
                         
                         // diffuse
                         INS_MUL;
-                        vec diffuse = vec_mul( vec_scale(Li, kd * vec_dot(wn, wi)), s.color);
-                        Lo = vec_add(Lo, diffuse); // diffuse contribution to outgoing light
+                        vec f_diffuse = vec_scale(s.color, kd * vec_dot(wn, wi)); // fraction of reflected light
+                        Lo = vec_add(Lo, vec_mul(Li, f_diffuse)); // diffuse contribution to outgoing light
 
                         // specular
                         INS_INC1(mul, 3);
@@ -503,15 +502,14 @@ static hit sphere_trace(vec origin, vec dir) {
                         INS_INC1(div, 1);
                         INS_POW;
                         wr = vec_sub( vec_scale(wn, 2 * vec_dot(wn, wi) ), wi); // reflected direction
-                        float brdf = (2 * M_PI_F) / (alpha + 2 ) * pow(max(0.f, vec_dot(wr, wo)), alpha);
-                        vec specular = vec_scale(Li, ks * brdf);
-                        Lo = vec_add(Lo, specular); // specular contribution to outgoing light
+                        float f_specular = ks * pow(max(0.f, vec_dot(wr, wo)), alpha);  // fraction of reflected light TODO: normalization?
+                        Lo = vec_add(Lo, vec_scale(Li, f_specular)); // specular contribution to outgoing light
                     }
                 }
             }
             
-            vec ambient = vec_mul(La, vec_scale(s.color, ka));
-            Lo = vec_add(Lo, ambient); // ambient contribution to outgoing light
+            vec f_ambient = vec_scale(s.color, ka); // fraction of reflected ambient light
+            Lo = vec_add(Lo, vec_mul(La, f_ambient)); // ambient contribution to outgoing light
 
             return {true, t, steps, Lo};
         }
@@ -525,36 +523,58 @@ static hit sphere_trace(vec origin, vec dir) {
 
 // }}}
 
-static void dump_image_ldr(std::ostream& out, int width, int height, const float* pixels) {
+static void dump_image_ldr(std::ostream& out, int width, int height, const float* pixels, float exposure) {
     out << "P6\n" << width << " " << height << "\n255\n";
 
+    // TODO: gamma correction?
     for (int j = 0; j < height; j++) {
         for (int i = 0; i < width; i++) {
             for (int k = 0; k < 3; k++) {
-                unsigned char channel = std::clamp(pixels[3 * (width * j + i) + k], 0.f, 1.f) * 255.f;
+                unsigned char channel = std::clamp(exposure * pixels[3 * (width * j + i) + k], 0.f, 1.f) * 255.f;
                 out << channel;
             }
         }
     }
 }
 
-static void dump_image_hdr(std::ostream& out, int width, int height, const float* pixels) {
+static void dump_image_hdr(std::ostream& out, int width, int height, const float* pixels, float exposure) {
     out << "PF\n" << width << " " << height << "\n-1.0\n";
 
     for (int j = height-1; j > -1; j--) {
         for (int i = 0; i < width; i++) {
-            out.write((char *) &pixels[3 * (width * j + i)], 3 * sizeof(float));
+            for (int k = 0; k < 3; k++) {
+                float channel = exposure * pixels[3 * (width * j + i) + k];
+                out.write((char *) &channel, sizeof(float));
+            }
         }
     }   
 }
 
 static void dump_image(std::ostream& out, int width, int height, const float* pixels, bool hdr=false){
+    
+    /* TODO: Possible Strategies to determine exposure:
+        - user defined by exposure parameter in camera
+        - choose exposure empirically 
+        - map max_val to 1
+        - map 95th percentile to 1
+    */
+
+    float exposure = 1185.f; // 
+
+   /*
+    float max_val = 0.f;
+    for (int i = 0; i < width * height * 3; i++){
+        max_val = std::max(max_val, pixels[i]);
+    }
+    float exposure = 1.f / max_val * 1.76; 
+    */
+
     if (hdr) {
         // store in binary .pfm format
-        dump_image_hdr(out, width, height, pixels);
+        dump_image_hdr(out, width, height, pixels, exposure);
     } else {
         // store in binary .ppm format
-        dump_image_ldr(out, width, height, pixels);
+        dump_image_ldr(out, width, height, pixels, exposure);
     }
 }
 
@@ -577,25 +597,7 @@ static camera load_camera(json& j) {
 static light load_single_light(json& j) {
     light l;
     l.pos = load_pos(j);
-    l.color = load_vec(j["emission"]);
-    /*
-    assert(l.color.x >= 0);
-    assert(l.color.x < 256);
-    assert(l.color.y >= 0);
-    assert(l.color.y < 256);
-    assert(l.color.z >= 0);
-    assert(l.color.z < 256);
-
-    l.color = vec_scale(l.color, 1.f / 255.f);
-
-    if (j.contains("intensity")) {
-        l.intensity = j["intensity"];
-    } else {
-        l.intensity = 150000;
-    }
-    */
-   
-
+    l.emission = load_vec(j["emission"]);
     return l;
 }
 
