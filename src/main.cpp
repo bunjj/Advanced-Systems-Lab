@@ -457,7 +457,7 @@ static hit sphere_trace(vec origin, vec dir) {
             float alpha = s.shininess;      // shininess parameter
             float ks = s.reflection * 0.4;  // specular parameter 
             float kd = 1.f;                 // diffuse parameter
-            float ka = 0.0079f;             // ambient parameter
+            float ka = 0.0075f;             // ambient parameter
 
             vec wi;                         // incident direction
             vec wr;                         // reflected direction
@@ -511,6 +511,9 @@ static hit sphere_trace(vec origin, vec dir) {
             vec f_ambient = vec_scale(s.color, ka); // fraction of reflected ambient light
             Lo = vec_add(Lo, vec_mul(La, f_ambient)); // ambient contribution to outgoing light
 
+            // fog
+            Lo = vec_scale(Lo, std::exp(-4e-6*t*t*t ));
+
             return {true, t, steps, Lo};
         }
 
@@ -559,7 +562,7 @@ static void dump_image(std::ostream& out, int width, int height, const float* pi
         - map 95th percentile to 1
     */
 
-    float exposure = 1185.f; // 
+    float exposure = 1250.f; // 
 
    /*
     float max_val = 0.f;
