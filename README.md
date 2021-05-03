@@ -44,7 +44,14 @@ Compiling will produce an executable called `main` in the `build` directory.
 It takes two mandatory arguments and one optional:
 
 ```
-./main <input> <output> [<reference>]
+./main <input> <width> <height> [<output>] [<reference>]
 ```
 
-The first one is the path to a JSON file containing a scene definition and the second one is the path where the resulting ppm image file should be written to (any existing file will be overwritten). The optional argument is the path to the reference ppm image (used for output validation).
+The first one is the path to a JSON file containing a scene definition followed
+by the desired width and height of the image in pixels.
+
+The fourth argument is optional and denotes the path where the resulting ppm
+image file should be written (any existing file will be overwritten). If the
+argument is not specified, no image will be written.
+The last optinal argument is the path to the reference ppm image (used for
+output validation).

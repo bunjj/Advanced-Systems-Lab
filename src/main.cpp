@@ -127,43 +127,51 @@ void run(int width, int height, std::string output) {
     timing_t timing = timing_stop();
 
     ins_dump(NULL);
-    fprintf(stderr, "Size: %dx%d, %" PRIu64 " flops, %" PRIu64 " cycles, %0.2f seconds\n", width, height, ins_total(),
-        timing.cycles, timing.usec * 1.0 / 1e6);
 
-    std::ofstream o;
-    o.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+    fprintf(stderr, "Width: %d\n", width);
+    fprintf(stderr, "Height: %d\n", height);
+    fprintf(stderr, "Flops: %" PRIu64 "\n", ins_total());
+    fprintf(stderr, "Cycles: %" PRIu64 "\n", timing.cycles);
+    fprintf(stderr, "Microseconds: %" PRIu64 "\n", timing.usec);
+    fprintf(stderr, "Seconds: %.2f\n", timing.usec * 1.f / 1e6);
 
-    try {
-        o.open(output);
-    } catch (std::system_error& e) {
-        std::cerr << "Failed to open output file '" << output << "': " << strerror(errno) << std::endl;
-        throw;
+    if (!output.empty()) {
+        std::ofstream o;
+        o.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+
+        try {
+            o.open(output);
+        } catch (std::system_error& e) {
+            std::cerr << "Failed to open output file '" << output << "': " << strerror(errno) << std::endl;
+            throw;
+        }
+
+        dump_image(o, width, height, pixels.get());
+        o.close();
     }
-
-    dump_image(o, width, height, pixels.get());
-    o.close();
 }
 
 int main(int argc, char** argv) {
-    if (argc < 3) {
-        fprintf(stderr, "Usage: %s <input> <output> [<reference>]\n", argv[0]);
+    if (argc < 4) {
+        fprintf(stderr, "Usage: %s <input> <width> <height> [<output>] [<reference>]\n", argv[0]);
         return EXIT_FAILURE;
     }
 
     std::string input = argv[1];
-    std::string output = argv[2];
-    std::string reference = argc > 3 ? argv[3] : "";
+    std::string width_str = argv[2];
+    std::string height_str = argv[3];
+    std::string output = argc > 4 ? argv[4] : "";
+    std::string reference = argc > 5 ? argv[5] : "";
 
     impl::ref::load_scene(input);
 
-    // TODO read size from commandline
-    int width = 1920;
-    int height = 1080;
+    int width = std::stoi(width_str);
+    int height = std::stoi(height_str);
 
     run(width, height, output);
 
     // compare against reference image
-    if (!reference.empty()) {
+    if (!output.empty() && !reference.empty()) {
         validate_output(5, 0.01, reference, output, height, width);
     }
 
