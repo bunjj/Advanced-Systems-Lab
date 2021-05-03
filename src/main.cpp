@@ -429,7 +429,7 @@ static hit sphere_trace(vec origin, vec dir) {
 
                         // diffuse
                         diffuse = vec_add(diffuse, vec_scale(light_intensity, max(0.f, vec_dot(normal, light_dir))));
-
+                        
                         // specular
                         // TODO: how to choose n?
                         float n = 4.f;
@@ -468,6 +468,97 @@ static hit sphere_trace(vec origin, vec dir) {
     }
 
     return hit{false, t, steps, {0, 0, 0}};
+}
+
+// }}}
+
+// Image Files and Output Validation {{{
+/**
+ * Reads a PPM file into the given buffer.
+ * Adapted from here: http://www.cplusplus.com/forum/general/208835/
+ */
+static void read_ppm(std::string filename, unsigned char* pixels_in) {
+    FILE* fp = fopen(filename.c_str(), "rb");
+
+    // read header
+    char pSix[10];
+    fscanf(fp, "%s", pSix);
+
+    // check if it is a PPM file
+    if (strncmp(pSix, "P6" , 10) != 0) {
+        std::cerr << "Input file is not PPM!" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    // read the rest of header
+    int width, height;
+    int maximum;
+    fscanf(fp, "%d\n %d\n", &width, &height);
+    fscanf(fp, "%d\n", &maximum);
+
+    // unformatted read of binary pixel data
+    fread(pixels_in, sizeof(unsigned char), width * height * 3, fp);
+
+    if (ferror(fp)) {
+        std::cerr << "error while reading file" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    if (feof(fp)) {
+        std::cerr << "EOF reached earlier than expected" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    // close file
+    fclose(fp);
+}
+
+/**
+ * Returns the fraction of pixels that are significantly different from the reference image.
+ * Significantly different means the difference in RGB values (summed) is greater than rgb_tol.
+ */
+static float compare_pixels(int rgb_tol, unsigned char* pixels_reference, unsigned char* pixels_out, size_t size) {
+
+    int num_different = 0;
+
+    for (size_t i = 0; i < size; i++) {
+        unsigned char ro = pixels_out[3*i];
+        unsigned char go = pixels_out[3*i+1];
+        unsigned char bo = pixels_out[3*i+2];
+
+        unsigned char rr = pixels_reference[3*i];
+        unsigned char gr = pixels_reference[3*i+1];
+        unsigned char br = pixels_reference[3*i+2];
+
+        int difference = abs(ro-rr) + abs(go-gr) + abs(bo-br);
+        if (difference > rgb_tol) {
+            num_different++;
+        }
+    }
+
+    // return fraction of pixels that are different
+    return (float) num_different / size;
+}
+
+/**
+ * Asserts that no more than overall_tol (= fraction) pixels are significantly different from the reference image.
+ * Significantly different means that the difference in RGB values (range 0..255) (summed) is greater than rgb_tol.
+ */
+static void validate_output(int rgb_tol, float overall_tol, std::string ref_filename, std::string out_filename, int height, int width) {
+    int size = height * width;
+
+    // read the two images
+    auto pixels_ref = std::make_unique<unsigned char[]>(size * 3);
+    read_ppm(ref_filename, pixels_ref.get());
+    auto pixels_out = std::make_unique<unsigned char[]>(size * 3);
+    read_ppm(out_filename, pixels_out.get());
+
+    float fraction_different = compare_pixels(rgb_tol, pixels_ref.get(), pixels_out.get(), height * width);
+    if (fraction_different > overall_tol) {
+        std::cerr << "OUTPUT VALIDATION FAILED: " << std::setprecision(4) << fraction_different * 100 << "% different" << std::endl;
+        exit(EXIT_FAILURE);
+    } else {
+        std::cout << "output validation OK: " << std::setprecision(4) << fraction_different * 100 << "% different" << std::endl;
+    }
 }
 
 // }}}
@@ -628,16 +719,18 @@ void run(int width, int height, std::string output) {
     }
 
     dump_image(o, width, height, pixels.get());
+    o.close();
 }
 
 int main(int argc, char** argv) {
     if (argc < 3) {
-        fprintf(stderr, "Usage: %s <input> <output>\n", argv[0]);
+        fprintf(stderr, "Usage: %s <input> <output> [<reference>]\n", argv[0]);
         return EXIT_FAILURE;
     }
 
     std::string input = argv[1];
     std::string output = argv[2];
+    std::string reference = argc > 3 ? argv[3] : "";
 
     std::ifstream i;
     i.exceptions(std::ifstream::failbit | std::ifstream::badbit);
@@ -665,7 +758,15 @@ int main(int argc, char** argv) {
     load_shapes(j);
 
     // TODO read size from commandline
-    run(1920, 1080, output);
+    int width = 1920;
+    int height = 1080;
+
+    run(width, height, output);
+
+    // compare against reference image
+    if (!reference.empty()) {
+        validate_output(5, 0.01, reference, output, height, width);
+    }
 
     return 0;
 }

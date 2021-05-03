@@ -3,3 +3,5 @@
 compile_commands.json
 *.ppm
 *.pfm
+
+.vscode/
