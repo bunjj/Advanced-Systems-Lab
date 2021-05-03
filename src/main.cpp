@@ -534,7 +534,12 @@ static void dump_image_ldr(std::ostream& out, int width, int height, const float
     out << "P6\n" << width << " " << height << "\n255\n";
 
     // gamma correction according to wikipedia
-    float invgamma = 0.45; // inverse of gamma=2.2f
+    float invgamma = 0.45f; // inverse of gamma=2.2f
+
+    // turn off gamma correction by default
+    bool gammacorrection = false;
+    invgamma = (gammacorrection) ? invgamma : 1.0f;
+    
     for (int j = 0; j < height; j++) {
         for (int i = 0; i < width; i++) {
             for (int k = 0; k < 3; k++) {
