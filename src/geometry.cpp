@@ -106,6 +106,8 @@ m44 m44_inv(m44 m) {
 }
 
 m44 get_rot_matrix(vec rot) {
+    INS_INC1(div, 3);
+    INS_INC1(mul, 3);
     float c = TO_RAD(rot.x);
     float b = TO_RAD(rot.y);
     float a = TO_RAD(rot.z);

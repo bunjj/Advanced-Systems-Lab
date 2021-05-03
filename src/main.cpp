@@ -14,6 +14,7 @@
 #include "instrument.h"
 #include "loader.h"
 #include "timing.h"
+#include "util.h"
 
 flops_t flops_counter;
 
@@ -318,6 +319,10 @@ static shape* shapes;
 static int num_shapes;
 static light* lights;
 static int num_lights;
+static camera cam;
+static m44 camera_matrix;
+static float fov_factor;
+static float aspect_ratio;
 // }}}
 
 // Sphere Tracing {{{
@@ -424,7 +429,7 @@ static hit sphere_trace(vec origin, vec dir) {
 
                         // diffuse
                         diffuse = vec_add(diffuse, vec_scale(light_intensity, max(0.f, vec_dot(normal, light_dir))));
-                        
+
                         // specular
                         // TODO: how to choose n?
                         float n = 4.f;
@@ -466,39 +471,6 @@ static hit sphere_trace(vec origin, vec dir) {
 }
 
 // }}}
-
-static void dump_image_ldr(std::ostream& out, int width, int height, const float* pixels) {
-    out << "P6\n" << width << " " << height << "\n255\n";
-
-    for (int j = 0; j < height; j++) {
-        for (int i = 0; i < width; i++) {
-            for (int k = 0; k < 3; k++) {
-                unsigned char channel = std::clamp(pixels[3 * (width * j + i) + k], 0.f, 1.f) * 255.f;
-                out << channel;
-            }
-        }
-    }
-}
-
-static void dump_image_hdr(std::ostream& out, int width, int height, const float* pixels) {
-    out << "PF\n" << width << " " << height << "\n-1.0\n";
-
-    for (int j = height-1; j > -1; j--) {
-        for (int i = 0; i < width; i++) {
-            out.write((char *) &pixels[3 * (width * j + i)], 3 * sizeof(float));
-        }
-    }   
-}
-
-static void dump_image(std::ostream& out, int width, int height, const float* pixels, bool hdr=false){
-    if (hdr) {
-        // store in binary .pfm format
-        dump_image_hdr(out, width, height, pixels);
-    } else {
-        // store in binary .ppm format
-        dump_image_ldr(out, width, height, pixels);
-    }
-}
 
 // Load JSON {{{
 
@@ -583,6 +555,81 @@ static void load_shapes(json& j) {
 
 // }}}
 
+void render_init(int width, int height) {
+    camera_matrix = get_transf_matrix(cam.pos, cam.rotation);
+    INS_DIV;
+    INS_DIV;
+    INS_MUL;
+    INS_TAN;
+    fov_factor = tanf(TO_RAD(cam.fov / 2));
+    INS_DIV;
+    aspect_ratio = static_cast<float>(width) / height;
+}
+
+void render(int width, int height, float* pixels) {
+    for (int py = 0; py < height; py++) {
+        for (int px = 0; px < width; px++) {
+            /*
+             * Position of the pixel in camera space.
+             *
+             * We assume that the camera is looking towards positive z and the
+             * image plane is one unit away from the camera (z = -1 in this
+             * case).
+             */
+            INS_INC1(add, 4);
+            INS_INC1(mul, 5);
+            INS_INC1(div, 2);
+            float x = (2 * (px + 0.5) / width - 1) * aspect_ratio * fov_factor;
+            float y = (1 - 2 * (py + 0.5) / height) * fov_factor;
+            float z = 1;
+
+            // Direction in camera space.
+            vec dir = vec_normalize({x, y, z});
+
+            vec4 world_dir = m44_mul_vec(camera_matrix, vec4_from_dir(dir));
+
+            auto h = sphere_trace(cam.pos, vec4_to_vec(world_dir));
+
+            vec color = h.is_hit ? h.color : vec{0, 0, 0};
+
+            pixels[3 * (width * py + px)] = color.x;
+            pixels[3 * (width * py + px) + 1] = color.y;
+            pixels[3 * (width * py + px) + 2] = color.z;
+        }
+    }
+}
+
+void run(int width, int height, std::string output) {
+    auto pixels = std::make_unique<float[]>(height * width * 3);
+
+    ins_rst();
+
+    render_init(width, height);
+    ins_dump("Setup");
+
+    ins_rst();
+
+    timing_start();
+    render(width, height, pixels.get());
+    timing_t timing = timing_stop();
+
+    ins_dump(NULL);
+    fprintf(stderr, "Size: %dx%d, %" PRIu64 " flops, %" PRIu64 " cycles, %0.2f seconds\n", width, height, ins_total(),
+        timing.cycles, timing.usec * 1.0 / 1e6);
+
+    std::ofstream o;
+    o.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+
+    try {
+        o.open(output);
+    } catch (std::system_error& e) {
+        std::cerr << "Failed to open output file '" << output << "': " << strerror(errno) << std::endl;
+        throw;
+    }
+
+    dump_image(o, width, height, pixels.get());
+}
+
 int main(int argc, char** argv) {
     if (argc < 3) {
         fprintf(stderr, "Usage: %s <input> <output>\n", argv[0]);
@@ -605,14 +652,9 @@ int main(int argc, char** argv) {
     json j;
     i >> j;
 
-    ins_rst();
-
-    // Height of the resulting image in pixels
-    int height = 1080;
-    int width = 1920;
 
     // load camera paremters
-    camera cam = load_camera(j);
+    cam = load_camera(j);
     // load light (as defined in scene, not with intensity parameter)
     std::vector<light> lights_vector = load_light(j);
 
@@ -622,68 +664,8 @@ int main(int argc, char** argv) {
     // don't have to save shapes since it uses static variable
     load_shapes(j);
 
-    m44 camera_matrix = get_transf_matrix(cam.pos, cam.rotation);
-
-    float aspect_ratio = static_cast<float>(width) / height;
-
-    float fov_factor = tanf(TO_RAD(cam.fov / 2));
-
-    auto pixels = std::make_unique<float[]>(height * width * 3);
-
-    vec origin = vec4_to_vec(m44_mul_vec(camera_matrix, vec4_from_point({0, 0, 0})));
-
-    ins_dump("Setup");
-    ins_rst();
-
-    timing_start();
-
-    for (int py = 0; py < height; py++) {
-        for (int px = 0; px < width; px++) {
-            /*
-             * Position of the pixel in camera space.
-             *
-             * We assume that the camera is looking towards positive z and the
-             * image plane is one unit away from the camera (z = -1 in this
-             * case).
-             */
-            INS_INC1(add, 4);
-            INS_INC1(mul, 5);
-            INS_INC1(div, 2);
-            float x = (2 * (px + 0.5) / width - 1) * aspect_ratio * fov_factor;
-            float y = (1 - 2 * (py + 0.5) / height) * fov_factor;
-            float z = 1;
-
-            // Direction in camera space.
-            vec dir = vec_normalize({x, y, z});
-
-            vec4 world_dir = m44_mul_vec(camera_matrix, vec4_from_dir(dir));
-
-            auto h = sphere_trace(origin, vec4_to_vec(world_dir));
-
-            vec color = h.is_hit ? h.color : vec{0, 0, 0};
-
-            pixels[3 * (width * py + px)] = color.x;
-            pixels[3 * (width * py + px) + 1] = color.y;
-            pixels[3 * (width * py + px) + 2] = color.z;
-        }
-    }
-
-    timing_t timing = timing_stop();
-    ins_dump(NULL);
-
-    fprintf(stderr, "%" PRIu64 " cycles, %0.2f seconds\n", timing.cycles, timing.usec * 1.0 / 1e6);
-
-    std::ofstream o;
-    o.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-
-    try {
-        o.open(output);
-    } catch (std::system_error& e) {
-        std::cerr << "Failed to open output file '" << output << "': " << strerror(errno) << std::endl;
-        return EXIT_FAILURE;
-    }
-
-    dump_image(o, width, height, pixels.get());
+    // TODO read size from commandline
+    run(1920, 1080, output);
 
     return 0;
 }

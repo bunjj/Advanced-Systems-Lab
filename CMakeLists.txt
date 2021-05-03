@@ -17,7 +17,7 @@ set(name "main")
 option(INSTRUMENT "Instrument code with flop counters" OFF)
 option(SANITIZE "Adds UB and Address Sanitizers" OFF)
 
-add_executable(${name} src/main.cpp src/loader.cpp src/geometry.cpp src/timing.cpp)
+add_executable(${name} src/main.cpp src/loader.cpp src/geometry.cpp src/timing.cpp src/util.cpp)
 target_include_directories(${name} PUBLIC include)
 target_include_directories(${name} SYSTEM PRIVATE ${CMAKE_SOURCE_DIR}/ext)
 target_compile_options(${name} PUBLIC -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-g -O0 -DDEBUG> $<$<BOOL:${SANITIZE}>:-fsanitize=undefined,address>)
