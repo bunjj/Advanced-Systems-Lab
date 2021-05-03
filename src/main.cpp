@@ -466,12 +466,12 @@ static hit sphere_trace(vec origin, vec dir) {
 
 // }}}
 
-// PPM Files and Output Validation {{{
+// Image Files and Output Validation {{{
 
 /**
  * Writes a PPM file.
  */
-static void dump_image(std::ostream& out, int width, int height, const float* pixels) {
+static void dump_image_ldr(std::ostream& out, int width, int height, const float* pixels) {
     out << "P6\n" << width << " " << height << "\n255\n";
 
     for (int j = 0; j < height; j++) {
@@ -485,10 +485,36 @@ static void dump_image(std::ostream& out, int width, int height, const float* pi
 }
 
 /**
+ * Writes a PFM file.
+ */
+static void dump_image_hdr(std::ostream& out, int width, int height, const float* pixels) {
+    out << "PF\n" << width << " " << height << "\n-1.0\n";
+
+    for (int j = height-1; j > -1; j--) {
+        for (int i = 0; i < width; i++) {
+            out.write((char *) &pixels[3 * (width * j + i)], 3 * sizeof(float));
+        }
+    }
+}
+
+/**
+ * Writes either a PPM (default) or PFM file.
+ */
+static void dump_image(std::ostream& out, int width, int height, const float* pixels, bool hdr=false){
+    if (hdr) {
+        // store in binary .pfm format
+        dump_image_hdr(out, width, height, pixels);
+    } else {
+        // store in binary .ppm format
+        dump_image_ldr(out, width, height, pixels);
+    }
+}
+
+/**
  * Reads a PPM file into the given buffer.
  * Adapted from here: http://www.cplusplus.com/forum/general/208835/
  */
-static void read_image(std::string filename, unsigned char* pixels_in) {
+static void read_ppm(std::string filename, unsigned char* pixels_in) {
     FILE* fp = fopen(filename.c_str(), "rb");
 
     // read header
@@ -559,9 +585,9 @@ static void validate_output(int rgb_tol, float overall_tol, std::string ref_file
 
     // read the two images
     auto pixels_ref = std::make_unique<unsigned char[]>(size * 3);
-    read_image(ref_filename, pixels_ref.get());
+    read_ppm(ref_filename, pixels_ref.get());
     auto pixels_out = std::make_unique<unsigned char[]>(size * 3);
-    read_image(out_filename, pixels_out.get());
+    read_ppm(out_filename, pixels_out.get());
 
     float fraction_different = compare_pixels(rgb_tol, pixels_ref.get(), pixels_out.get(), height * width);
     if (fraction_different > overall_tol) {
