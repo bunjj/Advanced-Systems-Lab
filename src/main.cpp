@@ -533,12 +533,14 @@ static hit sphere_trace(vec origin, vec dir) {
 static void dump_image_ldr(std::ostream& out, int width, int height, const float* pixels, float exposure) {
     out << "P6\n" << width << " " << height << "\n255\n";
 
-    // TODO: gamma correction?
+    // gamma correction according to wikipedia
+    float invgamma = 0.45; // inverse of gamma=2.2f
     for (int j = 0; j < height; j++) {
         for (int i = 0; i < width; i++) {
             for (int k = 0; k < 3; k++) {
-                unsigned char channel = std::clamp(exposure * pixels[3 * (width * j + i) + k], 0.f, 1.f) * 255.f;
-                out << channel;
+                float channel = exposure * pixels[3 * (width * j + i) + k];
+                unsigned char encoding = std::clamp(std::pow(channel, invgamma), 0.f, 1.f) * 255.f;
+                out << encoding;
             }
         }
     }
