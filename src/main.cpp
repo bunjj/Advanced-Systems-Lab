@@ -735,6 +735,19 @@ int main(int argc, char** argv) {
     std::ofstream o;
     o.exceptions(std::ifstream::failbit | std::ifstream::badbit);
 
+    
+    bool hdr;
+    std::string fileformat = output.substr(output.find_last_of("."));
+    if (fileformat.compare(".pfm") == 0) {
+        hdr = true;
+    } else if (fileformat.compare(".ppm") == 0) {
+        hdr = false;
+    } else {
+        std::cerr << "Unsupported file format '" << fileformat << "', defaulting to '.pfm'" << std::endl;
+        hdr = true;
+        output.append(".pfm");
+    }
+
     try {
         o.open(output);
     } catch (std::system_error& e) {
@@ -742,9 +755,9 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
-    dump_image(o, width, height, pixels.get(), true);
+    dump_image(o, width, height, pixels.get(), hdr);
 
-    ins_dump(NULL);
+    ins_dump(NULL); // TODO: dump before dumping image, in case something goes wrong?
 
     return 0;
 }
