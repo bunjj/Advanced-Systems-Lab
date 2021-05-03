@@ -41,10 +41,10 @@ dramatically increases compile and runtime.
 ## Running
 
 Compiling will produce an executable called `main` in the `build` directory.
-It takes two arguments: 
+It takes two mandatory arguments and one optional:
 
 ```
-./main <input> <output>
+./main <input> <output> [<reference>]
 ```
 
-The first one is the path to a JSON file containing a scene definition and the second one is the path where the resulting ppm image file should be written too (Any existing file will be overwritten).
+The first one is the path to a JSON file containing a scene definition and the second one is the path where the resulting ppm image file should be written to (any existing file will be overwritten). The optional argument is the path to the reference ppm image (used for output validation).
