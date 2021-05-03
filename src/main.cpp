@@ -8,469 +8,15 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
-#include <nlohmann/json.hpp>
 
-#include "geometry.h"
+#include "impl.hpp"
+#include "impl_ref/geometry.h"
+#include "impl_ref/scene.hpp"
 #include "instrument.h"
-#include "loader.h"
 #include "timing.h"
 #include "util.h"
 
 flops_t flops_counter;
-
-using json = nlohmann::json;
-
-// Scene {{{
-struct camera {
-    float fov;
-    vec pos;
-    vec rotation;
-};
-
-struct light {
-    vec pos;
-    vec color;
-    float intensity;
-};
-
-struct sphere {
-    vec center;
-    float radius;
-};
-
-struct plane {
-    // Normal vector
-    vec normal;
-    // Point on the plane
-    vec point;
-};
-
-struct box {
-    vec bottom_left;
-    vec extents;
-};
-
-struct torus {
-    vec center;
-    float r1;
-    float r2;
-};
-
-struct cone {
-    vec center;
-    float r1;
-    float r2;
-    float height;
-};
-
-struct octa {
-    vec center;
-    float s;
-};
-
-typedef float (*distance_fun)(const struct shape s, const vec pos);
-
-struct shape {
-    distance_fun distance;
-    char data[std::max({sizeof(sphere), sizeof(plane), sizeof(box), sizeof(torus), sizeof(cone), sizeof(octa)})];
-    // The matrix for transforming any point in the object space into the world
-    // space.
-    m44 matrix;
-    // Inverse of the above matrix. Transforms points in the world space into
-    // the object space.
-    m44 inv_matrix;
-    vec color;
-    float shininess;
-};
-
-shape make_shape(vec color, float shininess, const m44 matrix, distance_fun f, void* data, size_t data_size) {
-    shape shap;
-    shap.distance = f;
-    shap.matrix = matrix;
-    shap.inv_matrix = m44_inv(matrix);
-    shap.color = color;
-    shap.shininess = shininess;
-    memcpy(&shap.data, data, data_size);
-    return shap;
-}
-
-// Sphere {{{
-float sphere_distance(const shape s, const vec from) {
-    INS_INC(sphere);
-    sphere sp = *((sphere*)s.data);
-    INS_ADD;
-    return vec_length(vec_sub(sp.center, from)) - sp.radius;
-}
-
-vec sphere_normal(sphere s, vec pos) {
-    return vec_normalize(vec_sub(pos, s.center));
-}
-
-shape make_sphere(float x, float y, float z, float r, vec color, float shininess) {
-    sphere s = {{x, y, z}, r};
-    return make_shape(color, shininess, get_transf_matrix({x, y, z}, {0, 0, 0}), sphere_distance, &s, sizeof(s));
-}
-
-shape load_sphere(json& j) {
-    float r;
-    vec pos = load_pos(j);
-    r = j["params"]["radius"];
-    vec color = load_vec(j["color"]);
-    float shininess = j["shininess"];
-    return make_sphere(pos.x, pos.y, pos.z, r, color, shininess);
-}
-
-// }}}
-
-// Box {{{
-float box_distance(const shape s, const vec from) {
-    INS_INC(box);
-    box b = *((box*)s.data);
-    vec pos = vec4_to_vec(m44_mul_vec(s.inv_matrix, vec4_from_point(from)));
-    vec q = vec_sub(vec_abs(pos), b.extents);
-    return FADD(vec_length(vec_max(q, 0)), min(0.0f, max(max(q.x, q.y), q.z)));
-}
-
-shape make_box(vec bottom_left, vec extents, vec rot, vec color, float shininess) {
-    box s = {bottom_left, extents};
-    return make_shape(color, shininess, get_transf_matrix(bottom_left, rot), box_distance, &s, sizeof(s));
-}
-
-shape load_box(json& j) {
-    vec pos = load_pos(j);
-    vec extents = load_vec(j["params"]["extents"]);
-    vec rot = load_rot(j);
-    vec color = load_vec(j["color"]);
-    float shininess = j["shininess"];
-    return make_box(pos, extents, rot, color, shininess);
-}
-
-// }}}
-
-// Plane {{{
-
-float plane_distance(const shape s, const vec from) {
-    INS_INC(plane);
-    plane p = *((plane*)s.data);
-    return vec_dot(p.normal, vec_sub(from, p.point));
-}
-
-shape make_plane(vec normal, vec point, vec color, float shininess) {
-    plane p = {vec_normalize(normal), point};
-    return make_shape(color, shininess, identity, plane_distance, &p, sizeof(p));
-}
-
-shape load_plane(json& j) {
-    float displacement = j["params"]["displacement"];
-    vec normal = load_vec(j["params"]["normal"]);
-    vec point = vec_scale(normal, displacement);
-    vec color = load_vec(j["color"]);
-    float shininess = j["shininess"];
-    return make_plane(normal, point, color, shininess);
-}
-// }}}
-
-// Torus {{{
-float torus_distance(const shape s, const vec from) {
-    INS_INC(torus);
-    torus t = *((torus*)s.data);
-    vec pos = vec4_to_vec(m44_mul_vec(s.inv_matrix, vec4_from_point(from)));
-    vec2 posxz = {pos.x, pos.z};
-    INS_ADD;
-    vec2 q = {vec2_length(posxz) - t.r1, pos.y};
-
-    INS_ADD;
-    return vec2_length(q) - t.r2;
-}
-
-shape make_torus(vec center, float r1, float r2, vec rot, vec color, float shininess) {
-    torus t = {center, r1, r2};
-    return make_shape(color, shininess, get_transf_matrix(center, rot), torus_distance, &t, sizeof(t));
-}
-
-shape load_torus(json& j) {
-    float r1, r2;
-    vec pos = load_pos(j);
-    vec rot = load_rot(j);
-
-    r1 = j["params"]["r1"];
-    r2 = j["params"]["r2"];
-
-    vec color = load_vec(j["color"]);
-    float shininess = j["shininess"];
-
-    return make_torus(pos, r1, r2, rot, color, shininess);
-}
-
-// }}}
-
-// Cone {{{
-float cone_distance(const shape shap, const vec from) {
-    INS_INC(cone);
-    cone c = *((cone*)shap.data);
-    vec pos = vec4_to_vec(m44_mul_vec(shap.inv_matrix, vec4_from_point(from)));
-
-    float r1 = c.r1;
-    float r2 = c.r2;
-    float h = c.height;
-
-    vec2 q = {vec2_length({pos.x, pos.z}), pos.y};
-    vec2 k1 = {r2, h};
-    INS_ADD;
-    INS_MUL;
-    vec2 k2 = {r2 - r1, 2 * h};
-    INS_INC1(add, 2);
-    INS_ABS;
-    INS_CMP;
-    vec2 ca = {q.x - min(q.x, (q.y < 0 ? r1 : r2)), fabsf(q.y) - h};
-    INS_DIV;
-    vec2 cb =
-        vec2_add(vec2_sub(q, k1), vec2_scale(k2, clamp(vec2_dot(vec2_sub(k1, q), k2) / vec2_dot2(k2), 0.0f, 1.0f)));
-    INS_INC1(cmp, 2);
-    float s = (cb.x < 0 && ca.y < 0) ? -1 : 1;
-
-    INS_MUL;
-    INS_SQRT;
-    return s * sqrtf(min(vec2_dot2(ca), vec2_dot2(cb)));
-}
-
-shape make_cone(vec center, float r1, float r2, float height, vec rot, vec color, float shininess) {
-    cone c = {center, r1, r2, height};
-    return make_shape(color, shininess, get_transf_matrix(center, rot), cone_distance, &c, sizeof(c));
-}
-
-shape load_cone(json& j) {
-    // TODO: adjust cone definition according to mail!
-    float r1, r2, height;
-    vec pos = load_pos(j);
-    vec rot = load_rot(j);
-
-    r1 = j["params"][0];
-    r2 = j["params"][1];
-    height = j["params"][2];
-
-    vec color = load_vec(j["color"]);
-    float shininess = j["shininess"];
-
-    return make_cone(pos, r1, r2, height, rot, color, shininess);
-}
-
-// }}}
-
-// Octahedron {{{
-float octahedron_distance(const shape shap, const vec from) {
-    INS_INC(octa);
-    octa o = *((octa*)shap.data);
-    vec pos = vec4_to_vec(m44_mul_vec(shap.inv_matrix, vec4_from_point(from)));
-    pos = vec_abs(pos);
-
-    float s = o.s;
-
-    INS_INC1(add, 3);
-    float m = pos.x + pos.y + pos.z - s;
-    vec q;
-
-    if (3 * pos.x < m) {
-        INS_INC1(mul, 1);
-        INS_INC1(cmp, 1);
-        q = pos;
-    } else if (3 * pos.y < m) {
-        INS_INC1(mul, 2);
-        INS_INC1(cmp, 2);
-        q = {pos.y, pos.x, pos.z};
-    } else if (3 * pos.z < m) {
-        INS_INC1(mul, 3);
-        INS_INC1(cmp, 3);
-        q = {pos.z, pos.x, pos.y};
-    } else {
-        INS_INC1(mul, 4);
-        INS_INC1(cmp, 3);
-        return m * 0.57735027;
-    }
-
-    INS_MUL;
-    INS_INC1(add, 2);
-    float k = clamp(0.5f * (q.z - q.y + s), 0.0f, s);
-
-    INS_INC1(add, 3);
-    return vec_length({q.x, q.y - s + k, q.z - k});
-}
-
-shape make_octahedron(vec center, float s, vec rot, vec color, float shininess) {
-    octa o = {center, s};
-    return make_shape(color, shininess, get_transf_matrix(center, rot), octahedron_distance, &o, sizeof(o));
-}
-
-shape load_octa(json& j) {
-    float s;
-    vec pos = load_pos(j);
-    vec rot = load_rot(j);
-
-    s = j["params"]["s"];
-    vec color = load_vec(j["color"]);
-    float shininess = j["shininess"];
-
-    return make_octahedron(pos, s, rot, color, shininess);
-}
-
-// }}}
-
-static shape* shapes;
-static int num_shapes;
-static light* lights;
-static int num_lights;
-static camera cam;
-static m44 camera_matrix;
-static float fov_factor;
-static float aspect_ratio;
-// }}}
-
-// Sphere Tracing {{{
-
-// max distance
-static float D = 2048;
-static float EPS = 0.001;
-
-struct hit {
-    bool is_hit;
-    float distance;
-    int steps;
-    vec color;
-};
-
-static bool sphere_trace_shadow(vec point, vec light_dir, float max_distance) {
-    // TODO if we start with t = 0 this function causes some pixels to be black
-    // because it erroneously detects a collision with the original object
-    float t = EPS;
-
-    while (t < max_distance) {
-        vec pos = vec_add(point, vec_scale(light_dir, t));
-
-        float min_distance = INFINITY;
-
-        for (int k = 0; k < num_shapes; k++) {
-            float distance = shapes[k].distance(shapes[k], pos);
-
-            INS_CMP;
-            if (distance < min_distance) {
-                min_distance = distance;
-
-                INS_CMP;
-                if (min_distance <= EPS * t) {
-                    return true;
-                }
-            }
-        }
-
-        t = FADD(t, min_distance);
-    }
-
-    return false;
-}
-
-static hit sphere_trace(vec origin, vec dir) {
-    float t = 0;
-
-    int steps = 0;
-
-    while (t < D) {
-        vec pos = vec_add(origin, vec_scale(dir, t));
-
-        float min_distance = INFINITY;
-        int shape_idx = -1;
-
-        for (int k = 0; k < num_shapes; k++) {
-            float distance = shapes[k].distance(shapes[k], pos);
-
-            INS_CMP;
-            if (distance < min_distance) {
-                min_distance = distance;
-                shape_idx = k;
-
-                INS_CMP;
-                if (min_distance <= EPS) {
-                    break;
-                }
-            }
-        }
-
-        INS_CMP;
-        if (min_distance <= EPS) {
-            shape s = shapes[shape_idx];
-            static const float delta = 10e-5;
-            vec delta1 = {delta, 0, 0};
-            vec delta2 = {0, delta, 0};
-            vec delta3 = {0, 0, delta};
-
-            INS_INC1(add, 3);
-            // Some shapes can calculate this directly
-            vec normal = vec_normalize({
-                s.distance(s, vec_add(pos, delta1)) - s.distance(s, vec_sub(pos, delta1)),
-                s.distance(s, vec_add(pos, delta2)) - s.distance(s, vec_sub(pos, delta2)),
-                s.distance(s, vec_add(pos, delta3)) - s.distance(s, vec_sub(pos, delta3)),
-            });
-            vec color{0, 0, 0};
-
-            vec diffuse = {0.f, 0.f, 0.f};
-            vec specular = {0.f, 0.f, 0.f};
-            for (int i = 0; i < num_lights; i++) {
-                vec light_point = vec_sub(lights[i].pos, pos);
-
-                INS_CMP;
-                if (vec_dot(light_point, normal) > 0) {
-                    vec light_dir = vec_normalize(light_point);
-                    // Squared distance from light to point
-                    float dist_sq = vec_dot2(light_point);
-
-                    if (!sphere_trace_shadow(pos, light_dir, FSQRT(dist_sq))) {
-                        INS_INC1(mul, 2);
-                        INS_DIV;
-                        vec light_intensity = vec_scale(lights[i].color, lights[i].intensity / (4 * M_PI_F * dist_sq));
-
-                        // diffuse
-                        diffuse = vec_add(diffuse, vec_scale(light_intensity, max(0.f, vec_dot(normal, light_dir))));
-                        
-                        // specular
-                        // TODO: how to choose n?
-                        float n = 4.f;
-                        INS_MUL;
-                        vec r = vec_add(vec_scale(normal, 2 * vec_dot(normal, vec_scale(light_dir, -1.f))), light_dir);
-                        INS_POW;
-                        specular = vec_add(specular, vec_scale(light_intensity, pow(max(0.f, vec_dot(r, dir)), n)));
-                    }
-                }
-            }
-
-            // TODO: not clear what the unit of the shininess parameter in the scenes is
-            // TODO: is ks + kd == 1 really a requirement?
-            INS_MUL;
-            float ks = s.shininess * 0.01f; // specular parameter
-            INS_ADD;
-            float kd = 1 - ks; // diffuse parameter
-
-            vec object_color = s.color;
-
-            // scale object color s.t. intensity of most prominent color is 1
-            float max_color = max(max(object_color.x, object_color.y), object_color.z);
-            INS_DIV;
-            float scale_factor = 1.f / max_color;
-            object_color = vec_scale(object_color, scale_factor);
-
-            INS_INC1(mul, 3);
-            diffuse = {diffuse.x * object_color.x, diffuse.y * object_color.y, diffuse.z * object_color.z};
-            color = vec_add(color, vec_add(vec_scale(diffuse, kd), vec_scale(specular, ks)));
-
-            return {true, t, steps, color};
-        }
-
-        t = FADD(t, min_distance);
-        steps++;
-    }
-
-    return hit{false, t, steps, {0, 0, 0}};
-}
-
-// }}}
 
 // Image Files and Output Validation {{{
 /**
@@ -480,12 +26,14 @@ static hit sphere_trace(vec origin, vec dir) {
 static void read_ppm(std::string filename, unsigned char* pixels_in) {
     FILE* fp = fopen(filename.c_str(), "rb");
 
+    assert(fp);
+
     // read header
     char pSix[10];
     fscanf(fp, "%s", pSix);
 
     // check if it is a PPM file
-    if (strncmp(pSix, "P6" , 10) != 0) {
+    if (strncmp(pSix, "P6", 10) != 0) {
         std::cerr << "Input file is not PPM!" << std::endl;
         exit(EXIT_FAILURE);
     }
@@ -517,33 +65,33 @@ static void read_ppm(std::string filename, unsigned char* pixels_in) {
  * Significantly different means the difference in RGB values (summed) is greater than rgb_tol.
  */
 static float compare_pixels(int rgb_tol, unsigned char* pixels_reference, unsigned char* pixels_out, size_t size) {
-
     int num_different = 0;
 
     for (size_t i = 0; i < size; i++) {
-        unsigned char ro = pixels_out[3*i];
-        unsigned char go = pixels_out[3*i+1];
-        unsigned char bo = pixels_out[3*i+2];
+        unsigned char ro = pixels_out[3 * i];
+        unsigned char go = pixels_out[3 * i + 1];
+        unsigned char bo = pixels_out[3 * i + 2];
 
-        unsigned char rr = pixels_reference[3*i];
-        unsigned char gr = pixels_reference[3*i+1];
-        unsigned char br = pixels_reference[3*i+2];
+        unsigned char rr = pixels_reference[3 * i];
+        unsigned char gr = pixels_reference[3 * i + 1];
+        unsigned char br = pixels_reference[3 * i + 2];
 
-        int difference = abs(ro-rr) + abs(go-gr) + abs(bo-br);
+        int difference = abs(ro - rr) + abs(go - gr) + abs(bo - br);
         if (difference > rgb_tol) {
             num_different++;
         }
     }
 
     // return fraction of pixels that are different
-    return (float) num_different / size;
+    return (float)num_different / size;
 }
 
 /**
  * Asserts that no more than overall_tol (= fraction) pixels are significantly different from the reference image.
  * Significantly different means that the difference in RGB values (range 0..255) (summed) is greater than rgb_tol.
  */
-static void validate_output(int rgb_tol, float overall_tol, std::string ref_filename, std::string out_filename, int height, int width) {
+static void validate_output(
+    int rgb_tol, float overall_tol, std::string ref_filename, std::string out_filename, int height, int width) {
     int size = height * width;
 
     // read the two images
@@ -554,154 +102,28 @@ static void validate_output(int rgb_tol, float overall_tol, std::string ref_file
 
     float fraction_different = compare_pixels(rgb_tol, pixels_ref.get(), pixels_out.get(), height * width);
     if (fraction_different > overall_tol) {
-        std::cerr << "OUTPUT VALIDATION FAILED: " << std::setprecision(4) << fraction_different * 100 << "% different" << std::endl;
+        std::cerr << "OUTPUT VALIDATION FAILED: " << std::setprecision(4) << fraction_different * 100 << "% different"
+                  << std::endl;
         exit(EXIT_FAILURE);
     } else {
-        std::cout << "output validation OK: " << std::setprecision(4) << fraction_different * 100 << "% different" << std::endl;
+        std::cout << "output validation OK: " << std::setprecision(4) << fraction_different * 100 << "% different"
+                  << std::endl;
     }
 }
 
 // }}}
-
-// Load JSON {{{
-
-/**
- *
- * Methods to read in the data from the json file
- *
- */
-static camera load_camera(json& j) {
-    camera cam;
-    json c = j["camera"];
-    cam.fov = j["camera"]["fov"];
-    cam.pos = load_pos(c);
-    cam.rotation = load_rot(c);
-    return cam;
-}
-
-static light load_single_light(json& j) {
-    light l;
-    l.pos = load_pos(j);
-    l.color = load_vec(j["emission"]);
-    assert(l.color.x >= 0);
-    assert(l.color.x < 256);
-    assert(l.color.y >= 0);
-    assert(l.color.y < 256);
-    assert(l.color.z >= 0);
-    assert(l.color.z < 256);
-
-    l.color = vec_scale(l.color, 1.f / 255.f);
-
-    if (j.contains("intensity")) {
-        l.intensity = j["intensity"];
-    } else {
-        l.intensity = 150000;
-    }
-
-    return l;
-}
-
-static std::vector<light> load_light(json& j) {
-    std::vector<light> lights;
-    json light = j["pointlight"];
-
-    if (light.is_array()) {
-        for (auto& l : light) {
-            lights.push_back(load_single_light(l));
-        }
-    } else {
-        lights.push_back(load_single_light(light));
-    }
-
-    return lights;
-}
-
-static void load_shapes(json& j) {
-    num_shapes = j["objects"].size();
-    shapes = (shape*)malloc(sizeof(shape) * num_shapes);
-
-    for (int i = 0; i < num_shapes; i++) {
-        shape new_shape;
-        json current_shape = j["objects"][i];
-        std::string current = current_shape["kind"].get<std::string>();
-        if (current == "sphere") {
-            new_shape = load_sphere(current_shape);
-        } else if (current == "plane") {
-            new_shape = load_plane(current_shape);
-        } else if (current == "box") {
-            new_shape = load_box(current_shape);
-        } else if (current == "torus") {
-            new_shape = load_torus(current_shape);
-        } else if (current == "cone") {
-            new_shape = load_cone(current_shape);
-        } else if (current == "octahedron") {
-            new_shape = load_octa(current_shape);
-        } else {
-            std::cerr << "Unknown shape " << current << std::endl;
-            break;
-        }
-        shapes[i] = new_shape;
-    }
-}
-
-// }}}
-
-void render_init(int width, int height) {
-    camera_matrix = get_transf_matrix(cam.pos, cam.rotation);
-    INS_DIV;
-    INS_DIV;
-    INS_MUL;
-    INS_TAN;
-    fov_factor = tanf(TO_RAD(cam.fov / 2));
-    INS_DIV;
-    aspect_ratio = static_cast<float>(width) / height;
-}
-
-void render(int width, int height, float* pixels) {
-    for (int py = 0; py < height; py++) {
-        for (int px = 0; px < width; px++) {
-            /*
-             * Position of the pixel in camera space.
-             *
-             * We assume that the camera is looking towards positive z and the
-             * image plane is one unit away from the camera (z = -1 in this
-             * case).
-             */
-            INS_INC1(add, 4);
-            INS_INC1(mul, 5);
-            INS_INC1(div, 2);
-            float x = (2 * (px + 0.5) / width - 1) * aspect_ratio * fov_factor;
-            float y = (1 - 2 * (py + 0.5) / height) * fov_factor;
-            float z = 1;
-
-            // Direction in camera space.
-            vec dir = vec_normalize({x, y, z});
-
-            vec4 world_dir = m44_mul_vec(camera_matrix, vec4_from_dir(dir));
-
-            auto h = sphere_trace(cam.pos, vec4_to_vec(world_dir));
-
-            vec color = h.is_hit ? h.color : vec{0, 0, 0};
-
-            pixels[3 * (width * py + px)] = color.x;
-            pixels[3 * (width * py + px) + 1] = color.y;
-            pixels[3 * (width * py + px) + 2] = color.z;
-        }
-    }
-}
 
 void run(int width, int height, std::string output) {
     auto pixels = std::make_unique<float[]>(height * width * 3);
 
     ins_rst();
-
-    render_init(width, height);
+    impl::ref::render_init();
     ins_dump("Setup");
 
     ins_rst();
 
     timing_start();
-    render(width, height, pixels.get());
+    impl::ref::render(width, height, pixels.get());
     timing_t timing = timing_stop();
 
     ins_dump(NULL);
@@ -732,30 +154,7 @@ int main(int argc, char** argv) {
     std::string output = argv[2];
     std::string reference = argc > 3 ? argv[3] : "";
 
-    std::ifstream i;
-    i.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-
-    try {
-        i.open(input);
-    } catch (std::system_error& e) {
-        std::cerr << "Failed to open input file '" << input << "': " << strerror(errno) << std::endl;
-        return EXIT_FAILURE;
-    }
-
-    json j;
-    i >> j;
-
-
-    // load camera paremters
-    cam = load_camera(j);
-    // load light (as defined in scene, not with intensity parameter)
-    std::vector<light> lights_vector = load_light(j);
-
-    lights = lights_vector.data();
-    num_lights = lights_vector.size();
-
-    // don't have to save shapes since it uses static variable
-    load_shapes(j);
+    impl::ref::load_scene(input);
 
     // TODO read size from commandline
     int width = 1920;
