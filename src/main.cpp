@@ -9,8 +9,8 @@
 #include <iostream>
 #include <memory>
 
-#include "impl.hpp"
 #include "impl_ref/geometry.h"
+#include "impl_ref/impl.hpp"
 #include "impl_ref/scene.hpp"
 #include "instrument.h"
 #include "timing.h"
