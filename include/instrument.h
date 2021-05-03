@@ -30,14 +30,14 @@ extern flops_t flops_counter;
 #ifndef DO_INSTRUMENT
 
 #define ins_dump(title) NOP
-#define ins_total() 0UL
+#define ins_total() UINT64_C(0)
 #define ins_rst() NOP
 #define INS_INC1(name, offset) NOP
 
 #else
 
 static inline uint64_t ins_total() {
-    return flops_counter.add + flops_counter.mul + flops_counter.fma + flops_counter.div + flops_counter.sqrt +
+    return flops_counter.add + flops_counter.mul + 2 * flops_counter.fma + flops_counter.div + flops_counter.sqrt +
            flops_counter.abs + flops_counter.cmp + flops_counter.pow + flops_counter.tan;
 }
 
