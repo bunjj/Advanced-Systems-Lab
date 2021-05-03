@@ -426,6 +426,74 @@ static float sphere_trace_softshadow(vec point, vec light_dir, float max_distanc
 }
 
 
+static vec shade(shape s, vec pos, vec dir, float t) {
+
+    /* Prepare shading parameters */
+    INS_MUL;
+    float alpha = s.shininess;      // shininess parameter
+    float ks = s.reflection * 0.4;  // specular parameter 
+    float kd = 1.f;                 // diffuse parameter
+    float ka = 0.0075f;             // ambient parameter
+
+    vec wi;                         // incident direction
+    vec wr;                         // reflected direction
+    vec wo = vec_scale(dir, -1.f);  // outgoing direction
+    vec wn = s.normal(s, pos);      // normal direction
+
+    vec Li;                         // incident Light
+    vec Lo = {0, 0, 0};             // outgoing Light
+    vec La = {0, 0, 0};             // ambient Light
+
+    for (int i = 0; i < num_lights; i++) {
+
+        wi = vec_sub(lights[i].pos, pos);   // unnormalized 
+        
+        INS_DIV;
+        float dist2 = vec_dot2(wi);     // squared distance of light
+        float dist = FSQRT(dist2);      // distance of light
+        wi = vec_scale(wi, 1/dist);     // normalize incident direction
+
+        // incoming light 
+        INS_INC1(mul, 2);
+        INS_DIV;
+        Li = vec_scale(lights[i].emission, 1 / (4 * M_PI_F * dist2)); // incident light
+        La = vec_add(La, Li);   // incident light contributes to ambient light
+
+        INS_CMP;
+        if (vec_dot(wn, wi) > 0) {    
+
+            float shadow = sphere_trace_softshadow(pos, wi, dist);
+            if (shadow > EPS) {
+
+                Li = vec_scale(Li, shadow);
+                
+                // diffuse
+                INS_MUL;
+                vec f_diffuse = vec_scale(s.color, kd * vec_dot(wn, wi)); // fraction of reflected light
+                Lo = vec_add(Lo, vec_mul(Li, f_diffuse)); // diffuse contribution to outgoing light
+
+                // specular
+                INS_INC1(mul, 2);
+                INS_POW;
+                wr = vec_sub( vec_scale(wn, 2 * vec_dot(wn, wi) ), wi); // reflected direction
+                float f_specular = ks * pow(max(0.f, vec_dot(wr, wo)), alpha);  // fraction of reflected light TODO: normalization?
+                Lo = vec_add(Lo, vec_scale(Li, f_specular)); // specular contribution to outgoing light
+            }
+        }
+    }
+    
+    vec f_ambient = vec_scale(s.color, ka); // fraction of reflected ambient light
+    Lo = vec_add(Lo, vec_mul(La, f_ambient)); // ambient contribution to outgoing light
+
+    // fog
+    INS_INC1(mul, 3);
+    INS_POW; // TODO: count exponentials separately?
+    Lo = vec_scale(Lo, std::exp(-4e-6*t*t*t ));
+
+    return Lo;
+}
+
+
 static hit sphere_trace(vec origin, vec dir) {
     float t = 0;
 
@@ -454,71 +522,9 @@ static hit sphere_trace(vec origin, vec dir) {
 
         INS_CMP;
         if (min_distance <= EPS) {
-            shape s = shapes[shape_idx];
 
-            /* Prepare shading parameters */
-            INS_MUL;
-            float alpha = s.shininess;      // shininess parameter
-            float ks = s.reflection * 0.4;  // specular parameter 
-            float kd = 1.f;                 // diffuse parameter
-            float ka = 0.0075f;             // ambient parameter
-
-            vec wi;                         // incident direction
-            vec wr;                         // reflected direction
-            vec wo = vec_scale(dir, -1.f);  // outgoing direction
-            vec wn = s.normal(s, pos);      // normal direction
-
-            vec Li;                         // incident Light
-            vec Lo = {0, 0, 0};             // outgoing Light
-            vec La = {0, 0, 0};             // ambient Light
-
-            for (int i = 0; i < num_lights; i++) {
-
-                wi = vec_sub(lights[i].pos, pos);   // unnormalized 
-                
-                INS_DIV;
-                float dist2 = vec_dot2(wi);     // squared distance of light
-                float dist = FSQRT(dist2);      // distance of light
-                wi = vec_scale(wi, 1/dist);     // normalize incident direction
-
-                // incoming light 
-                INS_INC1(mul, 2);
-                INS_DIV;
-                Li = vec_scale(lights[i].emission, 1 / (4 * M_PI_F * dist2)); // incident light
-                La = vec_add(La, Li);   // incident light contributes to ambient light
-
-                INS_CMP;
-                if (vec_dot(wn, wi) > 0) {    
-
-                    float shadow = sphere_trace_softshadow(pos, wi, dist);
-                    if (shadow > EPS) {
-
-                        Li = vec_scale(Li, shadow);
-                        
-                        // diffuse
-                        INS_MUL;
-                        vec f_diffuse = vec_scale(s.color, kd * vec_dot(wn, wi)); // fraction of reflected light
-                        Lo = vec_add(Lo, vec_mul(Li, f_diffuse)); // diffuse contribution to outgoing light
-
-                        // specular
-                        INS_INC1(mul, 2);
-                        INS_POW;
-                        wr = vec_sub( vec_scale(wn, 2 * vec_dot(wn, wi) ), wi); // reflected direction
-                        float f_specular = ks * pow(max(0.f, vec_dot(wr, wo)), alpha);  // fraction of reflected light TODO: normalization?
-                        Lo = vec_add(Lo, vec_scale(Li, f_specular)); // specular contribution to outgoing light
-                    }
-                }
-            }
-            
-            vec f_ambient = vec_scale(s.color, ka); // fraction of reflected ambient light
-            Lo = vec_add(Lo, vec_mul(La, f_ambient)); // ambient contribution to outgoing light
-
-            // fog
-            INS_INC1(mul, 3);
-            INS_POW; // TODO: count exponentials separately?
-            Lo = vec_scale(Lo, std::exp(-4e-6*t*t*t ));
-
-            return {true, t, steps, Lo};
+            vec color = shade(shapes[shape_idx], pos, dir, t);
+            return {true, t, steps, color};
         }
 
         t = FADD(t, min_distance);
