@@ -378,6 +378,7 @@ static float sphere_trace_shadow(vec point, vec light_dir, float max_distance) {
                 min_distance = distance;
 
                 INS_CMP;
+                INS_MUL;
                 if (min_distance <= EPS * t) {
                     return 0.f;
                 }
@@ -409,12 +410,15 @@ static float sphere_trace_softshadow(vec point, vec light_dir, float max_distanc
                 min_distance = distance;
 
                 INS_CMP;
+                INS_MUL;
                 if (min_distance <= EPS * t) {
                     return 0.0f;
                 }
             }
         }
 
+        INS_MUL;
+        INS_DIV;
         res = min( res, k * min_distance / t);
         t = FADD(t, min_distance);
     }
@@ -453,7 +457,7 @@ static hit sphere_trace(vec origin, vec dir) {
             shape s = shapes[shape_idx];
 
             /* Prepare shading parameters */
-            INS_ADD;
+            INS_MUL;
             float alpha = s.shininess;      // shininess parameter
             float ks = s.reflection * 0.4;  // specular parameter 
             float kd = 1.f;                 // diffuse parameter
@@ -497,9 +501,7 @@ static hit sphere_trace(vec origin, vec dir) {
                         Lo = vec_add(Lo, vec_mul(Li, f_diffuse)); // diffuse contribution to outgoing light
 
                         // specular
-                        INS_INC1(mul, 3);
-                        INS_INC1(add, 1);
-                        INS_INC1(div, 1);
+                        INS_INC1(mul, 2);
                         INS_POW;
                         wr = vec_sub( vec_scale(wn, 2 * vec_dot(wn, wi) ), wi); // reflected direction
                         float f_specular = ks * pow(max(0.f, vec_dot(wr, wo)), alpha);  // fraction of reflected light TODO: normalization?
@@ -512,6 +514,8 @@ static hit sphere_trace(vec origin, vec dir) {
             Lo = vec_add(Lo, vec_mul(La, f_ambient)); // ambient contribution to outgoing light
 
             // fog
+            INS_INC1(mul, 3);
+            INS_POW; // TODO: count exponentials separately?
             Lo = vec_scale(Lo, std::exp(-4e-6*t*t*t ));
 
             return {true, t, steps, Lo};
