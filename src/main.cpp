@@ -852,6 +852,8 @@ int main(int argc, char** argv) {
         }
     }
 
+    ins_dump(NULL);
+
     std::ofstream o;
     o.exceptions(std::ifstream::failbit | std::ifstream::badbit);
 
@@ -882,8 +884,6 @@ int main(int argc, char** argv) {
     if (!reference.empty()) {
         validate_output(5, 0.01, reference, output, height, width);
     }
-
-    ins_dump(NULL); // TODO: dump before dumping image, in case something goes wrong?
 
     return 0;
 }
