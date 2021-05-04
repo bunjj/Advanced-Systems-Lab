@@ -463,6 +463,7 @@ static vec shade(shape s, vec pos, vec dir, float t) {
         if (vec_dot(wn, wi) > 0) {    
 
             float shadow = sphere_trace_softshadow(pos, wi, dist);
+            INS_CMP;
             if (shadow > EPS) {
 
                 Li = vec_scale(Li, shadow);
