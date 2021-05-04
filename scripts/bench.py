@@ -17,7 +17,7 @@ def eprint(*args, **kwargs):
 def run_benchmark():
     results = []
 
-    widths = range(100, 2100, 100)
+    widths = range(200, 4000, 200)
 
     for width in widths:
         eprint("{}x{}".format(width, width))
@@ -63,7 +63,7 @@ def print_line(line, quotes=False):
     print('')
 
 def main():
-    flags = ["-O3 -fno-tree-vectorize", "-O3", "-Ofast"]
+    flags = ["-O2", "-O3 -fno-tree-vectorize", "-O3", "-Ofast", "-Ofast -march=native"]
 
     eprint("Flops Counter")
     # Count flops first
@@ -89,12 +89,13 @@ def main():
             assert("Height" in v)
             assert("Cycles" in v)
             assert("Microseconds" in v)
+            assert(v["Height"] == v["Width"])
 
         assert(len(values) == len(flops))
 
         results.append(values)
 
-    header = ["pixels", "flops"]
+    header = ["width/height", "flops"]
 
     for flag in flags:
         header.extend([flag + " - seconds", flag + " - cycles", flag + " - flops/cycle"])
@@ -104,10 +105,9 @@ def main():
     for i in range(len(flops)):
         flop_val = flops[i]
         width = float(flop_val["Width"])
-        height = float(flop_val["Height"])
         num_flops = float(flop_val["Flops"])
 
-        line = [width * height, num_flops]
+        line = [width, num_flops]
 
         for result in results:
             r = result[i]
