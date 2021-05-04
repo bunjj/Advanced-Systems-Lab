@@ -16,6 +16,7 @@ typedef struct {
     uint64_t abs;
     uint64_t cmp;
     uint64_t pow;
+    uint64_t tan;
     uint64_t sphere;
     uint64_t plane;
     uint64_t box;
@@ -29,16 +30,22 @@ extern flops_t flops_counter;
 #ifndef DO_INSTRUMENT
 
 #define ins_dump(title) NOP
+#define ins_total() UINT64_C(0)
 #define ins_rst() NOP
 #define INS_INC1(name, offset) NOP
 
 #else
 
+static inline uint64_t ins_total() {
+    return flops_counter.add + flops_counter.mul + 2 * flops_counter.fma + flops_counter.div + flops_counter.sqrt +
+           flops_counter.abs + flops_counter.cmp + flops_counter.pow + flops_counter.tan;
+}
+
 static inline void ins_dump(const char* title) {
+    fprintf(stderr, "====================\n");
     if (title) {
         fprintf(stderr, "%s\n", title);
     }
-    fprintf(stderr, "====================\n");
     fprintf(stderr, "=== FLOPS COUNTER ==\n");
     fprintf(stderr, "ADD   : %12" PRIu64 "\n", flops_counter.add);
     fprintf(stderr, "MUL   : %12" PRIu64 "\n", flops_counter.mul);
@@ -48,12 +55,15 @@ static inline void ins_dump(const char* title) {
     fprintf(stderr, "ABS   : %12" PRIu64 "\n", flops_counter.abs);
     fprintf(stderr, "CMP   : %12" PRIu64 "\n", flops_counter.cmp);
     fprintf(stderr, "POW   : %12" PRIu64 "\n", flops_counter.pow);
+    fprintf(stderr, "TAN   : %12" PRIu64 "\n", flops_counter.tan);
     fprintf(stderr, "SPHERE: %12" PRIu64 "\n", flops_counter.sphere);
     fprintf(stderr, "PLANE : %12" PRIu64 "\n", flops_counter.plane);
     fprintf(stderr, "BOX   : %12" PRIu64 "\n", flops_counter.box);
     fprintf(stderr, "TORUS : %12" PRIu64 "\n", flops_counter.torus);
     fprintf(stderr, "CONE  : %12" PRIu64 "\n", flops_counter.cone);
     fprintf(stderr, "OCTA  : %12" PRIu64 "\n", flops_counter.octa);
+    fprintf(stderr, "====================\n");
+    fprintf(stderr, "TOTAL : %12" PRIu64 "\n", ins_total());
     fprintf(stderr, "====================\n");
 }
 
@@ -73,6 +83,7 @@ static inline void ins_rst(void) {
 #define INS_ABS INS_INC(abs)
 #define INS_CMP INS_INC(cmp)
 #define INS_POW INS_INC(pow)
+#define INS_TAN INS_INC(tan)
 
 #define FADD(x, y) (INS_ADD, ((x) + (y)))
 #define FMUL(x, y) (INS_MUL, ((x) * (y)))
