@@ -17,8 +17,7 @@ namespace impl::ref {
 
     struct light {
         vec pos;
-        vec color;
-        float intensity;
+        vec emission;
     };
 
     struct sphere {
@@ -57,9 +56,11 @@ namespace impl::ref {
     };
 
     typedef float (*distance_fun)(const struct shape s, const vec pos);
+    typedef vec (*normal_fun)(const struct shape s, const vec pos);
 
     struct shape {
         distance_fun distance;
+        normal_fun normal;
         char data[std::max({sizeof(sphere), sizeof(plane), sizeof(box), sizeof(torus), sizeof(cone), sizeof(octa)})];
         // The matrix for transforming any point in the object space into the world
         // space.
@@ -68,6 +69,7 @@ namespace impl::ref {
         // the object space.
         m44 inv_matrix;
         vec color;
+        float reflection;
         float shininess;
     };
 

@@ -3,7 +3,7 @@
 
 namespace impl::ref {
     // max distance
-    static const float D = 2048;
+    static const float D = 100;
     static const float EPS = 0.001;
 
     struct hit {
@@ -13,11 +13,12 @@ namespace impl::ref {
         vec color;
     };
 
-    static bool sphere_trace_shadow(vec point, vec light_dir, float max_distance) {
-        // TODO if we start with t = 0 this function causes some pixels to be black
-        // because it erroneously detects a collision with the original object
+    // https://www.iquilezles.org/www/articles/rmshadows/rmshadows.htm
+    static float sphere_trace_softshadow(vec point, vec light_dir, float max_distance) {
         float t = EPS;
 
+        float sharpness = 3.f; // shaprness of shadows
+        float res = 1.f;
         while (t < max_distance) {
             vec pos = vec_add(point, vec_scale(light_dir, t));
 
@@ -31,16 +32,85 @@ namespace impl::ref {
                     min_distance = distance;
 
                     INS_CMP;
+                    INS_MUL;
                     if (min_distance <= EPS * t) {
-                        return true;
+                        return 0.0f;
                     }
                 }
             }
 
+            INS_MUL;
+            INS_DIV;
+            res = min(res, sharpness * min_distance / t);
             t = FADD(t, min_distance);
         }
+        return res;
+    }
 
-        return false;
+    static vec shade(shape s, vec pos, vec dir, float t) {
+        /* Prepare shading parameters */
+        INS_MUL;
+        float alpha = s.shininess;     // shininess parameter
+        float ks = s.reflection * 0.4; // specular parameter
+        float kd = 1.f;                // diffuse parameter
+        float ka = 0.0075f;            // ambient parameter
+        float sigma_a = 4e-6f;         // atmospheric absorbtion coeff
+
+        vec wi;                        // incident direction
+        vec wr;                        // reflected direction
+        vec wo = vec_scale(dir, -1.f); // outgoing direction
+        vec wn = s.normal(s, pos);     // normal direction
+
+        vec Li;             // incident Light
+        vec Lo = {0, 0, 0}; // outgoing Light
+        vec La = {0, 0, 0}; // ambient Light
+
+        for (int i = 0; i < scene.num_lights; i++) {
+            wi = vec_sub(scene.lights[i].pos, pos); // unnormalized
+
+            INS_DIV;
+            float dist2 = vec_dot2(wi);   // squared distance of light
+            float dist = FSQRT(dist2);    // distance of light
+            wi = vec_scale(wi, 1 / dist); // normalize incident direction
+
+            // incoming light
+            INS_INC1(mul, 2);
+            INS_DIV;
+            Li = vec_scale(scene.lights[i].emission, 1 / (4 * M_PI_F * dist2)); // incident light
+            La = vec_add(La, Li);                                         // incident light contributes to ambient light
+
+            INS_CMP;
+            if (vec_dot(wn, wi) > 0) {
+                float shadow = sphere_trace_softshadow(pos, wi, dist);
+                INS_CMP;
+                if (shadow > EPS) {
+                    Li = vec_scale(Li, shadow);
+
+                    // diffuse
+                    INS_MUL;
+                    vec f_diffuse = vec_scale(s.color, kd * vec_dot(wn, wi)); // fraction of reflected light
+                    Lo = vec_add(Lo, vec_mul(Li, f_diffuse));                 // diffuse contribution to outgoing light
+
+                    // specular
+                    INS_INC1(mul, 2);
+                    INS_POW;
+                    wr = vec_sub(vec_scale(wn, 2 * vec_dot(wn, wi)), wi); // reflected direction
+                    float f_specular =
+                        ks * pow(max(0.f, vec_dot(wr, wo)), alpha); // fraction of reflected light TODO: normalization?
+                    Lo = vec_add(Lo, vec_scale(Li, f_specular));    // specular contribution to outgoing light
+                }
+            }
+        }
+
+        vec f_ambient = vec_scale(s.color, ka);   // fraction of reflected ambient light
+        Lo = vec_add(Lo, vec_mul(La, f_ambient)); // ambient contribution to outgoing light
+
+        // atmospheric effect using exponential decay
+        INS_INC1(mul, 3);
+        INS_POW;
+        Lo = vec_scale(Lo, powf(M_E, -sigma_a * t * t * t));
+
+        return Lo;
     }
 
     static hit sphere_trace(vec origin, vec dir) {
@@ -71,73 +141,7 @@ namespace impl::ref {
 
             INS_CMP;
             if (min_distance <= EPS) {
-                shape s = scene.shapes[shape_idx];
-                static const float delta = 10e-5;
-                vec delta1 = {delta, 0, 0};
-                vec delta2 = {0, delta, 0};
-                vec delta3 = {0, 0, delta};
-
-                INS_INC1(add, 3);
-                // Some shapes can calculate this directly
-                vec normal = vec_normalize({
-                    s.distance(s, vec_add(pos, delta1)) - s.distance(s, vec_sub(pos, delta1)),
-                    s.distance(s, vec_add(pos, delta2)) - s.distance(s, vec_sub(pos, delta2)),
-                    s.distance(s, vec_add(pos, delta3)) - s.distance(s, vec_sub(pos, delta3)),
-                });
-                vec color{0, 0, 0};
-
-                vec diffuse = {0.f, 0.f, 0.f};
-                vec specular = {0.f, 0.f, 0.f};
-                for (int i = 0; i < scene.num_lights; i++) {
-                    vec light_point = vec_sub(scene.lights[i].pos, pos);
-
-                    INS_CMP;
-                    if (vec_dot(light_point, normal) > 0) {
-                        vec light_dir = vec_normalize(light_point);
-                        // Squared distance from light to point
-                        float dist_sq = vec_dot2(light_point);
-
-                        if (!sphere_trace_shadow(pos, light_dir, FSQRT(dist_sq))) {
-                            INS_INC1(mul, 2);
-                            INS_DIV;
-                            vec light_intensity =
-                                vec_scale(scene.lights[i].color, scene.lights[i].intensity / (4 * M_PI_F * dist_sq));
-
-                            // diffuse
-                            diffuse =
-                                vec_add(diffuse, vec_scale(light_intensity, max(0.f, vec_dot(normal, light_dir))));
-
-                            // specular
-                            // TODO: how to choose n?
-                            float n = 4.f;
-                            INS_MUL;
-                            vec r =
-                                vec_add(vec_scale(normal, 2 * vec_dot(normal, vec_scale(light_dir, -1.f))), light_dir);
-                            INS_POW;
-                            specular = vec_add(specular, vec_scale(light_intensity, pow(max(0.f, vec_dot(r, dir)), n)));
-                        }
-                    }
-                }
-
-                // TODO: not clear what the unit of the shininess parameter in the scenes is
-                // TODO: is ks + kd == 1 really a requirement?
-                INS_MUL;
-                float ks = s.shininess * 0.01f; // specular parameter
-                INS_ADD;
-                float kd = 1 - ks; // diffuse parameter
-
-                vec object_color = s.color;
-
-                // scale object color s.t. intensity of most prominent color is 1
-                float max_color = max(max(object_color.x, object_color.y), object_color.z);
-                INS_DIV;
-                float scale_factor = 1.f / max_color;
-                object_color = vec_scale(object_color, scale_factor);
-
-                INS_INC1(mul, 3);
-                diffuse = {diffuse.x * object_color.x, diffuse.y * object_color.y, diffuse.z * object_color.z};
-                color = vec_add(color, vec_add(vec_scale(diffuse, kd), vec_scale(specular, ks)));
-
+                vec color = shade(scene.shapes[shape_idx], pos, dir, t);
                 return {true, t, steps, color};
             }
 

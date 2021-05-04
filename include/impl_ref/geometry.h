@@ -61,6 +61,11 @@ namespace impl::ref {
         return VEC_OP(v1, v2, -);
     }
 
+    static inline vec vec_mul(vec v1, vec v2){
+        INS_INC1(mul, 3);
+        return VEC_OP(v1, v2, *);
+    }
+
     static inline vec vec_scale(vec v1, float factor) {
         INS_INC1(mul, 3);
         return VEC_OP(v1, (vec{factor, factor, factor}), *);
