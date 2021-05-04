@@ -27,8 +27,7 @@ struct camera {
 
 struct light {
     vec pos;
-    vec color;
-    float intensity;
+    vec emission;
 };
 
 struct sphere {
@@ -67,9 +66,11 @@ struct octa {
 };
 
 typedef float (*distance_fun)(const struct shape s, const vec pos);
+typedef vec (*normal_fun)(const struct shape s, const vec pos);
 
 struct shape {
     distance_fun distance;
+    normal_fun normal;
     char data[std::max({sizeof(sphere), sizeof(plane), sizeof(box), sizeof(torus), sizeof(cone), sizeof(octa)})];
     // The matrix for transforming any point in the object space into the world
     // space.
@@ -78,18 +79,39 @@ struct shape {
     // the object space.
     m44 inv_matrix;
     vec color;
+    float reflection;
     float shininess;
 };
 
-shape make_shape(vec color, float shininess, const m44 matrix, distance_fun f, void* data, size_t data_size) {
+shape make_shape(vec color, float reflection, float shininess, const m44 matrix, distance_fun f, normal_fun n, void* data, size_t data_size) {
     shape shap;
     shap.distance = f;
+    shap.normal = n;
     shap.matrix = matrix;
     shap.inv_matrix = m44_inv(matrix);
     shap.color = color;
+    shap.reflection = reflection;
     shap.shininess = shininess;
     memcpy(&shap.data, data, data_size);
     return shap;
+}
+
+
+vec shape_normal(const shape s, const vec pos){
+    static const float delta = 10e-5;
+    vec delta1 = {delta, 0, 0};
+    vec delta2 = {0, delta, 0};
+    vec delta3 = {0, 0, delta};
+
+    INS_INC1(add, 3);
+    // Some shapes can calculate this directly
+    vec normal = vec_normalize({
+        s.distance(s, vec_add(pos, delta1)) - s.distance(s, vec_sub(pos, delta1)),
+        s.distance(s, vec_add(pos, delta2)) - s.distance(s, vec_sub(pos, delta2)),
+        s.distance(s, vec_add(pos, delta3)) - s.distance(s, vec_sub(pos, delta3)),
+    });
+
+    return normal;
 }
 
 // Sphere {{{
@@ -104,9 +126,9 @@ vec sphere_normal(sphere s, vec pos) {
     return vec_normalize(vec_sub(pos, s.center));
 }
 
-shape make_sphere(float x, float y, float z, float r, vec color, float shininess) {
+shape make_sphere(float x, float y, float z, float r, vec color, float reflection, float shininess) {
     sphere s = {{x, y, z}, r};
-    return make_shape(color, shininess, get_transf_matrix({x, y, z}, {0, 0, 0}), sphere_distance, &s, sizeof(s));
+    return make_shape(color, reflection, shininess, get_transf_matrix({x, y, z}, {0, 0, 0}), sphere_distance, shape_normal, &s, sizeof(s));
 }
 
 shape load_sphere(json& j) {
@@ -114,8 +136,9 @@ shape load_sphere(json& j) {
     vec pos = load_pos(j);
     r = j["params"]["radius"];
     vec color = load_vec(j["color"]);
+    float reflection = j["reflection"];
     float shininess = j["shininess"];
-    return make_sphere(pos.x, pos.y, pos.z, r, color, shininess);
+    return make_sphere(pos.x, pos.y, pos.z, r, color, reflection, shininess);
 }
 
 // }}}
@@ -129,9 +152,9 @@ float box_distance(const shape s, const vec from) {
     return FADD(vec_length(vec_max(q, 0)), min(0.0f, max(max(q.x, q.y), q.z)));
 }
 
-shape make_box(vec bottom_left, vec extents, vec rot, vec color, float shininess) {
+shape make_box(vec bottom_left, vec extents, vec rot, vec color, float reflection, float shininess) {
     box s = {bottom_left, extents};
-    return make_shape(color, shininess, get_transf_matrix(bottom_left, rot), box_distance, &s, sizeof(s));
+    return make_shape(color, reflection, shininess, get_transf_matrix(bottom_left, rot), box_distance, shape_normal, &s, sizeof(s));
 }
 
 shape load_box(json& j) {
@@ -139,8 +162,9 @@ shape load_box(json& j) {
     vec extents = load_vec(j["params"]["extents"]);
     vec rot = load_rot(j);
     vec color = load_vec(j["color"]);
+    float reflection = j["reflection"];
     float shininess = j["shininess"];
-    return make_box(pos, extents, rot, color, shininess);
+    return make_box(pos, extents, rot, color, reflection, shininess);
 }
 
 // }}}
@@ -153,9 +177,9 @@ float plane_distance(const shape s, const vec from) {
     return vec_dot(p.normal, vec_sub(from, p.point));
 }
 
-shape make_plane(vec normal, vec point, vec color, float shininess) {
+shape make_plane(vec normal, vec point, vec color, float reflection, float shininess) {
     plane p = {vec_normalize(normal), point};
-    return make_shape(color, shininess, identity, plane_distance, &p, sizeof(p));
+    return make_shape(color, reflection, shininess, identity, plane_distance, shape_normal, &p, sizeof(p));
 }
 
 shape load_plane(json& j) {
@@ -163,8 +187,9 @@ shape load_plane(json& j) {
     vec normal = load_vec(j["params"]["normal"]);
     vec point = vec_scale(normal, displacement);
     vec color = load_vec(j["color"]);
+    float reflection = j["reflection"];
     float shininess = j["shininess"];
-    return make_plane(normal, point, color, shininess);
+    return make_plane(normal, point, color, reflection, shininess);
 }
 // }}}
 
@@ -181,9 +206,9 @@ float torus_distance(const shape s, const vec from) {
     return vec2_length(q) - t.r2;
 }
 
-shape make_torus(vec center, float r1, float r2, vec rot, vec color, float shininess) {
+shape make_torus(vec center, float r1, float r2, vec rot, vec color, float reflection, float shininess) {
     torus t = {center, r1, r2};
-    return make_shape(color, shininess, get_transf_matrix(center, rot), torus_distance, &t, sizeof(t));
+    return make_shape(color, reflection, shininess, get_transf_matrix(center, rot), torus_distance, shape_normal, &t, sizeof(t));
 }
 
 shape load_torus(json& j) {
@@ -195,9 +220,10 @@ shape load_torus(json& j) {
     r2 = j["params"]["r2"];
 
     vec color = load_vec(j["color"]);
+    float reflection = j["reflection"];
     float shininess = j["shininess"];
 
-    return make_torus(pos, r1, r2, rot, color, shininess);
+    return make_torus(pos, r1, r2, rot, color, reflection, shininess);
 }
 
 // }}}
@@ -232,9 +258,9 @@ float cone_distance(const shape shap, const vec from) {
     return s * sqrtf(min(vec2_dot2(ca), vec2_dot2(cb)));
 }
 
-shape make_cone(vec center, float r1, float r2, float height, vec rot, vec color, float shininess) {
+shape make_cone(vec center, float r1, float r2, float height, vec rot, vec color, float reflection, float shininess) {
     cone c = {center, r1, r2, height};
-    return make_shape(color, shininess, get_transf_matrix(center, rot), cone_distance, &c, sizeof(c));
+    return make_shape(color, reflection, shininess, get_transf_matrix(center, rot), cone_distance, shape_normal, &c, sizeof(c));
 }
 
 shape load_cone(json& j) {
@@ -248,9 +274,10 @@ shape load_cone(json& j) {
     height = j["params"][2];
 
     vec color = load_vec(j["color"]);
+    float reflection = j["reflection"];
     float shininess = j["shininess"];
 
-    return make_cone(pos, r1, r2, height, rot, color, shininess);
+    return make_cone(pos, r1, r2, height, rot, color, reflection, shininess);
 }
 
 // }}}
@@ -294,9 +321,9 @@ float octahedron_distance(const shape shap, const vec from) {
     return vec_length({q.x, q.y - s + k, q.z - k});
 }
 
-shape make_octahedron(vec center, float s, vec rot, vec color, float shininess) {
+shape make_octahedron(vec center, float s, vec rot, vec color, float reflection, float shininess) {
     octa o = {center, s};
-    return make_shape(color, shininess, get_transf_matrix(center, rot), octahedron_distance, &o, sizeof(o));
+    return make_shape(color, reflection, shininess, get_transf_matrix(center, rot), octahedron_distance, shape_normal, &o, sizeof(o));
 }
 
 shape load_octa(json& j) {
@@ -306,9 +333,10 @@ shape load_octa(json& j) {
 
     s = j["params"]["s"];
     vec color = load_vec(j["color"]);
+    float reflection = j["reflection"];
     float shininess = j["shininess"];
 
-    return make_octahedron(pos, s, rot, color, shininess);
+    return make_octahedron(pos, s, rot, color, reflection, shininess);
 }
 
 // }}}
@@ -322,7 +350,7 @@ static int num_lights;
 // Sphere Tracing {{{
 
 // max distance
-static float D = 2048;
+static float D = 100;
 static float EPS = 0.001;
 
 struct hit {
@@ -332,11 +360,13 @@ struct hit {
     vec color;
 };
 
-static bool sphere_trace_shadow(vec point, vec light_dir, float max_distance) {
-    // TODO if we start with t = 0 this function causes some pixels to be black
-    // because it erroneously detects a collision with the original object
+
+// https://www.iquilezles.org/www/articles/rmshadows/rmshadows.htm
+static float sphere_trace_softshadow(vec point, vec light_dir, float max_distance) {
     float t = EPS;
 
+    float sharpness = 3.f;      // shaprness of shadows
+    float res = 1.f;
     while (t < max_distance) {
         vec pos = vec_add(point, vec_scale(light_dir, t));
 
@@ -350,17 +380,91 @@ static bool sphere_trace_shadow(vec point, vec light_dir, float max_distance) {
                 min_distance = distance;
 
                 INS_CMP;
+                INS_MUL;
                 if (min_distance <= EPS * t) {
-                    return true;
+                    return 0.0f;
                 }
             }
         }
 
+        INS_MUL;
+        INS_DIV;
+        res = min( res, sharpness * min_distance / t);
         t = FADD(t, min_distance);
     }
-
-    return false;
+    return res;
 }
+
+
+static vec shade(shape s, vec pos, vec dir, float t) {
+
+    /* Prepare shading parameters */
+    INS_MUL;
+    float alpha = s.shininess;      // shininess parameter
+    float ks = s.reflection * 0.4;  // specular parameter 
+    float kd = 1.f;                 // diffuse parameter
+    float ka = 0.0075f;             // ambient parameter
+    float sigma_a = 4e-6f;          // atmospheric absorbtion coeff
+
+    vec wi;                         // incident direction
+    vec wr;                         // reflected direction
+    vec wo = vec_scale(dir, -1.f);  // outgoing direction
+    vec wn = s.normal(s, pos);      // normal direction
+
+    vec Li;                         // incident Light
+    vec Lo = {0, 0, 0};             // outgoing Light
+    vec La = {0, 0, 0};             // ambient Light
+
+    for (int i = 0; i < num_lights; i++) {
+
+        wi = vec_sub(lights[i].pos, pos);   // unnormalized 
+        
+        INS_DIV;
+        float dist2 = vec_dot2(wi);     // squared distance of light
+        float dist = FSQRT(dist2);      // distance of light
+        wi = vec_scale(wi, 1/dist);     // normalize incident direction
+
+        // incoming light 
+        INS_INC1(mul, 2);
+        INS_DIV;
+        Li = vec_scale(lights[i].emission, 1 / (4 * M_PI_F * dist2)); // incident light
+        La = vec_add(La, Li);   // incident light contributes to ambient light
+
+        INS_CMP;
+        if (vec_dot(wn, wi) > 0) {    
+
+            float shadow = sphere_trace_softshadow(pos, wi, dist);
+            INS_CMP;
+            if (shadow > EPS) {
+
+                Li = vec_scale(Li, shadow);
+                
+                // diffuse
+                INS_MUL;
+                vec f_diffuse = vec_scale(s.color, kd * vec_dot(wn, wi)); // fraction of reflected light
+                Lo = vec_add(Lo, vec_mul(Li, f_diffuse)); // diffuse contribution to outgoing light
+
+                // specular
+                INS_INC1(mul, 2);
+                INS_POW;
+                wr = vec_sub( vec_scale(wn, 2 * vec_dot(wn, wi) ), wi); // reflected direction
+                float f_specular = ks * pow(max(0.f, vec_dot(wr, wo)), alpha);  // fraction of reflected light TODO: normalization?
+                Lo = vec_add(Lo, vec_scale(Li, f_specular)); // specular contribution to outgoing light
+            }
+        }
+    }
+    
+    vec f_ambient = vec_scale(s.color, ka); // fraction of reflected ambient light
+    Lo = vec_add(Lo, vec_mul(La, f_ambient)); // ambient contribution to outgoing light
+
+    // atmospheric effect using exponential decay
+    INS_INC1(mul, 3);
+    INS_POW;
+    Lo = vec_scale(Lo, powf(M_E, -sigma_a * t*t*t ));
+
+    return Lo;
+}
+
 
 static hit sphere_trace(vec origin, vec dir) {
     float t = 0;
@@ -390,70 +494,8 @@ static hit sphere_trace(vec origin, vec dir) {
 
         INS_CMP;
         if (min_distance <= EPS) {
-            shape s = shapes[shape_idx];
-            static const float delta = 10e-5;
-            vec delta1 = {delta, 0, 0};
-            vec delta2 = {0, delta, 0};
-            vec delta3 = {0, 0, delta};
 
-            INS_INC1(add, 3);
-            // Some shapes can calculate this directly
-            vec normal = vec_normalize({
-                s.distance(s, vec_add(pos, delta1)) - s.distance(s, vec_sub(pos, delta1)),
-                s.distance(s, vec_add(pos, delta2)) - s.distance(s, vec_sub(pos, delta2)),
-                s.distance(s, vec_add(pos, delta3)) - s.distance(s, vec_sub(pos, delta3)),
-            });
-            vec color{0, 0, 0};
-
-            vec diffuse = {0.f, 0.f, 0.f};
-            vec specular = {0.f, 0.f, 0.f};
-            for (int i = 0; i < num_lights; i++) {
-                vec light_point = vec_sub(lights[i].pos, pos);
-
-                INS_CMP;
-                if (vec_dot(light_point, normal) > 0) {
-                    vec light_dir = vec_normalize(light_point);
-                    // Squared distance from light to point
-                    float dist_sq = vec_dot2(light_point);
-
-                    if (!sphere_trace_shadow(pos, light_dir, FSQRT(dist_sq))) {
-                        INS_INC1(mul, 2);
-                        INS_DIV;
-                        vec light_intensity = vec_scale(lights[i].color, lights[i].intensity / (4 * M_PI_F * dist_sq));
-
-                        // diffuse
-                        diffuse = vec_add(diffuse, vec_scale(light_intensity, max(0.f, vec_dot(normal, light_dir))));
-                        
-                        // specular
-                        // TODO: how to choose n?
-                        float n = 4.f;
-                        INS_MUL;
-                        vec r = vec_add(vec_scale(normal, 2 * vec_dot(normal, vec_scale(light_dir, -1.f))), light_dir);
-                        INS_POW;
-                        specular = vec_add(specular, vec_scale(light_intensity, pow(max(0.f, vec_dot(r, dir)), n)));
-                    }
-                }
-            }
-
-            // TODO: not clear what the unit of the shininess parameter in the scenes is
-            // TODO: is ks + kd == 1 really a requirement?
-            INS_MUL;
-            float ks = s.shininess * 0.01f; // specular parameter
-            INS_ADD;
-            float kd = 1 - ks; // diffuse parameter
-
-            vec object_color = s.color;
-
-            // scale object color s.t. intensity of most prominent color is 1
-            float max_color = max(max(object_color.x, object_color.y), object_color.z);
-            INS_DIV;
-            float scale_factor = 1.f / max_color;
-            object_color = vec_scale(object_color, scale_factor);
-
-            INS_INC1(mul, 3);
-            diffuse = {diffuse.x * object_color.x, diffuse.y * object_color.y, diffuse.z * object_color.z};
-            color = vec_add(color, vec_add(vec_scale(diffuse, kd), vec_scale(specular, ks)));
-
+            vec color = shade(shapes[shape_idx], pos, dir, t);
             return {true, t, steps, color};
         }
 
@@ -471,14 +513,22 @@ static hit sphere_trace(vec origin, vec dir) {
 /**
  * Writes a PPM file.
  */
-static void dump_image_ldr(std::ostream& out, int width, int height, const float* pixels) {
+static void dump_image_ldr(std::ostream& out, int width, int height, const float* pixels, float exposure) {
     out << "P6\n" << width << " " << height << "\n255\n";
 
+    // gamma correction according to wikipedia
+    float invgamma = 0.45f; // inverse of gamma=2.2f
+
+    // turn off gamma correction by default
+    bool gammacorrection = false;
+    invgamma = (gammacorrection) ? invgamma : 1.0f;
+    
     for (int j = 0; j < height; j++) {
         for (int i = 0; i < width; i++) {
             for (int k = 0; k < 3; k++) {
-                unsigned char channel = clamp(pixels[3 * (width * j + i) + k], 0.f, 1.f) * 255.f;
-                out << channel;
+                float channel = exposure * pixels[3 * (width * j + i) + k];
+                unsigned char encoding = std::clamp(std::pow(channel, invgamma), 0.f, 1.f) * 255.f;
+                out << encoding;
             }
         }
     }
@@ -487,12 +537,15 @@ static void dump_image_ldr(std::ostream& out, int width, int height, const float
 /**
  * Writes a PFM file.
  */
-static void dump_image_hdr(std::ostream& out, int width, int height, const float* pixels) {
+static void dump_image_hdr(std::ostream& out, int width, int height, const float* pixels, float exposure) {
     out << "PF\n" << width << " " << height << "\n-1.0\n";
 
     for (int j = height-1; j > -1; j--) {
         for (int i = 0; i < width; i++) {
-            out.write((char *) &pixels[3 * (width * j + i)], 3 * sizeof(float));
+            for (int k = 0; k < 3; k++) {
+                float channel = exposure * pixels[3 * (width * j + i) + k];
+                out.write((char *) &channel, sizeof(float));
+            }
         }
     }
 }
@@ -501,12 +554,30 @@ static void dump_image_hdr(std::ostream& out, int width, int height, const float
  * Writes either a PPM (default) or PFM file.
  */
 static void dump_image(std::ostream& out, int width, int height, const float* pixels, bool hdr=false){
+    
+    /* TODO: Possible Strategies to determine exposure:
+        - user defined by exposure parameter in camera
+        - choose exposure empirically 
+        - map max_val to 1
+        - map 95th percentile to 1
+    */
+
+    float exposure = 1250.f; // 
+
+   /*
+    float max_val = 0.f;
+    for (int i = 0; i < width * height * 3; i++){
+        max_val = std::max(max_val, pixels[i]);
+    }
+    float exposure = 1.f / max_val * 1.76; 
+    */
+
     if (hdr) {
         // store in binary .pfm format
-        dump_image_hdr(out, width, height, pixels);
+        dump_image_hdr(out, width, height, pixels, exposure);
     } else {
         // store in binary .ppm format
-        dump_image_ldr(out, width, height, pixels);
+        dump_image_ldr(out, width, height, pixels, exposure);
     }
 }
 
@@ -619,22 +690,7 @@ static camera load_camera(json& j) {
 static light load_single_light(json& j) {
     light l;
     l.pos = load_pos(j);
-    l.color = load_vec(j["emission"]);
-    assert(l.color.x >= 0);
-    assert(l.color.x < 256);
-    assert(l.color.y >= 0);
-    assert(l.color.y < 256);
-    assert(l.color.z >= 0);
-    assert(l.color.z < 256);
-
-    l.color = vec_scale(l.color, 1.f / 255.f);
-
-    if (j.contains("intensity")) {
-        l.intensity = j["intensity"];
-    } else {
-        l.intensity = 150000;
-    }
-
+    l.emission = load_vec(j["emission"]);
     return l;
 }
 
@@ -767,8 +823,23 @@ int main(int argc, char** argv) {
         }
     }
 
+    ins_dump(NULL);
+
     std::ofstream o;
     o.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+
+    
+    bool hdr;
+    std::string fileformat = output.substr(output.find_last_of("."));
+    if (fileformat.compare(".pfm") == 0) {
+        hdr = true;
+    } else if (fileformat.compare(".ppm") == 0) {
+        hdr = false;
+    } else {
+        std::cerr << "Unsupported file format '" << fileformat << "', defaulting to '.pfm'" << std::endl;
+        hdr = true;
+        output.append(".pfm");
+    }
 
     try {
         o.open(output);
@@ -777,15 +848,13 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
-    dump_image(o, width, height, pixels.get());
+    dump_image(o, width, height, pixels.get(), hdr);
     o.close();
 
     // compare against reference image
     if (!reference.empty()) {
         validate_output(5, 0.01, reference, output, height, width);
     }
-
-    ins_dump(NULL);
 
     return 0;
 }
