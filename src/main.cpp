@@ -489,7 +489,7 @@ static vec shade(shape s, vec pos, vec dir, float t) {
     // fog
     INS_INC1(mul, 3);
     INS_POW; // TODO: count exponentials separately?
-    Lo = vec_scale(Lo, std::exp(-4e-6*t*t*t ));
+    Lo = vec_scale(Lo, powf(M_E, -4e-6*t*t*t ));
 
     return Lo;
 }
