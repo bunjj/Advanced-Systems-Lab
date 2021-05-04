@@ -360,42 +360,12 @@ struct hit {
     vec color;
 };
 
-static float sphere_trace_shadow(vec point, vec light_dir, float max_distance) {
-    // TODO if we start with t = 0 this function causes some pixels to be black
-    // because it erroneously detects a collision with the original object
-    float t = EPS;
-
-    while (t < max_distance) {
-        vec pos = vec_add(point, vec_scale(light_dir, t));
-
-        float min_distance = INFINITY;
-
-        for (int k = 0; k < num_shapes; k++) {
-            float distance = shapes[k].distance(shapes[k], pos);
-
-            INS_CMP;
-            if (distance < min_distance) {
-                min_distance = distance;
-
-                INS_CMP;
-                INS_MUL;
-                if (min_distance <= EPS * t) {
-                    return 0.f;
-                }
-            }
-        }
-
-        t = FADD(t, min_distance);
-    }
-
-    return 1.f;
-}
 
 // https://www.iquilezles.org/www/articles/rmshadows/rmshadows.htm
 static float sphere_trace_softshadow(vec point, vec light_dir, float max_distance) {
     float t = EPS;
 
-    float k = 3.f;
+    float sharpness = 3.f;      // shaprness of shadows
     float res = 1.f;
     while (t < max_distance) {
         vec pos = vec_add(point, vec_scale(light_dir, t));
@@ -419,7 +389,7 @@ static float sphere_trace_softshadow(vec point, vec light_dir, float max_distanc
 
         INS_MUL;
         INS_DIV;
-        res = min( res, k * min_distance / t);
+        res = min( res, sharpness * min_distance / t);
         t = FADD(t, min_distance);
     }
     return res;
@@ -434,6 +404,7 @@ static vec shade(shape s, vec pos, vec dir, float t) {
     float ks = s.reflection * 0.4;  // specular parameter 
     float kd = 1.f;                 // diffuse parameter
     float ka = 0.0075f;             // ambient parameter
+    float sigma_a = 4e-6f;          // atmospheric absorbtion coeff
 
     vec wi;                         // incident direction
     vec wr;                         // reflected direction
@@ -486,10 +457,10 @@ static vec shade(shape s, vec pos, vec dir, float t) {
     vec f_ambient = vec_scale(s.color, ka); // fraction of reflected ambient light
     Lo = vec_add(Lo, vec_mul(La, f_ambient)); // ambient contribution to outgoing light
 
-    // fog
+    // atmospheric effect using exponential decay
     INS_INC1(mul, 3);
     INS_POW;
-    Lo = vec_scale(Lo, powf(M_E, -4e-6*t*t*t ));
+    Lo = vec_scale(Lo, powf(M_E, -sigma_a * t*t*t ));
 
     return Lo;
 }
