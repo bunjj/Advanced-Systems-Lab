@@ -30,8 +30,8 @@ namespace impl::ref {
      */
     struct scene scene;
 
-    shape make_shape(vec color, float reflection, float shininess, const m44 matrix, distance_fun f, normal_fun n,
-        void* data, size_t data_size) {
+    shape make_shape(enum shape_type type, vec color, float reflection, float shininess, const m44 matrix,
+        distance_fun f, normal_fun n, void* data, size_t data_size) {
         shape shap;
         shap.distance = f;
         shap.normal = n;
@@ -40,6 +40,7 @@ namespace impl::ref {
         shap.color = color;
         shap.reflection = reflection;
         shap.shininess = shininess;
+        shap.type = type;
         memcpy(&shap.data, data, data_size);
         return shap;
     }
@@ -75,8 +76,8 @@ namespace impl::ref {
 
     shape make_sphere(float x, float y, float z, float r, vec color, float reflection, float shininess) {
         sphere s = {{x, y, z}, r};
-        return make_shape(color, reflection, shininess, get_transf_matrix({x, y, z}, {0, 0, 0}), sphere_distance,
-            shape_normal, &s, sizeof(s));
+        return make_shape(SHAPE_SPHERE, color, reflection, shininess, get_transf_matrix({x, y, z}, {0, 0, 0}),
+            sphere_distance, shape_normal, &s, sizeof(s));
     }
 
     shape load_sphere(json& j) {
@@ -102,8 +103,8 @@ namespace impl::ref {
 
     shape make_box(vec bottom_left, vec extents, vec rot, vec color, float reflection, float shininess) {
         box s = {bottom_left, extents};
-        return make_shape(color, reflection, shininess, get_transf_matrix(bottom_left, rot), box_distance, shape_normal,
-            &s, sizeof(s));
+        return make_shape(SHAPE_BOX, color, reflection, shininess, get_transf_matrix(bottom_left, rot), box_distance,
+            shape_normal, &s, sizeof(s));
     }
 
     shape load_box(json& j) {
@@ -128,7 +129,8 @@ namespace impl::ref {
 
     shape make_plane(vec normal, vec point, vec color, float reflection, float shininess) {
         plane p = {vec_normalize(normal), point};
-        return make_shape(color, reflection, shininess, identity, plane_distance, shape_normal, &p, sizeof(p));
+        return make_shape(
+            SHAPE_PLANE, color, reflection, shininess, identity, plane_distance, shape_normal, &p, sizeof(p));
     }
 
     shape load_plane(json& j) {
@@ -157,8 +159,8 @@ namespace impl::ref {
 
     shape make_torus(vec center, float r1, float r2, vec rot, vec color, float reflection, float shininess) {
         torus t = {center, r1, r2};
-        return make_shape(
-            color, reflection, shininess, get_transf_matrix(center, rot), torus_distance, shape_normal, &t, sizeof(t));
+        return make_shape(SHAPE_TORUS, color, reflection, shininess, get_transf_matrix(center, rot), torus_distance,
+            shape_normal, &t, sizeof(t));
     }
 
     shape load_torus(json& j) {
@@ -211,8 +213,8 @@ namespace impl::ref {
     shape make_cone(
         vec center, float r1, float r2, float height, vec rot, vec color, float reflection, float shininess) {
         cone c = {center, r1, r2, height};
-        return make_shape(
-            color, reflection, shininess, get_transf_matrix(center, rot), cone_distance, shape_normal, &c, sizeof(c));
+        return make_shape(SHAPE_CONE, color, reflection, shininess, get_transf_matrix(center, rot), cone_distance,
+            shape_normal, &c, sizeof(c));
     }
 
     shape load_cone(json& j) {
@@ -275,7 +277,7 @@ namespace impl::ref {
 
     shape make_octahedron(vec center, float s, vec rot, vec color, float reflection, float shininess) {
         octa o = {center, s};
-        return make_shape(color, reflection, shininess, get_transf_matrix(center, rot), octahedron_distance,
+        return make_shape(SHAPE_OCTA, color, reflection, shininess, get_transf_matrix(center, rot), octahedron_distance,
             shape_normal, &o, sizeof(o));
     }
 
