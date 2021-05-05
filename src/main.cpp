@@ -153,13 +153,19 @@ void run(int width, int height, std::string output) {
         o.exceptions(std::ifstream::failbit | std::ifstream::badbit);
 
         bool hdr;
-        std::string fileformat = output.substr(output.find_last_of("."));
-        if (fileformat.compare(".pfm") == 0) {
-            hdr = true;
-        } else if (fileformat.compare(".ppm") == 0) {
-            hdr = false;
+        if (output.find(".") != std::string::npos) {
+            std::string fileformat = output.substr(output.find_last_of("."));
+            if (fileformat.compare(".pfm") == 0) {
+                hdr = true;
+            } else if (fileformat.compare(".ppm") == 0) {
+                hdr = false;
+            } else {
+                std::cerr << "Unsupported file format '" << fileformat << "', defaulting to '.pfm'" << std::endl;
+                hdr = true;
+                output.append(".pfm");
+            }
         } else {
-            std::cerr << "Unsupported file format '" << fileformat << "', defaulting to '.pfm'" << std::endl;
+            std::cerr << "File format not specified, defaulting to '.pfm'" << std::endl;
             hdr = true;
             output.append(".pfm");
         }
