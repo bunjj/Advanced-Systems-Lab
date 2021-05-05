@@ -22,7 +22,7 @@ set(files
     src/timing.cpp 
     src/util.cpp
 
-    src/impl_ref/main.cpp
+    src/impl_ref/impl.cpp
     src/impl_ref/geometry.cpp
     src/impl_ref/scene.cpp
     )

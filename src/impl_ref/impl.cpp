@@ -1,4 +1,5 @@
 #include "impl_ref/impl.hpp"
+
 #include "impl_ref/scene.hpp"
 
 namespace impl::ref {
@@ -77,7 +78,7 @@ namespace impl::ref {
             INS_INC1(mul, 2);
             INS_DIV;
             Li = vec_scale(scene.lights[i].emission, 1 / (4 * M_PI_F * dist2)); // incident light
-            La = vec_add(La, Li);                                         // incident light contributes to ambient light
+            La = vec_add(La, Li); // incident light contributes to ambient light
 
             INS_CMP;
             if (vec_dot(wn, wi) > 0) {
