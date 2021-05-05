@@ -20,18 +20,6 @@ namespace impl::ref {
         return out;
     }
 
-    /**
-     * Calculates m * v
-     */
-    vec4 m44_mul_vec(m44 m, vec4 v) {
-        float x = vec4_dot(vec4_init(m.val[0]), v);
-        float y = vec4_dot(vec4_init(m.val[1]), v);
-        float z = vec4_dot(vec4_init(m.val[2]), v);
-        float t = vec4_dot(vec4_init(m.val[3]), v);
-
-        return {x, y, z, t};
-    }
-
     m44 m44_inv(m44 m) {
         float a11 = m.val[0][0];
         float a12 = m.val[0][1];
