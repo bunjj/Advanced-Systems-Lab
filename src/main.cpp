@@ -122,18 +122,25 @@ void run(int width, int height, std::string output) {
 
     ins_rst();
 
+#ifndef DO_INSTRUMENT
     timing_start();
+#endif
     impl::ref::render(width, height, pixels.get());
+#ifndef DO_INSTRUMENT
     timing_t timing = timing_stop();
+#endif
 
     ins_dump(NULL);
 
     fprintf(stderr, "Width: %d\n", width);
     fprintf(stderr, "Height: %d\n", height);
+#ifdef DO_INSTRUMENT
     fprintf(stderr, "Flops: %" PRIu64 "\n", ins_total());
+#else
     fprintf(stderr, "Cycles: %" PRIu64 "\n", timing.cycles);
     fprintf(stderr, "Microseconds: %" PRIu64 "\n", timing.usec);
     fprintf(stderr, "Seconds: %.2f\n", timing.usec * 1.f / 1e6);
+#endif
 
     if (!output.empty()) {
         std::ofstream o;
