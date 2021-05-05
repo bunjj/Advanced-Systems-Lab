@@ -61,7 +61,7 @@ namespace impl::ref {
         return VEC_OP(v1, v2, -);
     }
 
-    static inline vec vec_mul(vec v1, vec v2){
+    static inline vec vec_mul(vec v1, vec v2) {
         INS_INC1(mul, 3);
         return VEC_OP(v1, v2, *);
     }
@@ -232,8 +232,20 @@ namespace impl::ref {
     m44 get_transf_matrix(vec pos, vec rot);
     m44 get_rot_matrix(vec rot);
     m44 m44_inv(m44 m);
-    vec4 m44_mul_vec(m44 m, vec4 v);
     std::ostream& operator<<(std::ostream& out, const m44& m);
+
+    /**
+     * Calculates m * v
+     */
+    static inline vec4 m44_mul_vec(m44 m, vec4 v) {
+        float x = vec4_dot(vec4_init(m.val[0]), v);
+        float y = vec4_dot(vec4_init(m.val[1]), v);
+        float z = vec4_dot(vec4_init(m.val[2]), v);
+        float t = vec4_dot(vec4_init(m.val[3]), v);
+
+        return {x, y, z, t};
+    }
+
     // }}}
 
 } // namespace impl::ref

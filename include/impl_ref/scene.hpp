@@ -20,6 +20,15 @@ namespace impl::ref {
         vec emission;
     };
 
+    enum shape_type {
+        SHAPE_SPHERE = 0,
+        SHAPE_PLANE,
+        SHAPE_BOX,
+        SHAPE_TORUS,
+        SHAPE_CONE,
+        SHAPE_OCTA,
+    };
+
     struct sphere {
         vec center;
         float radius;
@@ -71,6 +80,7 @@ namespace impl::ref {
         vec color;
         float reflection;
         float shininess;
+        enum shape_type type;
     };
 
     struct scene {
