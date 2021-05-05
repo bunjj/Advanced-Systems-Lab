@@ -12,6 +12,9 @@
 #include "impl_ref/geometry.h"
 #include "impl_ref/impl.hpp"
 #include "impl_ref/scene.hpp"
+
+#include "impl_normals/impl.hpp"
+
 #include "instrument.h"
 #include "timing.h"
 #include "util.h"
@@ -185,6 +188,9 @@ void set_render_fp(const std::string& impl) {
     if (impl == "ref") {
         fun_render_init = &impl::ref::render_init;
         fun_render = &impl::ref::render;
+    } else if (impl == "normals") {
+        fun_render_init = &impl::normals::render_init;
+        fun_render = &impl::normals::render;
     } else {
         throw std::runtime_error("Unknown implementation '" + impl + "'");
     }

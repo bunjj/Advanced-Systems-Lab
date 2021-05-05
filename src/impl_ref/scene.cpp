@@ -70,10 +70,6 @@ namespace impl::ref {
         return vec_length(vec_sub(sp.center, from)) - sp.radius;
     }
 
-    vec sphere_normal(sphere s, vec pos) {
-        return vec_normalize(vec_sub(pos, s.center));
-    }
-
     shape make_sphere(float x, float y, float z, float r, vec color, float reflection, float shininess) {
         sphere s = {{x, y, z}, r};
         return make_shape(SHAPE_SPHERE, color, reflection, shininess, get_transf_matrix({x, y, z}, {0, 0, 0}),
