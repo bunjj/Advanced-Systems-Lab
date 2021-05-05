@@ -5,3 +5,7 @@ compile_commands.json
 *.pfm
 
 .vscode/
+__pycache__/
+.idea/
+.Rhistory
+/benchmark/*.json
