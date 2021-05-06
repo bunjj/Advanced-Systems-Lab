@@ -41,17 +41,19 @@ dramatically increases compile and runtime.
 ## Running
 
 Compiling will produce an executable called `main` in the `build` directory.
-It takes three mandatory arguments and two optional ones:
+It takes four mandatory arguments and two optional ones:
 
 ```
-./main <input> <width> <height> [<output>] [<reference>]
+./main <impl> <input> <width> <height> [<output>] [<reference>]
 ```
 
-The first one is the path to a JSON file containing a scene definition followed
-by the desired width and height of the image in pixels.
+The first one is the name of the implementation to run. Each `impl_*` folder in
+`src` is one such implementation, the name for it is everything after `impl_`.
 
-The fourth argument is optional and denotes the path where the resulting ppm
+The second parameter is the path to a JSON file containing a scene definition
+followed by the desired width and height of the image in pixels.
+
+The fifth argument is optional and denotes the path where the resulting ppm (or pfm)
 image file should be written (any existing file will be overwritten). If the
-argument is not specified, no image will be written.
-The last optional argument is the path to the reference ppm image (used for
-output validation).
+argument is not specified, no image will be written.  The last optional argument
+is the path to the reference ppm image (used for output validation).

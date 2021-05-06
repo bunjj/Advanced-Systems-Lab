@@ -18,6 +18,12 @@
 
 flops_t flops_counter;
 
+typedef void (*fp_render_init)(void);
+typedef void (*fp_render)(int, int, float*);
+
+fp_render_init fun_render_init;
+fp_render fun_render;
+
 // Image Files and Output Validation {{{
 /**
  * Reads a PPM file into the given buffer.
@@ -117,36 +123,49 @@ void run(int width, int height, std::string output) {
     auto pixels = std::make_unique<float[]>(height * width * 3);
 
     ins_rst();
-    impl::ref::render_init();
+    fun_render_init();
     ins_dump("Setup");
 
     ins_rst();
 
+#ifndef DO_INSTRUMENT
     timing_start();
-    impl::ref::render(width, height, pixels.get());
+#endif
+    fun_render(width, height, pixels.get());
+#ifndef DO_INSTRUMENT
     timing_t timing = timing_stop();
+#endif
 
     ins_dump(NULL);
 
     fprintf(stderr, "Width: %d\n", width);
     fprintf(stderr, "Height: %d\n", height);
+#ifdef DO_INSTRUMENT
     fprintf(stderr, "Flops: %" PRIu64 "\n", ins_total());
+#else
     fprintf(stderr, "Cycles: %" PRIu64 "\n", timing.cycles);
     fprintf(stderr, "Microseconds: %" PRIu64 "\n", timing.usec);
     fprintf(stderr, "Seconds: %.2f\n", timing.usec * 1.f / 1e6);
+#endif
 
     if (!output.empty()) {
         std::ofstream o;
         o.exceptions(std::ifstream::failbit | std::ifstream::badbit);
 
         bool hdr;
-        std::string fileformat = output.substr(output.find_last_of("."));
-        if (fileformat.compare(".pfm") == 0) {
-            hdr = true;
-        } else if (fileformat.compare(".ppm") == 0) {
-            hdr = false;
+        if (output.find(".") != std::string::npos) {
+            std::string fileformat = output.substr(output.find_last_of("."));
+            if (fileformat.compare(".pfm") == 0) {
+                hdr = true;
+            } else if (fileformat.compare(".ppm") == 0) {
+                hdr = false;
+            } else {
+                std::cerr << "Unsupported file format '" << fileformat << "', defaulting to '.pfm'" << std::endl;
+                hdr = true;
+                output.append(".pfm");
+            }
         } else {
-            std::cerr << "Unsupported file format '" << fileformat << "', defaulting to '.pfm'" << std::endl;
+            std::cerr << "File format not specified, defaulting to '.pfm'" << std::endl;
             hdr = true;
             output.append(".pfm");
         }
@@ -163,18 +182,38 @@ void run(int width, int height, std::string output) {
     }
 }
 
+/**
+ * Sets the two function pointers fun_render_init and fun_render to the one for the requested implementation.
+ *
+ * When adding a new implementation add the corresponding case here.
+ */
+void set_render_fp(const std::string& impl) {
+    if (impl == "ref") {
+        fun_render_init = &impl::ref::render_init;
+        fun_render = &impl::ref::render;
+    } else {
+        throw std::runtime_error("Unknown implementation '" + impl + "'");
+    }
+}
+
 int main(int argc, char** argv) {
-    if (argc < 4) {
-        fprintf(stderr, "Usage: %s <input> <width> <height> [<output>] [<reference>]\n", argv[0]);
+    if (argc < 5) {
+        fprintf(stderr, "Usage: %s <impl> <input> <width> <height> [<output>] [<reference>]\n", argv[0]);
         return EXIT_FAILURE;
     }
 
-    std::string input = argv[1];
-    std::string width_str = argv[2];
-    std::string height_str = argv[3];
-    std::string output = argc > 4 ? argv[4] : "";
-    std::string reference = argc > 5 ? argv[5] : "";
+    std::string impl = argv[1];
+    std::string input = argv[2];
+    std::string width_str = argv[3];
+    std::string height_str = argv[4];
+    std::string output = argc > 5 ? argv[5] : "";
+    std::string reference = argc > 6 ? argv[6] : "";
 
+    set_render_fp(impl);
+
+    /*
+     * Load the reference scene. All other implementation will use this to derive their own scenes.
+     */
     impl::ref::load_scene(input);
 
     int width = std::stoi(width_str);
