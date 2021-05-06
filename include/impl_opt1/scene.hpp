@@ -32,8 +32,6 @@ namespace impl::opt1 {
     struct sphere {
         vec center;
         float radius;
-        // TODO: sphere does not really need the matrix
-        m44 inv_matrix;
         vec color;
         float reflection;
         float shininess;

@@ -60,8 +60,6 @@ namespace impl::opt1 {
         sphere s;
         s.center = {x, y, z};
         s.radius = r;
-        m44 matrix = get_transf_matrix({x, y, z}, {0, 0, 0});
-        s.inv_matrix = m44_inv(matrix);
         s.color = color;
         s.reflection = reflection;
         s.shininess = shininess;
