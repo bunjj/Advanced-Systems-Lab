@@ -13,13 +13,10 @@
 #include "timing.h"
 #include "util.h"
 
-#include "impl_ref/geometry.h"
 #include "impl_ref/impl.hpp"
 #include "impl_ref/scene.hpp"
 
-#include "impl_opt1/geometry.h"
 #include "impl_opt1/impl.hpp"
-#include "impl_opt1/scene.hpp"
 
 
 flops_t flops_counter;
