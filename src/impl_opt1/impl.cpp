@@ -17,15 +17,96 @@ namespace impl::opt1 {
     static float sphere_trace_softshadow(vec point, vec light_dir, float max_distance) {
         float t = EPS;
 
-        float sharpness = 3.f; // shaprness of shadows
+        float sharpness = 3.f; // sharpness of shadows
         float res = 1.f;
         while (t < max_distance) {
             vec pos = vec_add(point, vec_scale(light_dir, t));
 
             float min_distance = INFINITY;
 
-            for (int k = 0; k < scene.num_shapes; k++) {
-                float distance = scene.shapes[k].distance(scene.shapes[k], pos);
+            // spheres
+            for (int k = 0; k < scene.num_spheres; k++) {
+                float distance = sphere_distance(scene.spheres[k], pos);
+
+                INS_CMP;
+                if (distance < min_distance) {
+                    min_distance = distance;
+
+                    INS_CMP;
+                    INS_MUL;
+                    if (min_distance <= EPS * t) {
+                        return 0.0f;
+                    }
+                }
+            }
+
+            // planes
+            for (int k = 0; k < scene.num_planes; k++) {
+                float distance = plane_distance(scene.planes[k], pos);
+
+                INS_CMP;
+                if (distance < min_distance) {
+                    min_distance = distance;
+
+                    INS_CMP;
+                    INS_MUL;
+                    if (min_distance <= EPS * t) {
+                        return 0.0f;
+                    }
+                }
+            }
+
+            // boxes
+            for (int k = 0; k < scene.num_boxes; k++) {
+                float distance = box_distance(scene.boxes[k], pos);
+
+                INS_CMP;
+                if (distance < min_distance) {
+                    min_distance = distance;
+
+                    INS_CMP;
+                    INS_MUL;
+                    if (min_distance <= EPS * t) {
+                        return 0.0f;
+                    }
+                }
+            }
+
+            // tori
+            for (int k = 0; k < scene.num_tori; k++) {
+                float distance = torus_distance(scene.tori[k], pos);
+
+                INS_CMP;
+                if (distance < min_distance) {
+                    min_distance = distance;
+
+                    INS_CMP;
+                    INS_MUL;
+                    if (min_distance <= EPS * t) {
+                        return 0.0f;
+                    }
+                }
+            }
+
+            // cones
+            for (int k = 0; k < scene.num_cones; k++) {
+                float distance = cone_distance(scene.cones[k], pos);
+
+                INS_CMP;
+                if (distance < min_distance) {
+                    min_distance = distance;
+
+                    INS_CMP;
+                    INS_MUL;
+                    if (min_distance <= EPS * t) {
+                        return 0.0f;
+                    }
+                }
+            }
+
+            // octahedra
+            for (int k = 0; k < scene.num_octahedra; k++) {
+                float distance = octahedron_distance(scene.octahedra[k], pos);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -47,11 +128,11 @@ namespace impl::opt1 {
         return res;
     }
 
-    static vec shade(shape s, vec pos, vec dir, float t) {
+    static vec shade(vec normal, float shininess, float reflection, vec color, vec pos, vec dir, float t) {
         /* Prepare shading parameters */
         INS_MUL;
-        float alpha = s.shininess;     // shininess parameter
-        float ks = s.reflection * 0.4; // specular parameter
+        float alpha = shininess;       // shininess parameter
+        float ks = reflection * 0.4;   // specular parameter
         float kd = 1.f;                // diffuse parameter
         float ka = 0.0075f;            // ambient parameter
         float sigma_a = 4e-6f;         // atmospheric absorbtion coeff
@@ -59,7 +140,7 @@ namespace impl::opt1 {
         vec wi;                        // incident direction
         vec wr;                        // reflected direction
         vec wo = vec_scale(dir, -1.f); // outgoing direction
-        vec wn = s.normal(s, pos);     // normal direction
+        vec wn = normal;               // normal direction
 
         vec Li;             // incident Light
         vec Lo = {0, 0, 0}; // outgoing Light
@@ -88,7 +169,7 @@ namespace impl::opt1 {
 
                     // diffuse
                     INS_MUL;
-                    vec f_diffuse = vec_scale(s.color, kd * vec_dot(wn, wi)); // fraction of reflected light
+                    vec f_diffuse = vec_scale(color, kd * vec_dot(wn, wi)); // fraction of reflected light
                     Lo = vec_add(Lo, vec_mul(Li, f_diffuse));                 // diffuse contribution to outgoing light
 
                     // specular
@@ -102,7 +183,7 @@ namespace impl::opt1 {
             }
         }
 
-        vec f_ambient = vec_scale(s.color, ka);   // fraction of reflected ambient light
+        vec f_ambient = vec_scale(color, ka);   // fraction of reflected ambient light
         Lo = vec_add(Lo, vec_mul(La, f_ambient)); // ambient contribution to outgoing light
 
         // atmospheric effect using exponential decay
@@ -122,15 +203,103 @@ namespace impl::opt1 {
             vec pos = vec_add(origin, vec_scale(dir, t));
 
             float min_distance = INFINITY;
-            int shape_idx = -1;
+            int min_shape_idx = -1;
+            shape_type min_shape_type = SHAPE_SPHERE;
 
-            for (int k = 0; k < scene.num_shapes; k++) {
-                float distance = scene.shapes[k].distance(scene.shapes[k], pos);
+            // spheres
+            for (int k = 0; k < scene.num_spheres; k++) {
+                float distance = sphere_distance(scene.spheres[k], pos);
 
                 INS_CMP;
                 if (distance < min_distance) {
                     min_distance = distance;
-                    shape_idx = k;
+                    min_shape_idx = k;
+                    min_shape_type = SHAPE_SPHERE;
+
+                    INS_CMP;
+                    if (min_distance <= EPS) {
+                        break;
+                    }
+                }
+            }
+
+            // planes
+            for (int k = 0; k < scene.num_planes; k++) {
+                float distance = plane_distance(scene.planes[k], pos);
+
+                INS_CMP;
+                if (distance < min_distance) {
+                    min_distance = distance;
+                    min_shape_idx = k;
+                    min_shape_type = SHAPE_PLANE;
+
+                    INS_CMP;
+                    if (min_distance <= EPS) {
+                        break;
+                    }
+                }
+            }
+
+            // boxes
+            for (int k = 0; k < scene.num_boxes; k++) {
+                float distance = box_distance(scene.boxes[k], pos);
+
+                INS_CMP;
+                if (distance < min_distance) {
+                    min_distance = distance;
+                    min_shape_idx = k;
+                    min_shape_type = SHAPE_BOX;
+
+                    INS_CMP;
+                    if (min_distance <= EPS) {
+                        break;
+                    }
+                }
+            }
+
+            // tori
+            for (int k = 0; k < scene.num_tori; k++) {
+                float distance = torus_distance(scene.tori[k], pos);
+
+                INS_CMP;
+                if (distance < min_distance) {
+                    min_distance = distance;
+                    min_shape_idx = k;
+                    min_shape_type = SHAPE_TORUS;
+
+                    INS_CMP;
+                    if (min_distance <= EPS) {
+                        break;
+                    }
+                }
+            }
+
+            // cones
+            for (int k = 0; k < scene.num_cones; k++) {
+                float distance = cone_distance(scene.cones[k], pos);
+
+                INS_CMP;
+                if (distance < min_distance) {
+                    min_distance = distance;
+                    min_shape_idx = k;
+                    min_shape_type = SHAPE_CONE;
+
+                    INS_CMP;
+                    if (min_distance <= EPS) {
+                        break;
+                    }
+                }
+            }
+
+            // octahedra
+            for (int k = 0; k < scene.num_octahedra; k++) {
+                float distance = octahedron_distance(scene.octahedra[k], pos);
+
+                INS_CMP;
+                if (distance < min_distance) {
+                    min_distance = distance;
+                    min_shape_idx = k;
+                    min_shape_type = SHAPE_OCTA;
 
                     INS_CMP;
                     if (min_distance <= EPS) {
@@ -141,7 +310,56 @@ namespace impl::opt1 {
 
             INS_CMP;
             if (min_distance <= EPS) {
-                vec color = shade(scene.shapes[shape_idx], pos, dir, t);
+
+                vec color;
+                switch (min_shape_type)
+                {
+                case SHAPE_SPHERE:
+                    {
+                        sphere s = scene.spheres[min_shape_idx];
+                        vec s_normal = sphere_normal(s, pos);
+                        color = shade(s_normal, s.shininess, s.reflection, s.color, pos, dir, t);
+                        break;
+                    }
+                case SHAPE_PLANE:
+                    {
+                        plane s = scene.planes[min_shape_idx];
+                        vec normal = plane_normal(s, pos);
+                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
+                        break;
+                    }
+                case SHAPE_BOX:
+                    {
+                        box s = scene.boxes[min_shape_idx];
+                        vec normal = box_normal(s, pos);
+                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
+                        break;
+                    }
+                case SHAPE_TORUS:
+                    {
+                        torus s = scene.tori[min_shape_idx];
+                        vec normal = torus_normal(s, pos);
+                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
+                        break;
+                    }
+                case SHAPE_CONE:
+                    {
+                        cone s = scene.cones[min_shape_idx];
+                        vec normal = cone_normal(s, pos);
+                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
+                        break;
+                    }
+                case SHAPE_OCTA:
+                    {
+                        octa s = scene.octahedra[min_shape_idx];
+                        vec normal = octahedron_normal(s, pos);
+                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
+                        break;
+                    }
+                default:
+                    break;
+                }
+
                 return {true, t, steps, color};
             }
 

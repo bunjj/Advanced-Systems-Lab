@@ -30,57 +30,45 @@ namespace impl::opt1 {
      */
     struct scene scene;
 
-    shape make_shape(enum shape_type type, vec color, float reflection, float shininess, const m44 matrix,
-        distance_fun f, normal_fun n, void* data, size_t data_size) {
-        shape shap;
-        shap.distance = f;
-        shap.normal = n;
-        shap.matrix = matrix;
-        shap.inv_matrix = m44_inv(matrix);
-        shap.color = color;
-        shap.reflection = reflection;
-        shap.shininess = shininess;
-        shap.type = type;
-        memcpy(&shap.data, data, data_size);
-        return shap;
+    // Sphere {{{
+    float sphere_distance(const sphere sp, const vec from) {
+        INS_INC(sphere);
+        INS_ADD;
+        return vec_length(vec_sub(sp.center, from)) - sp.radius;
     }
 
-    vec shape_normal(const shape s, const vec pos) {
+    vec sphere_normal(sphere s, vec pos) {
+        // return vec_normalize(vec_sub(pos, s.center));
+
+        // Numerical approximation of the normal (for now)
         static const float delta = 10e-5;
         vec delta1 = {delta, 0, 0};
         vec delta2 = {0, delta, 0};
         vec delta3 = {0, 0, delta};
 
         INS_INC1(add, 3);
-        // Some shapes can calculate this directly
         vec normal = vec_normalize({
-            s.distance(s, vec_add(pos, delta1)) - s.distance(s, vec_sub(pos, delta1)),
-            s.distance(s, vec_add(pos, delta2)) - s.distance(s, vec_sub(pos, delta2)),
-            s.distance(s, vec_add(pos, delta3)) - s.distance(s, vec_sub(pos, delta3)),
+            sphere_distance(s, vec_add(pos, delta1)) - sphere_distance(s, vec_sub(pos, delta1)),
+            sphere_distance(s, vec_add(pos, delta2)) - sphere_distance(s, vec_sub(pos, delta2)),
+            sphere_distance(s, vec_add(pos, delta3)) - sphere_distance(s, vec_sub(pos, delta3)),
         });
 
         return normal;
     }
 
-    // Sphere {{{
-    float sphere_distance(const shape s, const vec from) {
-        INS_INC(sphere);
-        sphere sp = *((sphere*)s.data);
-        INS_ADD;
-        return vec_length(vec_sub(sp.center, from)) - sp.radius;
+    sphere make_sphere(float x, float y, float z, float r, vec color, float reflection, float shininess) {
+        sphere s;
+        s.center = {x, y, z};
+        s.radius = r;
+        m44 matrix = get_transf_matrix({x, y, z}, {0, 0, 0});
+        s.inv_matrix = m44_inv(matrix);
+        s.color = color;
+        s.reflection = reflection;
+        s.shininess = shininess;
+        return s;
     }
 
-    vec sphere_normal(sphere s, vec pos) {
-        return vec_normalize(vec_sub(pos, s.center));
-    }
-
-    shape make_sphere(float x, float y, float z, float r, vec color, float reflection, float shininess) {
-        sphere s = {{x, y, z}, r};
-        return make_shape(SHAPE_SPHERE, color, reflection, shininess, get_transf_matrix({x, y, z}, {0, 0, 0}),
-            sphere_distance, shape_normal, &s, sizeof(s));
-    }
-
-    shape load_sphere(json& j) {
+    sphere load_sphere(json& j) {
         float r;
         vec pos = load_pos(j);
         r = j["params"]["radius"];
@@ -93,21 +81,43 @@ namespace impl::opt1 {
     // }}}
 
     // Box {{{
-    float box_distance(const shape s, const vec from) {
+    float box_distance(const box b, const vec from) {
         INS_INC(box);
-        box b = *((box*)s.data);
-        vec pos = vec4_to_vec(m44_mul_vec(s.inv_matrix, vec4_from_point(from)));
+        vec pos = vec4_to_vec(m44_mul_vec(b.inv_matrix, vec4_from_point(from)));
         vec q = vec_sub(vec_abs(pos), b.extents);
         return FADD(vec_length(vec_max(q, 0)), min(0.0f, max(max(q.x, q.y), q.z)));
     }
 
-    shape make_box(vec bottom_left, vec extents, vec rot, vec color, float reflection, float shininess) {
-        box s = {bottom_left, extents};
-        return make_shape(SHAPE_BOX, color, reflection, shininess, get_transf_matrix(bottom_left, rot), box_distance,
-            shape_normal, &s, sizeof(s));
+    vec box_normal(box s, vec pos) {
+        // Numerical approximation of the normal (for now)
+        static const float delta = 10e-5;
+        vec delta1 = {delta, 0, 0};
+        vec delta2 = {0, delta, 0};
+        vec delta3 = {0, 0, delta};
+
+        INS_INC1(add, 3);
+        vec normal = vec_normalize({
+            box_distance(s, vec_add(pos, delta1)) - box_distance(s, vec_sub(pos, delta1)),
+            box_distance(s, vec_add(pos, delta2)) - box_distance(s, vec_sub(pos, delta2)),
+            box_distance(s, vec_add(pos, delta3)) - box_distance(s, vec_sub(pos, delta3)),
+        });
+
+        return normal;
     }
 
-    shape load_box(json& j) {
+    box make_box(vec bottom_left, vec extents, vec rot, vec color, float reflection, float shininess) {
+        box s;
+        s.bottom_left = bottom_left;
+        s.extents = extents;
+        m44 matrix = get_transf_matrix(bottom_left, rot);
+        s.inv_matrix = m44_inv(matrix);
+        s.color = color;
+        s.reflection = reflection;
+        s.shininess = shininess;
+        return s;
+    }
+
+    box load_box(json& j) {
         vec pos = load_pos(j);
         vec extents = load_vec(j["params"]["extents"]);
         vec rot = load_rot(j);
@@ -121,19 +131,40 @@ namespace impl::opt1 {
 
     // Plane {{{
 
-    float plane_distance(const shape s, const vec from) {
+    float plane_distance(const plane p, const vec from) {
         INS_INC(plane);
-        plane p = *((plane*)s.data);
         return vec_dot(p.normal, vec_sub(from, p.point));
     }
 
-    shape make_plane(vec normal, vec point, vec color, float reflection, float shininess) {
-        plane p = {vec_normalize(normal), point};
-        return make_shape(
-            SHAPE_PLANE, color, reflection, shininess, identity, plane_distance, shape_normal, &p, sizeof(p));
+    vec plane_normal(plane s, vec pos) {
+        // Numerical approximation of the normal (for now)
+        static const float delta = 10e-5;
+        vec delta1 = {delta, 0, 0};
+        vec delta2 = {0, delta, 0};
+        vec delta3 = {0, 0, delta};
+
+        INS_INC1(add, 3);
+        vec normal = vec_normalize({
+            plane_distance(s, vec_add(pos, delta1)) - plane_distance(s, vec_sub(pos, delta1)),
+            plane_distance(s, vec_add(pos, delta2)) - plane_distance(s, vec_sub(pos, delta2)),
+            plane_distance(s, vec_add(pos, delta3)) - plane_distance(s, vec_sub(pos, delta3)),
+        });
+
+        return normal;
     }
 
-    shape load_plane(json& j) {
+    plane make_plane(vec normal, vec point, vec color, float reflection, float shininess) {
+        plane s;
+        s.normal = vec_normalize(normal);
+        s.point = point;
+        s.inv_matrix = identity;
+        s.color = color;
+        s.reflection = reflection;
+        s.shininess = shininess;
+        return s;
+    }
+
+    plane load_plane(json& j) {
         float displacement = j["params"]["displacement"];
         vec normal = load_vec(j["params"]["normal"]);
         vec point = vec_scale(normal, displacement);
@@ -145,10 +176,9 @@ namespace impl::opt1 {
     // }}}
 
     // Torus {{{
-    float torus_distance(const shape s, const vec from) {
+    float torus_distance(const torus t, const vec from) {
         INS_INC(torus);
-        torus t = *((torus*)s.data);
-        vec pos = vec4_to_vec(m44_mul_vec(s.inv_matrix, vec4_from_point(from)));
+        vec pos = vec4_to_vec(m44_mul_vec(t.inv_matrix, vec4_from_point(from)));
         vec2 posxz = {pos.x, pos.z};
         INS_ADD;
         vec2 q = {vec2_length(posxz) - t.r1, pos.y};
@@ -157,13 +187,37 @@ namespace impl::opt1 {
         return vec2_length(q) - t.r2;
     }
 
-    shape make_torus(vec center, float r1, float r2, vec rot, vec color, float reflection, float shininess) {
-        torus t = {center, r1, r2};
-        return make_shape(SHAPE_TORUS, color, reflection, shininess, get_transf_matrix(center, rot), torus_distance,
-            shape_normal, &t, sizeof(t));
+    vec torus_normal(torus s, vec pos) {
+        // Numerical approximation of the normal (for now)
+        static const float delta = 10e-5;
+        vec delta1 = {delta, 0, 0};
+        vec delta2 = {0, delta, 0};
+        vec delta3 = {0, 0, delta};
+
+        INS_INC1(add, 3);
+        vec normal = vec_normalize({
+            torus_distance(s, vec_add(pos, delta1)) - torus_distance(s, vec_sub(pos, delta1)),
+            torus_distance(s, vec_add(pos, delta2)) - torus_distance(s, vec_sub(pos, delta2)),
+            torus_distance(s, vec_add(pos, delta3)) - torus_distance(s, vec_sub(pos, delta3)),
+        });
+
+        return normal;
     }
 
-    shape load_torus(json& j) {
+    torus make_torus(vec center, float r1, float r2, vec rot, vec color, float reflection, float shininess) {
+        torus s;
+        s.center = center;
+        s.r1 = r1;
+        s.r2 = r2;
+        m44 matrix = get_transf_matrix(center, rot);
+        s.inv_matrix = m44_inv(matrix);
+        s.color = color;
+        s.reflection = reflection;
+        s.shininess = shininess;
+        return s;
+    }
+
+    torus load_torus(json& j) {
         float r1, r2;
         vec pos = load_pos(j);
         vec rot = load_rot(j);
@@ -181,10 +235,9 @@ namespace impl::opt1 {
     // }}}
 
     // Cone {{{
-    float cone_distance(const shape shap, const vec from) {
+    float cone_distance(const cone c, const vec from) {
         INS_INC(cone);
-        cone c = *((cone*)shap.data);
-        vec pos = vec4_to_vec(m44_mul_vec(shap.inv_matrix, vec4_from_point(from)));
+        vec pos = vec4_to_vec(m44_mul_vec(c.inv_matrix, vec4_from_point(from)));
 
         float r1 = c.r1;
         float r2 = c.r2;
@@ -210,14 +263,39 @@ namespace impl::opt1 {
         return s * sqrtf(min(vec2_dot2(ca), vec2_dot2(cb)));
     }
 
-    shape make_cone(
-        vec center, float r1, float r2, float height, vec rot, vec color, float reflection, float shininess) {
-        cone c = {center, r1, r2, height};
-        return make_shape(SHAPE_CONE, color, reflection, shininess, get_transf_matrix(center, rot), cone_distance,
-            shape_normal, &c, sizeof(c));
+    vec cone_normal(cone s, vec pos) {
+        // Numerical approximation of the normal (for now)
+        static const float delta = 10e-5;
+        vec delta1 = {delta, 0, 0};
+        vec delta2 = {0, delta, 0};
+        vec delta3 = {0, 0, delta};
+
+        INS_INC1(add, 3);
+        vec normal = vec_normalize({
+            cone_distance(s, vec_add(pos, delta1)) - cone_distance(s, vec_sub(pos, delta1)),
+            cone_distance(s, vec_add(pos, delta2)) - cone_distance(s, vec_sub(pos, delta2)),
+            cone_distance(s, vec_add(pos, delta3)) - cone_distance(s, vec_sub(pos, delta3)),
+        });
+
+        return normal;
     }
 
-    shape load_cone(json& j) {
+    cone make_cone(
+        vec center, float r1, float r2, float height, vec rot, vec color, float reflection, float shininess) {
+        cone s;
+        s.center = center;
+        s.r1 = r1;
+        s.r2 = r2;
+        s.height = height;
+        m44 matrix = get_transf_matrix(center, rot);
+        s.inv_matrix = m44_inv(matrix);
+        s.color = color;
+        s.reflection = reflection;
+        s.shininess = shininess;
+        return s;
+    }
+
+    cone load_cone(json& j) {
         // TODO: adjust cone definition according to mail!
         float r1, r2, height;
         vec pos = load_pos(j);
@@ -237,10 +315,9 @@ namespace impl::opt1 {
     // }}}
 
     // Octahedron {{{
-    float octahedron_distance(const shape shap, const vec from) {
+    float octahedron_distance(const octa o, const vec from) {
         INS_INC(octa);
-        octa o = *((octa*)shap.data);
-        vec pos = vec4_to_vec(m44_mul_vec(shap.inv_matrix, vec4_from_point(from)));
+        vec pos = vec4_to_vec(m44_mul_vec(o.inv_matrix, vec4_from_point(from)));
         pos = vec_abs(pos);
 
         float s = o.s;
@@ -275,13 +352,36 @@ namespace impl::opt1 {
         return vec_length({q.x, q.y - s + k, q.z - k});
     }
 
-    shape make_octahedron(vec center, float s, vec rot, vec color, float reflection, float shininess) {
-        octa o = {center, s};
-        return make_shape(SHAPE_OCTA, color, reflection, shininess, get_transf_matrix(center, rot), octahedron_distance,
-            shape_normal, &o, sizeof(o));
+    vec octahedron_normal(octa s, vec pos) {
+        // Numerical approximation of the normal (for now)
+        static const float delta = 10e-5;
+        vec delta1 = {delta, 0, 0};
+        vec delta2 = {0, delta, 0};
+        vec delta3 = {0, 0, delta};
+
+        INS_INC1(add, 3);
+        vec normal = vec_normalize({
+            octahedron_distance(s, vec_add(pos, delta1)) - octahedron_distance(s, vec_sub(pos, delta1)),
+            octahedron_distance(s, vec_add(pos, delta2)) - octahedron_distance(s, vec_sub(pos, delta2)),
+            octahedron_distance(s, vec_add(pos, delta3)) - octahedron_distance(s, vec_sub(pos, delta3)),
+        });
+
+        return normal;
     }
 
-    shape load_octa(json& j) {
+    octa make_octahedron(vec center, float s_param, vec rot, vec color, float reflection, float shininess) {
+        octa s;
+        s.center = center;
+        s.s = s_param;
+        m44 matrix = get_transf_matrix(center, rot);
+        s.inv_matrix = m44_inv(matrix);
+        s.color = color;
+        s.reflection = reflection;
+        s.shininess = shininess;
+        return s;
+    }
+
+    octa load_octa(json& j) {
         float s;
         vec pos = load_pos(j);
         vec rot = load_rot(j);
@@ -337,29 +437,70 @@ namespace impl::opt1 {
     }
 
     static void load_shapes(json& j) {
-        scene.num_shapes = j["objects"].size();
-        scene.shapes = (shape*)malloc(sizeof(shape) * scene.num_shapes);
+        int num_shapes = j["objects"].size();
 
-        for (int i = 0; i < scene.num_shapes; i++) {
-            shape new_shape;
+        scene.num_spheres = 0;
+        scene.num_planes = 0;
+        scene.num_boxes = 0;
+        scene.num_tori = 0;
+        scene.num_cones = 0;
+        scene.num_octahedra = 0;
+
+        // first pass through scene to determine number of shapes of each kind
+        for (int i = 0; i < num_shapes; i++) {
             json current_shape = j["objects"][i];
             std::string current = current_shape["kind"].get<std::string>();
             if (current == "sphere") {
-                new_shape = load_sphere(current_shape);
+                scene.num_spheres++;
             } else if (current == "plane") {
-                new_shape = load_plane(current_shape);
+                scene.num_planes++;
             } else if (current == "box") {
-                new_shape = load_box(current_shape);
+                scene.num_boxes++;
             } else if (current == "torus") {
-                new_shape = load_torus(current_shape);
+                scene.num_tori++;
             } else if (current == "cone") {
-                new_shape = load_cone(current_shape);
+                scene.num_cones++;
             } else if (current == "octahedron") {
-                new_shape = load_octa(current_shape);
+                scene.num_octahedra++;
             } else {
                 throw std::runtime_error("Unknown shape " + current);
             }
-            scene.shapes[i] = new_shape;
+        }
+
+        // allocate memory for the shape arrays
+        scene.spheres = (sphere*)malloc(sizeof(sphere) * scene.num_spheres);
+        scene.planes = (plane*)malloc(sizeof(plane) * scene.num_planes);
+        scene.boxes = (box*)malloc(sizeof(box) * scene.num_boxes);
+        scene.tori = (torus*)malloc(sizeof(torus) * scene.num_tori);
+        scene.cones = (cone*)malloc(sizeof(cone) * scene.num_cones);
+        scene.octahedra = (octa*)malloc(sizeof(octa) * scene.num_octahedra);
+
+        // second pass to actually load the shapes
+        int sphere_idx = 0;
+        int plane_idx = 0;
+        int box_idx = 0;
+        int torus_idx = 0;
+        int cone_idx = 0;
+        int octa_idx = 0;
+
+        for (int i = 0; i < num_shapes; i++) {
+            json current_shape = j["objects"][i];
+            std::string current = current_shape["kind"].get<std::string>();
+            if (current == "sphere") {
+                scene.spheres[sphere_idx++] = load_sphere(current_shape);
+            } else if (current == "plane") {
+                scene.planes[plane_idx++] = load_plane(current_shape);
+            } else if (current == "box") {
+                scene.boxes[box_idx++] = load_box(current_shape);
+            } else if (current == "torus") {
+                scene.tori[torus_idx++] = load_torus(current_shape);
+            } else if (current == "cone") {
+                scene.cones[cone_idx++] = load_cone(current_shape);
+            } else if (current == "octahedron") {
+                scene.octahedra[octa_idx++] = load_octa(current_shape);
+            } else {
+                throw std::runtime_error("Unknown shape " + current);
+            }
         }
     }
 

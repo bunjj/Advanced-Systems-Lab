@@ -32,6 +32,11 @@ namespace impl::opt1 {
     struct sphere {
         vec center;
         float radius;
+        // TODO: sphere does not really need the matrix
+        m44 inv_matrix;
+        vec color;
+        float reflection;
+        float shininess;
     };
 
     struct plane {
@@ -39,17 +44,29 @@ namespace impl::opt1 {
         vec normal;
         // Point on the plane
         vec point;
+        m44 inv_matrix;
+        vec color;
+        float reflection;
+        float shininess;
     };
 
     struct box {
         vec bottom_left;
         vec extents;
+        m44 inv_matrix;
+        vec color;
+        float reflection;
+        float shininess;
     };
 
     struct torus {
         vec center;
         float r1;
         float r2;
+        m44 inv_matrix;
+        vec color;
+        float reflection;
+        float shininess;
     };
 
     struct cone {
@@ -57,42 +74,59 @@ namespace impl::opt1 {
         float r1;
         float r2;
         float height;
+        m44 inv_matrix;
+        vec color;
+        float reflection;
+        float shininess;
     };
 
     struct octa {
         vec center;
         float s;
-    };
-
-    typedef float (*distance_fun)(const struct shape s, const vec pos);
-    typedef vec (*normal_fun)(const struct shape s, const vec pos);
-
-    struct shape {
-        distance_fun distance;
-        normal_fun normal;
-        char data[std::max({sizeof(sphere), sizeof(plane), sizeof(box), sizeof(torus), sizeof(cone), sizeof(octa)})];
-        // The matrix for transforming any point in the object space into the world
-        // space.
-        m44 matrix;
-        // Inverse of the above matrix. Transforms points in the world space into
-        // the object space.
         m44 inv_matrix;
         vec color;
         float reflection;
         float shininess;
-        enum shape_type type;
     };
 
     struct scene {
-        shape* shapes;
-        int num_shapes;
         light* lights;
         int num_lights;
         camera cam;
+
+        int num_spheres;
+        int num_planes;
+        int num_boxes;
+        int num_tori;
+        int num_cones;
+        int num_octahedra;
+
+        sphere* spheres;
+        plane* planes;
+        box* boxes;
+        torus* tori;
+        cone* cones;
+        octa* octahedra;
     };
 
     extern struct scene scene;
 
     void load_scene(std::string& input);
+
+    // distance functions
+    float sphere_distance(const sphere sp, const vec from);
+    float box_distance(const box b, const vec from);
+    float plane_distance(const plane p, const vec from);
+    float torus_distance(const torus t, const vec from);
+    float cone_distance(const cone c, const vec from);
+    float octahedron_distance(const octa o, const vec from);
+
+    // normal functions
+    vec sphere_normal(sphere s, vec pos);
+    vec box_normal(box s, vec pos);
+    vec plane_normal(plane s, vec pos);
+    vec torus_normal(torus s, vec pos);
+    vec cone_normal(cone s, vec pos);
+    vec octahedron_normal(octa s, vec pos);
 
 } // namespace impl::opt1
