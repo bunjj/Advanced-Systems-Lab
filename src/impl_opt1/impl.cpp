@@ -1,8 +1,7 @@
-#include "impl_ref/impl.hpp"
+#include "impl_opt1/impl.hpp"
+#include "impl_opt1/scene.hpp"
 
-#include "impl_ref/scene.hpp"
-
-namespace impl::ref {
+namespace impl::opt1 {
     // max distance
     static const float D = 100;
     static const float EPS = 0.001;
@@ -154,7 +153,13 @@ namespace impl::ref {
     }
 
     void render_init(std::string input) {
-        std::cout << "Scene already loaded (" << input << "), not loading again" << std::endl;
+        // convert scene from reference format to custom format
+        // TODO
+
+        // for now, we just read the scene again from the json file
+        std::cout << "Loading scene again" << std::endl;
+        load_scene(input);
+
     }
 
     void render(int width, int height, float* pixels) {
@@ -199,4 +204,4 @@ namespace impl::ref {
         }
     }
 
-} // namespace impl::ref
+} // namespace impl::opt1

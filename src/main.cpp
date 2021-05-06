@@ -9,16 +9,22 @@
 #include <iostream>
 #include <memory>
 
-#include "impl_ref/geometry.h"
-#include "impl_ref/impl.hpp"
-#include "impl_ref/scene.hpp"
 #include "instrument.h"
 #include "timing.h"
 #include "util.h"
 
+#include "impl_ref/geometry.h"
+#include "impl_ref/impl.hpp"
+#include "impl_ref/scene.hpp"
+
+#include "impl_opt1/geometry.h"
+#include "impl_opt1/impl.hpp"
+#include "impl_opt1/scene.hpp"
+
+
 flops_t flops_counter;
 
-typedef void (*fp_render_init)(void);
+typedef void (*fp_render_init)(std::string);
 typedef void (*fp_render)(int, int, float*);
 
 fp_render_init fun_render_init;
@@ -119,11 +125,11 @@ static void validate_output(
 
 // }}}
 
-void run(int width, int height, std::string output) {
+void run(int width, int height, std::string input, std::string output) {
     auto pixels = std::make_unique<float[]>(height * width * 3);
 
     ins_rst();
-    fun_render_init();
+    fun_render_init(input);
     ins_dump("Setup");
 
     ins_rst();
@@ -191,6 +197,9 @@ void set_render_fp(const std::string& impl) {
     if (impl == "ref") {
         fun_render_init = &impl::ref::render_init;
         fun_render = &impl::ref::render;
+    } else if (impl == "opt1") {
+        fun_render_init = &impl::opt1::render_init;
+        fun_render = &impl::opt1::render;
     } else {
         throw std::runtime_error("Unknown implementation '" + impl + "'");
     }
@@ -219,7 +228,7 @@ int main(int argc, char** argv) {
     int width = std::stoi(width_str);
     int height = std::stoi(height_str);
 
-    run(width, height, output);
+    run(width, height, input, output);
 
     // compare against reference image
     if (!output.empty() && !reference.empty()) {
