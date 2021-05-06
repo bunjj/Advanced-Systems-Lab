@@ -221,7 +221,7 @@ int main(int argc, char** argv) {
     set_render_fp(impl);
 
     /*
-     * Load the reference scene. All other implementation will use this to derive their own scenes.
+     * Load the reference scene. All other implementations will use this to derive their own scenes.
      */
     impl::ref::load_scene(input);
 

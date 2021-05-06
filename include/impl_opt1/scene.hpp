@@ -42,7 +42,6 @@ namespace impl::opt1 {
         vec normal;
         // Point on the plane
         vec point;
-        m44 inv_matrix;
         vec color;
         float reflection;
         float shininess;
@@ -110,6 +109,7 @@ namespace impl::opt1 {
     extern struct scene scene;
 
     void load_scene(std::string& input);
+    void from_ref_scene();
 
     // distance functions
     float sphere_distance(const sphere sp, const vec from);

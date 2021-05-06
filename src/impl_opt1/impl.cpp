@@ -372,11 +372,12 @@ namespace impl::opt1 {
 
     void render_init(std::string input) {
         // convert scene from reference format to custom format
-        // TODO
+        std::cout << "Reference scene already loaded (" << input << "), converting to required format" << std::endl;
+        from_ref_scene();
 
-        // for now, we just read the scene again from the json file
-        std::cout << "Loading scene again" << std::endl;
-        load_scene(input);
+        // alternatively, we can just read the scene again from the json file
+        // std::cout << "Loading scene again" << std::endl;
+        // load_scene(input);
 
     }
 
