@@ -195,16 +195,15 @@ namespace impl::opt1 {
     }
 
     static hit sphere_trace(vec origin, vec dir) {
-        float t = 0;
 
+        float t = 0;
         int steps = 0;
+        vec color;
 
         while (t < D) {
             vec pos = vec_add(origin, vec_scale(dir, t));
 
             float min_distance = INFINITY;
-            int min_shape_idx = -1;
-            shape_type min_shape_type = SHAPE_SPHERE;
 
             // spheres
             for (int k = 0; k < scene.num_spheres; k++) {
@@ -213,12 +212,13 @@ namespace impl::opt1 {
                 INS_CMP;
                 if (distance < min_distance) {
                     min_distance = distance;
-                    min_shape_idx = k;
-                    min_shape_type = SHAPE_SPHERE;
 
                     INS_CMP;
                     if (min_distance <= EPS) {
-                        break;
+                        sphere s = scene.spheres[k];
+                        vec normal = sphere_normal(s, pos);
+                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
+                        return {true, t, steps, color};
                     }
                 }
             }
@@ -230,12 +230,13 @@ namespace impl::opt1 {
                 INS_CMP;
                 if (distance < min_distance) {
                     min_distance = distance;
-                    min_shape_idx = k;
-                    min_shape_type = SHAPE_PLANE;
 
                     INS_CMP;
                     if (min_distance <= EPS) {
-                        break;
+                        plane s = scene.planes[k];
+                        vec normal = plane_normal(s, pos);
+                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
+                        return {true, t, steps, color};
                     }
                 }
             }
@@ -247,12 +248,13 @@ namespace impl::opt1 {
                 INS_CMP;
                 if (distance < min_distance) {
                     min_distance = distance;
-                    min_shape_idx = k;
-                    min_shape_type = SHAPE_BOX;
 
                     INS_CMP;
                     if (min_distance <= EPS) {
-                        break;
+                        box s = scene.boxes[k];
+                        vec normal = box_normal(s, pos);
+                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
+                        return {true, t, steps, color};
                     }
                 }
             }
@@ -264,12 +266,13 @@ namespace impl::opt1 {
                 INS_CMP;
                 if (distance < min_distance) {
                     min_distance = distance;
-                    min_shape_idx = k;
-                    min_shape_type = SHAPE_TORUS;
 
                     INS_CMP;
                     if (min_distance <= EPS) {
-                        break;
+                        torus s = scene.tori[k];
+                        vec normal = torus_normal(s, pos);
+                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
+                        return {true, t, steps, color};
                     }
                 }
             }
@@ -281,12 +284,13 @@ namespace impl::opt1 {
                 INS_CMP;
                 if (distance < min_distance) {
                     min_distance = distance;
-                    min_shape_idx = k;
-                    min_shape_type = SHAPE_CONE;
 
                     INS_CMP;
                     if (min_distance <= EPS) {
-                        break;
+                        cone s = scene.cones[k];
+                        vec normal = cone_normal(s, pos);
+                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
+                        return {true, t, steps, color};
                     }
                 }
             }
@@ -298,69 +302,15 @@ namespace impl::opt1 {
                 INS_CMP;
                 if (distance < min_distance) {
                     min_distance = distance;
-                    min_shape_idx = k;
-                    min_shape_type = SHAPE_OCTA;
 
                     INS_CMP;
                     if (min_distance <= EPS) {
-                        break;
-                    }
-                }
-            }
-
-            INS_CMP;
-            if (min_distance <= EPS) {
-
-                vec color;
-                switch (min_shape_type)
-                {
-                case SHAPE_SPHERE:
-                    {
-                        sphere s = scene.spheres[min_shape_idx];
-                        vec s_normal = sphere_normal(s, pos);
-                        color = shade(s_normal, s.shininess, s.reflection, s.color, pos, dir, t);
-                        break;
-                    }
-                case SHAPE_PLANE:
-                    {
-                        plane s = scene.planes[min_shape_idx];
-                        vec normal = plane_normal(s, pos);
-                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
-                        break;
-                    }
-                case SHAPE_BOX:
-                    {
-                        box s = scene.boxes[min_shape_idx];
-                        vec normal = box_normal(s, pos);
-                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
-                        break;
-                    }
-                case SHAPE_TORUS:
-                    {
-                        torus s = scene.tori[min_shape_idx];
-                        vec normal = torus_normal(s, pos);
-                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
-                        break;
-                    }
-                case SHAPE_CONE:
-                    {
-                        cone s = scene.cones[min_shape_idx];
-                        vec normal = cone_normal(s, pos);
-                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
-                        break;
-                    }
-                case SHAPE_OCTA:
-                    {
-                        octa s = scene.octahedra[min_shape_idx];
+                        octa s = scene.octahedra[k];
                         vec normal = octahedron_normal(s, pos);
                         color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
-                        break;
+                        return {true, t, steps, color};
                     }
-                default:
-                    break;
                 }
-
-                return {true, t, steps, color};
             }
 
             t = FADD(t, min_distance);
