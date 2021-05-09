@@ -153,7 +153,7 @@ namespace impl::ref {
         return hit{false, t, steps, {0, 0, 0}};
     }
 
-    void render_init() {}
+    void render_init(std::string) {}
 
     void render(int width, int height, float* pixels) {
         m44 camera_matrix = get_transf_matrix(scene.cam.pos, scene.cam.rotation);

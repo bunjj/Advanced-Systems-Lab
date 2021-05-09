@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-namespace impl::ref {
+namespace impl::opt1 {
     void render_init(std::string input);
     void render(int width, int height, float* pixels);
-} // namespace impl::ref
+} // namespace impl::opt1

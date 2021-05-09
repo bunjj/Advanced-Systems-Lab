@@ -10,3 +10,4 @@ __pycache__/
 .idea/
 .Rhistory
 /benchmark/*.json
+.DS_Store
