@@ -134,14 +134,16 @@ namespace impl::ref {
                     shape_idx = k;
 
                     INS_CMP;
-                    if (min_distance <= EPS) {
+                    INS_MUL;
+                    if (min_distance <= EPS * t) {
                         break;
                     }
                 }
             }
 
             INS_CMP;
-            if (min_distance <= EPS) {
+            INS_MUL;
+            if (min_distance <= EPS * t) {
                 vec color = shade(scene.shapes[shape_idx], pos, dir, t);
                 return {true, t, steps, color};
             }

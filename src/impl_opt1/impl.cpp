@@ -214,7 +214,8 @@ namespace impl::opt1 {
                     min_distance = distance;
 
                     INS_CMP;
-                    if (min_distance <= EPS) {
+                    INS_MUL;
+                    if (min_distance <= EPS * t) {
                         sphere s = scene.spheres[k];
                         vec normal = sphere_normal(s, pos);
                         color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
@@ -232,7 +233,8 @@ namespace impl::opt1 {
                     min_distance = distance;
 
                     INS_CMP;
-                    if (min_distance <= EPS) {
+                    INS_MUL;
+                    if (min_distance <= EPS * t) {
                         plane s = scene.planes[k];
                         vec normal = plane_normal(s, pos);
                         color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
@@ -250,7 +252,8 @@ namespace impl::opt1 {
                     min_distance = distance;
 
                     INS_CMP;
-                    if (min_distance <= EPS) {
+                    INS_MUL;
+                    if (min_distance <= EPS * t) {
                         box s = scene.boxes[k];
                         vec normal = box_normal(s, pos);
                         color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
@@ -268,7 +271,8 @@ namespace impl::opt1 {
                     min_distance = distance;
 
                     INS_CMP;
-                    if (min_distance <= EPS) {
+                    INS_MUL;
+                    if (min_distance <= EPS * t) {
                         torus s = scene.tori[k];
                         vec normal = torus_normal(s, pos);
                         color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
@@ -286,7 +290,8 @@ namespace impl::opt1 {
                     min_distance = distance;
 
                     INS_CMP;
-                    if (min_distance <= EPS) {
+                    INS_MUL;
+                    if (min_distance <= EPS * t) {
                         cone s = scene.cones[k];
                         vec normal = cone_normal(s, pos);
                         color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
@@ -304,7 +309,8 @@ namespace impl::opt1 {
                     min_distance = distance;
 
                     INS_CMP;
-                    if (min_distance <= EPS) {
+                    INS_MUL;
+                    if (min_distance <= EPS * t) {
                         octa s = scene.octahedra[k];
                         vec normal = octahedron_normal(s, pos);
                         color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
