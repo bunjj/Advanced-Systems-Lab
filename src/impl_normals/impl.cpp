@@ -46,6 +46,7 @@ namespace impl::normals {
     using impl::ref::plane;
     using impl::ref::torus;
     using impl::ref::cone;
+    using impl::ref::octa;
 
 
     vec sphere_normal(const shape s, const vec pos) {
@@ -56,9 +57,9 @@ namespace impl::normals {
     vec box_normal(const shape s, const vec from) {
         box b = *((box*)s.data);
         vec pos = vec4_to_vec(m44_mul_vec(s.inv_matrix, vec4_from_point(from)));
-        vec abs = vec_abs(pos);
 
         // transform into upper right quadrant
+        vec abs = vec_abs(pos);
         vec sign = vec_div(pos, abs);
         vec q = vec_sub(abs, b.extents);
 
@@ -143,6 +144,25 @@ namespace impl::normals {
         return n_world;
     }
 
+    vec octahedron_normal(const shape shap, const vec from) {
+        INS_INC(octa);
+        vec pos = vec4_to_vec(m44_mul_vec(shap.inv_matrix, vec4_from_point(from)));
+
+        // transform into upper right quadrant
+        vec abs = vec_abs(pos);
+        vec sign = vec_div(pos, abs);
+
+        vec n_obj = {1,1,1};
+        n_obj = vec_normalize(n_obj);
+
+        // invert transform from upper right quadrant, before abs()
+        n_obj = vec_mul(sign, n_obj);
+
+        vec n_world = m44_rotate_only(shap.matrix, n_obj);
+        return n_world;
+    }
+
+
     // replace shape.normal() with new function
     void render_init() {
 
@@ -164,6 +184,9 @@ namespace impl::normals {
                 
                 case SHAPE_CONE:
                     scene.shapes[k].normal = cone_normal; break;
+                
+                case SHAPE_OCTA:
+                    scene.shapes[k].normal = octahedron_normal; break;
 
                 default: break;
             }
