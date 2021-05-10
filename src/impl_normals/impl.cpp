@@ -25,6 +25,10 @@ namespace impl::normals {
     using impl::ref::vec_div;
     using impl::ref::vec_abs;
 
+    using impl::ref::vec2;
+    using impl::ref::vec2_scale;
+    using impl::ref::vec2_length;
+
     using impl::ref::m44;
     using impl::ref::vec4_from_point;
     using impl::ref::m44_mul_vec;
@@ -37,6 +41,7 @@ namespace impl::normals {
     using impl::ref::sphere;
     using impl::ref::box;
     using impl::ref::plane;
+    using impl::ref::torus;
 
 
     vec sphere_normal(const shape s, const vec pos) {
@@ -78,6 +83,23 @@ namespace impl::normals {
     }
 
 
+    vec torus_normal(const shape s, const vec from) {
+        torus t = *((torus*)s.data);
+        vec pos = vec4_to_vec(m44_mul_vec(s.inv_matrix, vec4_from_point(from)));
+        
+        vec2 posxz = {pos.x, pos.z};
+        
+        INS_ADD;
+        INS_DIV;
+        posxz = vec2_scale(posxz, 1 - t.r1/vec2_length(posxz));
+        vec q = {posxz.x, pos.y, posxz.y};
+        vec n_obj = vec_normalize(q);
+
+        vec n_world = m44_rotate_only(s.matrix, n_obj);
+        return n_world;
+    }
+
+
     // replace shape.normal() with new function
     void render_init() {
 
@@ -93,6 +115,9 @@ namespace impl::normals {
 
                 case SHAPE_PLANE:
                     scene.shapes[k].normal = plane_normal; break;
+                
+                case SHAPE_TORUS:
+                    scene.shapes[k].normal = torus_normal; break;
 
                 default: break;
             }
