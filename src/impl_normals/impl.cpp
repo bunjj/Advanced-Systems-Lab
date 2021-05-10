@@ -18,6 +18,9 @@ namespace impl::normals {
     };
 
     // import vector geometry functions
+    using impl::ref::min;
+    using impl::ref::clamp;
+
     using impl::ref::vec;
     using impl::ref::vec_normalize;
     using impl::ref::vec_sub;
@@ -42,6 +45,7 @@ namespace impl::normals {
     using impl::ref::box;
     using impl::ref::plane;
     using impl::ref::torus;
+    using impl::ref::cone;
 
 
     vec sphere_normal(const shape s, const vec pos) {
@@ -100,6 +104,45 @@ namespace impl::normals {
     }
 
 
+    vec cone_normal(const shape shap, const vec from) {
+        cone c = *((cone*)shap.data);
+        vec pos = vec4_to_vec(m44_mul_vec(shap.inv_matrix, vec4_from_point(from)));
+
+        float r1 = c.r1;
+        float r2 = c.r2;
+        float h = c.height;
+
+        // transform into rotation invariant subspace around y-axis
+        vec2 posxz = {pos.x, pos.z};
+        vec2 q = {vec2_length(posxz), pos.y};
+                vec2 k1 = {r2, h};
+        INS_ADD;
+        INS_MUL;
+        vec2 k2 = {r2 - r1, 2 * h};
+        INS_INC1(add, 2);
+        INS_ABS;
+        INS_CMP;
+        vec2 ca = {q.x - min(q.x, (q.y < 0 ? r1 : r2)), fabsf(q.y) - h};
+        INS_DIV;
+        vec2 cb =
+            vec2_add(vec2_sub(q, k1), vec2_scale(k2, clamp(vec2_dot(vec2_sub(k1, q), k2) / vec2_dot2(k2), 0.0f, 1.0f)));
+
+        // invert transform from rotation invariant subspace
+        vec n_obj = {0,0,0};
+        INS_CMP;
+        if (vec2_dot2(ca) < vec2_dot2(cb)){
+            posxz = vec2_scale(posxz, ca.x/vec2_length(posxz));
+            n_obj = {posxz.x, ca.y, posxz.y};
+        } else {
+            posxz = vec2_scale(posxz, cb.x/vec2_length(posxz));
+            n_obj = {posxz.x, cb.y, posxz.y};
+        }
+        n_obj = vec_normalize(n_obj);
+
+        vec n_world = m44_rotate_only(shap.matrix, n_obj);
+        return n_world;
+    }
+
     // replace shape.normal() with new function
     void render_init() {
 
@@ -118,6 +161,9 @@ namespace impl::normals {
                 
                 case SHAPE_TORUS:
                     scene.shapes[k].normal = torus_normal; break;
+                
+                case SHAPE_CONE:
+                    scene.shapes[k].normal = cone_normal; break;
 
                 default: break;
             }
