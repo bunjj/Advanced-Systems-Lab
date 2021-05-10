@@ -57,3 +57,17 @@ The fifth argument is optional and denotes the path where the resulting ppm (or 
 image file should be written (any existing file will be overwritten). If the
 argument is not specified, no image will be written.  The last optional argument
 is the path to the reference ppm image (used for output validation).
+
+##Create Benchmark scenes
+Running the Python scripts will create benchmark scenes with random objects.
+create_scene.py creates n scenes of type shape
+
+```
+python create_scene.py <shape> <n> <output>
+```
+
+create_scene_all_shapes.py creates n shapes of each shape type.
+
+```
+python create_scene_all_shapes.py <n> <output>
+```
