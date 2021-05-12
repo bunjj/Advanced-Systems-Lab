@@ -1,7 +1,7 @@
-#include "impl_opt1/impl.hpp"
-#include "impl_opt1/scene.hpp"
+#include "impl_opt3/impl.hpp"
+#include "impl_opt3/scene.hpp"
 
-namespace impl::opt1 {
+namespace impl::opt3 {
     // max distance
     static const float D = 100;
     static const float EPS = 0.001;
@@ -328,12 +328,12 @@ namespace impl::opt1 {
 
     void render_init(std::string input) {
         // convert scene from reference format to custom format
-        std::cout << "Reference scene already loaded (" << input << "), converting to required format" << std::endl;
-        from_ref_scene();
+        //std::cout << "Reference scene already loaded (" << input << "), converting to required format" << std::endl;
+        //from_ref_scene();
 
         // alternatively, we can just read the scene again from the json file
-        // std::cout << "Loading scene again" << std::endl;
-        // load_scene(input);
+        std::cout << "Loading scene again" << std::endl;
+        load_scene(input);
 
     }
 
