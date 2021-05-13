@@ -12,10 +12,6 @@ void dump_image_ldr(std::ostream& out, int width, int height, const float* pixel
     // gamma correction according to wikipedia
     float invgamma = 0.45f; // inverse of gamma=2.2f
 
-    // turn off gamma correction by default
-    bool gammacorrection = false;
-    invgamma = (gammacorrection) ? invgamma : 1.0f;
-
     for (int j = 0; j < height; j++) {
         for (int i = 0; i < width; i++) {
             for (int k = 0; k < 3; k++) {
@@ -47,22 +43,10 @@ void dump_image_hdr(std::ostream& out, int width, int height, const float* pixel
  * Writes either a PPM (default) or PFM file.
  */
 void dump_image(std::ostream& out, int width, int height, const float* pixels, bool hdr) {
-    /* TODO: Possible Strategies to determine exposure:
-        - user defined by exposure parameter in camera
-        - choose exposure empirically
-        - map max_val to 1
-        - map 95th percentile to 1
-    */
-
-    float exposure = 1250.f; //
-
-    /*
-     float max_val = 0.f;
-     for (int i = 0; i < width * height * 3; i++){
-         max_val = std::max(max_val, pixels[i]);
-     }
-     float exposure = 1.f / max_val * 1.76;
-     */
+    
+    // Hardcoded exposure in order to match example scene0.json. 
+    // Use hdr to store under-/overexposed renderings without loss of information.
+    float exposure = 1250.f;
 
     if (hdr) {
         // store in binary .pfm format

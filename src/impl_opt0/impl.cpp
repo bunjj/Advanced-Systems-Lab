@@ -179,7 +179,8 @@ namespace impl::opt0 {
 
 
     // replace shape.normal() with new function
-    void render_init() {
+    void render_init(std::string input) {
+        (void)input; // input is not used in this instance of render_init()
 
         for (int k = 0; k < scene.num_shapes; k++) {
 

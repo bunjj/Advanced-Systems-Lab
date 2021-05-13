@@ -27,6 +27,10 @@ set(files
     src/impl_ref/scene.cpp
 
     src/impl_opt0/impl.cpp
+    
+    src/impl_opt1/impl.cpp
+    src/impl_opt1/geometry.cpp
+    src/impl_opt1/scene.cpp
     )
 
 add_executable(${name} ${files})
