@@ -85,6 +85,8 @@ namespace impl::opt3 {
         return FSQRT(vec_dot2(v));
     }
 
+    
+
     static inline vec vec_normalize(vec v) {
         float len = vec_length(v);
         INS_INC1(div, 3);

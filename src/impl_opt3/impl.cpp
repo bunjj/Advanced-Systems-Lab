@@ -26,7 +26,7 @@ namespace impl::opt3 {
 
             // spheres
             for (int k = 0; k < scene.num_spheres; k++) {
-                float distance = sphere_distance(scene.spheres[k], pos);
+                float distance = sphere_distance_short(scene.spheres[k], pos, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -207,7 +207,7 @@ namespace impl::opt3 {
 
             // spheres
             for (int k = 0; k < scene.num_spheres; k++) {
-                float distance = sphere_distance(scene.spheres[k], pos);
+                float distance = sphere_distance_short(scene.spheres[k], pos, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {

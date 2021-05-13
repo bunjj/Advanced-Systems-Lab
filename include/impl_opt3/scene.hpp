@@ -124,6 +124,17 @@ namespace impl::opt3 {
         return vec_length(vec_sub(sp.center, from)) - sp.radius;
     }
 
+    static inline float sphere_distance_short(const sphere sp, const vec from, const float current_min) {
+        INS_INC(sphere);
+        INS_ADD;
+        float upper_bound = current_min + sp.radius;
+        float squarred_distance = vec_dot2(vec_sub(sp.center, from));
+        if(squarred_distance >= upper_bound * upper_bound){
+            return current_min;
+        }
+        return FSQRT(squarred_distance) - sp.radius;
+    }
+
     static inline vec sphere_normal(sphere s, vec pos) {
         // return vec_normalize(vec_sub(pos, s.center));
 
