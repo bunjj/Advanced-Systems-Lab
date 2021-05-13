@@ -124,17 +124,17 @@ namespace impl::opt3 {
         return vec_length(vec_sub(sp.center, from)) - sp.radius;
     }
 
-    //distance function with short circuit evaluation. needs additional parameter
     static inline float sphere_distance_short(const sphere sp, const vec from, const float current_min) {
         INS_INC(sphere);
         INS_ADD;
         float upper_bound = current_min + sp.radius;
-        float squarred_distance = vec_dot2(vec_sub(sp.center, from));
-        INS_MUL; INS_ADD;
-        if(squarred_distance >= upper_bound * upper_bound){
+        float squared_distance = vec_dot2(vec_sub(sp.center, from));
+        INS_MUL; INS_CMP;
+        if (squared_distance >= upper_bound * upper_bound) {
             return current_min;
         }
-        return FSQRT(squarred_distance) - sp.radius;
+        INS_ADD;
+        return FSQRT(squared_distance) - sp.radius;
     }
 
     static inline vec sphere_normal(sphere s, vec pos) {
@@ -165,7 +165,6 @@ namespace impl::opt3 {
         return FADD(vec_length(vec_max(q, 0)), min(0.0f, max(max(q.x, q.y), q.z)));
     }
 
-
     static inline float box_distance_short(const box b, const vec from, const float current_min) {
         INS_INC(box);
         vec pos = m33_mul_vec(b.inv_rot, vec_sub(from, b.bottom_left));
@@ -173,9 +172,13 @@ namespace impl::opt3 {
         vec q = vec_sub(vec_abs(pos), b.extents);
         float extent_values = min(0.0f, max(max(q.x, q.y), q.z));
         float intermediate_squared_dist = vec_dot2(vec_max(q, 0));
+
+        INS_ADD;
         float upper_bound = extent_values + current_min;
-        INS_ADD; INS_MUL;
-        if(intermediate_squared_dist >= upper_bound * upper_bound) return current_min;
+        INS_MUL; INS_CMP;
+        if (intermediate_squared_dist >= upper_bound * upper_bound) {
+            return current_min;
+        }
         return FADD(FSQRT(intermediate_squared_dist), extent_values);
     }
 
@@ -232,7 +235,6 @@ namespace impl::opt3 {
         return vec2_length(q) - t.r2;
     }
 
-
     static inline float torus_distance_short(const torus t, const vec from, const float current_min) {
         INS_INC(torus);
         vec pos = m33_mul_vec(t.inv_rot, vec_sub(from, t.center));
@@ -241,9 +243,14 @@ namespace impl::opt3 {
         INS_ADD;
         vec2 q = {vec2_length(posxz) - t.r1, pos.y};
         float q_squared = vec2_dot2(q);
+
+        INS_ADD;
         float upper_bound = current_min +t.r2;
-        INS_MUL; INS_ADD;
-        if(q_squared >= upper_bound * upper_bound) return current_min;
+        INS_MUL; INS_CMP;
+        if (q_squared >= upper_bound * upper_bound) {
+            return current_min;
+        }
+
         INS_ADD;
         return FSQRT(q_squared) - t.r2;
     }
@@ -319,12 +326,13 @@ namespace impl::opt3 {
         INS_INC1(cmp, 2);
         float s = (cb.x < 0 && ca.y < 0) ? -1 : 1;
 
-        INS_MUL;
-        INS_SQRT;
-
         float squared_min = min(vec2_dot2(ca), vec2_dot2(cb));
-        INS_MUL;
-        if(squared_min >= current_min * current_min) return current_min;
+        INS_MUL; INS_CMP;
+        if (squared_min >= current_min * current_min) {
+            return current_min;
+        }
+
+        INS_MUL; INS_SQRT;
         return s * sqrtf(squared_min);
     }
 
@@ -419,11 +427,13 @@ namespace impl::opt3 {
         INS_INC1(add, 2);
         float k = clamp(0.5f * (q.z - q.y + s), 0.0f, s);
 
+        INS_INC1(add, 3);
         float squared_distance = vec_dot2({q.x, q.y - s + k, q.z - k});
         
-        INS_INC1(add, 3);
         INS_INC1(mul, 1);
-        if(squared_distance >= current_min * current_min) return current_min;
+        if (squared_distance >= current_min * current_min) {
+            return current_min;
+        }
         return FSQRT(squared_distance);
     }
 
@@ -444,4 +454,4 @@ namespace impl::opt3 {
         return normal;
     }
 
-} // namespace impl::opt1
+} // namespace impl::opt3

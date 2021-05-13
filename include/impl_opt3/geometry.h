@@ -304,4 +304,4 @@ namespace impl::opt3 {
 
     // }}}
 
-} // namespace impl::opt1
+} // namespace impl::opt3
