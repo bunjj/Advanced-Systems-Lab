@@ -214,4 +214,4 @@ namespace impl::opt0 {
         return impl::ref::render(width, height, pixels);
     }
 
-} // namespace impl::normals
+} // namespace impl::opt0
