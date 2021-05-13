@@ -58,7 +58,7 @@ namespace impl::opt3 {
 
             // boxes
             for (int k = 0; k < scene.num_boxes; k++) {
-                float distance = box_distance(scene.boxes[k], pos);
+                float distance = box_distance_short(scene.boxes[k], pos, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -74,7 +74,7 @@ namespace impl::opt3 {
 
             // tori
             for (int k = 0; k < scene.num_tori; k++) {
-                float distance = torus_distance(scene.tori[k], pos);
+                float distance = torus_distance_short(scene.tori[k], pos, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -90,7 +90,7 @@ namespace impl::opt3 {
 
             // cones
             for (int k = 0; k < scene.num_cones; k++) {
-                float distance = cone_distance(scene.cones[k], pos);
+                float distance = cone_distance_short(scene.cones[k], pos, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -106,7 +106,7 @@ namespace impl::opt3 {
 
             // octahedra
             for (int k = 0; k < scene.num_octahedra; k++) {
-                float distance = octahedron_distance(scene.octahedra[k], pos);
+                float distance = octahedron_distance_short(scene.octahedra[k], pos, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -245,7 +245,7 @@ namespace impl::opt3 {
 
             // boxes
             for (int k = 0; k < scene.num_boxes; k++) {
-                float distance = box_distance(scene.boxes[k], pos);
+                float distance = box_distance_short(scene.boxes[k], pos, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -264,7 +264,7 @@ namespace impl::opt3 {
 
             // tori
             for (int k = 0; k < scene.num_tori; k++) {
-                float distance = torus_distance(scene.tori[k], pos);
+                float distance = torus_distance_short(scene.tori[k], pos,min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -283,7 +283,7 @@ namespace impl::opt3 {
 
             // cones
             for (int k = 0; k < scene.num_cones; k++) {
-                float distance = cone_distance(scene.cones[k], pos);
+                float distance = cone_distance_short(scene.cones[k], pos, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -302,7 +302,7 @@ namespace impl::opt3 {
 
             // octahedra
             for (int k = 0; k < scene.num_octahedra; k++) {
-                float distance = octahedron_distance(scene.octahedra[k], pos);
+                float distance = octahedron_distance_short(scene.octahedra[k], pos, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
