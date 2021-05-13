@@ -4,6 +4,9 @@ compile_commands.json
 *.ppm
 *.pfm
 *.ps
+*.data
+*.perf
+*.folded
 
 .vscode/
 __pycache__/

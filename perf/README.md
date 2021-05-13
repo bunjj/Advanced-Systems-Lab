@@ -114,4 +114,4 @@ The shading takes a substantial portion of the rendering time with most of the
 time spent inside the distance functions.
 Around 27% of time is spend in `m44_mul_vec`.
 
-![Flamge Graph](./opt1-all.png)
+![Flame Graph](./opt1-all-1920x1080.svg)

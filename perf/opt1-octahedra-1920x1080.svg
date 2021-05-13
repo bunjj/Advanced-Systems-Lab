@@ -1,0 +1,682 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" width="1200" height="294" onload="init(evt)" viewBox="0 0 1200 294" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<!-- Flame graph stack visualization. See https://github.com/brendangregg/FlameGraph for latest version, and http://www.brendangregg.com/flamegraphs.html for examples. -->
+<!-- NOTES:  -->
+<defs >
+	<linearGradient id="background" y1="0" y2="1" x1="0" x2="0" >
+		<stop stop-color="#eeeeee" offset="5%" />
+		<stop stop-color="#eeeeb0" offset="95%" />
+	</linearGradient>
+</defs>
+<style type="text/css">
+	.func_g:hover { stroke:black; stroke-width:0.5; cursor:pointer; }
+</style>
+<script type="text/ecmascript">
+<![CDATA[
+	var details, searchbtn, matchedtxt, svg;
+	function init(evt) {
+		details = document.getElementById("details").firstChild;
+		searchbtn = document.getElementById("search");
+		matchedtxt = document.getElementById("matched");
+		svg = document.getElementsByTagName("svg")[0];
+		searching = 0;
+	}
+
+	// mouse-over for info
+	function s(node) {		// show
+		info = g_to_text(node);
+		details.nodeValue = "Function: " + info;
+	}
+	function c() {			// clear
+		details.nodeValue = ' ';
+	}
+
+	// ctrl-F for search
+	window.addEventListener("keydown",function (e) {
+		if (e.keyCode === 114 || (e.ctrlKey && e.keyCode === 70)) {
+			e.preventDefault();
+			search_prompt();
+		}
+	})
+
+	// functions
+	function find_child(parent, name, attr) {
+		var children = parent.childNodes;
+		for (var i=0; i<children.length;i++) {
+			if (children[i].tagName == name)
+				return (attr != undefined) ? children[i].attributes[attr].value : children[i];
+		}
+		return;
+	}
+	function orig_save(e, attr, val) {
+		if (e.attributes["_orig_"+attr] != undefined) return;
+		if (e.attributes[attr] == undefined) return;
+		if (val == undefined) val = e.attributes[attr].value;
+		e.setAttribute("_orig_"+attr, val);
+	}
+	function orig_load(e, attr) {
+		if (e.attributes["_orig_"+attr] == undefined) return;
+		e.attributes[attr].value = e.attributes["_orig_"+attr].value;
+		e.removeAttribute("_orig_"+attr);
+	}
+	function g_to_text(e) {
+		var text = find_child(e, "title").firstChild.nodeValue;
+		return (text)
+	}
+	function g_to_func(e) {
+		var func = g_to_text(e);
+		// if there's any manipulation we want to do to the function
+		// name before it's searched, do it here before returning.
+		return (func);
+	}
+	function update_text(e) {
+		var r = find_child(e, "rect");
+		var t = find_child(e, "text");
+		var w = parseFloat(r.attributes["width"].value) -3;
+		var txt = find_child(e, "title").textContent.replace(/\([^(]*\)$/,"");
+		t.attributes["x"].value = parseFloat(r.attributes["x"].value) +3;
+
+		// Smaller than this size won't fit anything
+		if (w < 2*12*0.59) {
+			t.textContent = "";
+			return;
+		}
+
+		t.textContent = txt;
+		// Fit in full text width
+		if (/^ *$/.test(txt) || t.getSubStringLength(0, txt.length) < w)
+			return;
+
+		for (var x=txt.length-2; x>0; x--) {
+			if (t.getSubStringLength(0, x+2) <= w) {
+				t.textContent = txt.substring(0,x) + "..";
+				return;
+			}
+		}
+		t.textContent = "";
+	}
+
+	// zoom
+	function zoom_reset(e) {
+		if (e.attributes != undefined) {
+			orig_load(e, "x");
+			orig_load(e, "width");
+		}
+		if (e.childNodes == undefined) return;
+		for(var i=0, c=e.childNodes; i<c.length; i++) {
+			zoom_reset(c[i]);
+		}
+	}
+	function zoom_child(e, x, ratio) {
+		if (e.attributes != undefined) {
+			if (e.attributes["x"] != undefined) {
+				orig_save(e, "x");
+				e.attributes["x"].value = (parseFloat(e.attributes["x"].value) - x - 10) * ratio + 10;
+				if(e.tagName == "text") e.attributes["x"].value = find_child(e.parentNode, "rect", "x") + 3;
+			}
+			if (e.attributes["width"] != undefined) {
+				orig_save(e, "width");
+				e.attributes["width"].value = parseFloat(e.attributes["width"].value) * ratio;
+			}
+		}
+
+		if (e.childNodes == undefined) return;
+		for(var i=0, c=e.childNodes; i<c.length; i++) {
+			zoom_child(c[i], x-10, ratio);
+		}
+	}
+	function zoom_parent(e) {
+		if (e.attributes) {
+			if (e.attributes["x"] != undefined) {
+				orig_save(e, "x");
+				e.attributes["x"].value = 10;
+			}
+			if (e.attributes["width"] != undefined) {
+				orig_save(e, "width");
+				e.attributes["width"].value = parseInt(svg.width.baseVal.value) - (10*2);
+			}
+		}
+		if (e.childNodes == undefined) return;
+		for(var i=0, c=e.childNodes; i<c.length; i++) {
+			zoom_parent(c[i]);
+		}
+	}
+	function zoom(node) {
+		var attr = find_child(node, "rect").attributes;
+		var width = parseFloat(attr["width"].value);
+		var xmin = parseFloat(attr["x"].value);
+		var xmax = parseFloat(xmin + width);
+		var ymin = parseFloat(attr["y"].value);
+		var ratio = (svg.width.baseVal.value - 2*10) / width;
+
+		// XXX: Workaround for JavaScript float issues (fix me)
+		var fudge = 0.0001;
+
+		var unzoombtn = document.getElementById("unzoom");
+		unzoombtn.style["opacity"] = "1.0";
+
+		var el = document.getElementsByTagName("g");
+		for(var i=0;i<el.length;i++){
+			var e = el[i];
+			var a = find_child(e, "rect").attributes;
+			var ex = parseFloat(a["x"].value);
+			var ew = parseFloat(a["width"].value);
+			// Is it an ancestor
+			if (0 == 0) {
+				var upstack = parseFloat(a["y"].value) > ymin;
+			} else {
+				var upstack = parseFloat(a["y"].value) < ymin;
+			}
+			if (upstack) {
+				// Direct ancestor
+				if (ex <= xmin && (ex+ew+fudge) >= xmax) {
+					e.style["opacity"] = "0.5";
+					zoom_parent(e);
+					e.onclick = function(e){unzoom(); zoom(this);};
+					update_text(e);
+				}
+				// not in current path
+				else
+					e.style["display"] = "none";
+			}
+			// Children maybe
+			else {
+				// no common path
+				if (ex < xmin || ex + fudge >= xmax) {
+					e.style["display"] = "none";
+				}
+				else {
+					zoom_child(e, xmin, ratio);
+					e.onclick = function(e){zoom(this);};
+					update_text(e);
+				}
+			}
+		}
+	}
+	function unzoom() {
+		var unzoombtn = document.getElementById("unzoom");
+		unzoombtn.style["opacity"] = "0.0";
+
+		var el = document.getElementsByTagName("g");
+		for(i=0;i<el.length;i++) {
+			el[i].style["display"] = "block";
+			el[i].style["opacity"] = "1";
+			zoom_reset(el[i]);
+			update_text(el[i]);
+		}
+	}
+
+	// search
+	function reset_search() {
+		var el = document.getElementsByTagName("rect");
+		for (var i=0; i < el.length; i++) {
+			orig_load(el[i], "fill")
+		}
+	}
+	function search_prompt() {
+		if (!searching) {
+			var term = prompt("Enter a search term (regexp " +
+			    "allowed, eg: ^ext4_)", "");
+			if (term != null) {
+				search(term)
+			}
+		} else {
+			reset_search();
+			searching = 0;
+			searchbtn.style["opacity"] = "0.1";
+			searchbtn.firstChild.nodeValue = "Search"
+			matchedtxt.style["opacity"] = "0.0";
+			matchedtxt.firstChild.nodeValue = ""
+		}
+	}
+	function search(term) {
+		var re = new RegExp(term);
+		var el = document.getElementsByTagName("g");
+		var matches = new Object();
+		var maxwidth = 0;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			if (e.attributes["class"].value != "func_g")
+				continue;
+			var func = g_to_func(e);
+			var rect = find_child(e, "rect");
+			if (rect == null) {
+				// the rect might be wrapped in an anchor
+				// if nameattr href is being used
+				if (rect = find_child(e, "a")) {
+				    rect = find_child(r, "rect");
+				}
+			}
+			if (func == null || rect == null)
+				continue;
+
+			// Save max width. Only works as we have a root frame
+			var w = parseFloat(rect.attributes["width"].value);
+			if (w > maxwidth)
+				maxwidth = w;
+
+			if (func.match(re)) {
+				// highlight
+				var x = parseFloat(rect.attributes["x"].value);
+				orig_save(rect, "fill");
+				rect.attributes["fill"].value =
+				    "rgb(230,0,230)";
+
+				// remember matches
+				if (matches[x] == undefined) {
+					matches[x] = w;
+				} else {
+					if (w > matches[x]) {
+						// overwrite with parent
+						matches[x] = w;
+					}
+				}
+				searching = 1;
+			}
+		}
+		if (!searching)
+			return;
+
+		searchbtn.style["opacity"] = "1.0";
+		searchbtn.firstChild.nodeValue = "Reset Search"
+
+		// calculate percent matched, excluding vertical overlap
+		var count = 0;
+		var lastx = -1;
+		var lastw = 0;
+		var keys = Array();
+		for (k in matches) {
+			if (matches.hasOwnProperty(k))
+				keys.push(k);
+		}
+		// sort the matched frames by their x location
+		// ascending, then width descending
+		keys.sort(function(a, b){
+			return a - b;
+		});
+		// Step through frames saving only the biggest bottom-up frames
+		// thanks to the sort order. This relies on the tree property
+		// where children are always smaller than their parents.
+		var fudge = 0.0001;	// JavaScript floating point
+		for (var k in keys) {
+			var x = parseFloat(keys[k]);
+			var w = matches[keys[k]];
+			if (x >= lastx + lastw - fudge) {
+				count += w;
+				lastx = x;
+				lastw = w;
+			}
+		}
+		// display matched percent
+		matchedtxt.style["opacity"] = "1.0";
+		pct = 100 * count / maxwidth;
+		if (pct == 100)
+			pct = "100"
+		else
+			pct = pct.toFixed(1)
+		matchedtxt.firstChild.nodeValue = "Matched: " + pct + "%";
+	}
+	function searchover(e) {
+		searchbtn.style["opacity"] = "1.0";
+	}
+	function searchout(e) {
+		if (searching) {
+			searchbtn.style["opacity"] = "1.0";
+		} else {
+			searchbtn.style["opacity"] = "0.1";
+		}
+	}
+]]>
+</script>
+<rect x="0.0" y="0" width="1200.0" height="294.0" fill="url(#background)"  />
+<text text-anchor="middle" x="600.00" y="24" font-size="17" font-family="Verdana" fill="rgb(0,0,0)"  >Flame Graph: opt1 - octahedra 1920x1080</text>
+<text text-anchor="" x="10.00" y="277" font-size="12" font-family="Verdana" fill="rgb(0,0,0)" id="details" > </text>
+<text text-anchor="" x="10.00" y="24" font-size="12" font-family="Verdana" fill="rgb(0,0,0)" id="unzoom" onclick="unzoom()" style="opacity:0.0;cursor:pointer" >Reset Zoom</text>
+<text text-anchor="" x="1090.00" y="24" font-size="12" font-family="Verdana" fill="rgb(0,0,0)" id="search" onmouseover="searchover()" onmouseout="searchout()" onclick="search_prompt()" style="opacity:0.1;cursor:pointer" >Search</text>
+<text text-anchor="" x="1090.00" y="277" font-size="12" font-family="Verdana" fill="rgb(0,0,0)" id="matched" > </text>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>vec_dot2 (511 samples, 6.04%)</title><rect x="867.5" y="85" width="71.2" height="15.0" fill="rgb(212,119,17)" rx="2" ry="2" />
+<text text-anchor="" x="870.51" y="95.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >vec_dot2</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>vec_length (107 samples, 1.26%)</title><rect x="1132.3" y="69" width="14.9" height="15.0" fill="rgb(232,203,47)" rx="2" ry="2" />
+<text text-anchor="" x="1135.30" y="79.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>vec_dot (1 samples, 0.01%)</title><rect x="1189.4" y="85" width="0.2" height="15.0" fill="rgb(236,126,11)" rx="2" ry="2" />
+<text text-anchor="" x="1192.44" y="95.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>plane_distance (1 samples, 0.01%)</title><rect x="145.3" y="85" width="0.2" height="15.0" fill="rgb(250,138,40)" rx="2" ry="2" />
+<text text-anchor="" x="148.32" y="95.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>impl::opt1::shade (24 samples, 0.28%)</title><rect x="953.1" y="85" width="3.3" height="15.0" fill="rgb(225,11,37)" rx="2" ry="2" />
+<text text-anchor="" x="956.08" y="95.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>vec_dot2 (1 samples, 0.01%)</title><rect x="146.2" y="101" width="0.1" height="15.0" fill="rgb(218,160,25)" rx="2" ry="2" />
+<text text-anchor="" x="149.16" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>vec_length (16 samples, 0.19%)</title><rect x="143.1" y="69" width="2.2" height="15.0" fill="rgb(222,84,22)" rx="2" ry="2" />
+<text text-anchor="" x="146.09" y="79.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>impl::opt1::sphere_trace (27 samples, 0.32%)</title><rect x="867.5" y="69" width="3.8" height="15.0" fill="rgb(245,108,43)" rx="2" ry="2" />
+<text text-anchor="" x="870.51" y="79.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>std::pow (4 samples, 0.05%)</title><rect x="145.6" y="101" width="0.6" height="15.0" fill="rgb(226,174,19)" rx="2" ry="2" />
+<text text-anchor="" x="148.60" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>clamp (40 samples, 0.47%)</title><rect x="130.7" y="69" width="5.6" height="15.0" fill="rgb(225,214,20)" rx="2" ry="2" />
+<text text-anchor="" x="133.69" y="79.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>impl::opt1::sphere_trace (621 samples, 7.33%)</title><rect x="398.0" y="101" width="86.5" height="15.0" fill="rgb(254,211,7)" rx="2" ry="2" />
+<text text-anchor="" x="400.99" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >impl::opt1..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>vec_sub (9 samples, 0.11%)</title><rect x="941.4" y="101" width="1.2" height="15.0" fill="rgb(214,123,54)" rx="2" ry="2" />
+<text text-anchor="" x="944.37" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>impl::opt1::sphere_trace (2 samples, 0.02%)</title><rect x="942.9" y="85" width="0.3" height="15.0" fill="rgb(217,25,44)" rx="2" ry="2" />
+<text text-anchor="" x="945.91" y="95.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>impl::opt1::shade (1 samples, 0.01%)</title><rect x="145.3" y="69" width="0.2" height="15.0" fill="rgb(225,85,29)" rx="2" ry="2" />
+<text text-anchor="" x="148.32" y="79.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (1 samples, 0.01%)</title><rect x="10.0" y="213" width="0.1" height="15.0" fill="rgb(232,163,34)" rx="2" ry="2" />
+<text text-anchor="" x="13.00" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>octahedron_distance (287 samples, 3.39%)</title><rect x="1149.0" y="117" width="40.0" height="15.0" fill="rgb(230,229,49)" rx="2" ry="2" />
+<text text-anchor="" x="1152.03" y="127.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >oct..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>plane_normal (4 samples, 0.05%)</title><rect x="942.6" y="117" width="0.6" height="15.0" fill="rgb(205,140,24)" rx="2" ry="2" />
+<text text-anchor="" x="945.63" y="127.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>vec_length (2 samples, 0.02%)</title><rect x="1189.3" y="117" width="0.3" height="15.0" fill="rgb(249,123,10)" rx="2" ry="2" />
+<text text-anchor="" x="1192.30" y="127.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>vec_scale (11 samples, 0.13%)</title><rect x="1147.4" y="117" width="1.5" height="15.0" fill="rgb(242,186,16)" rx="2" ry="2" />
+<text text-anchor="" x="1150.35" y="127.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>vec_normalize (4 samples, 0.05%)</title><rect x="1189.0" y="133" width="0.6" height="15.0" fill="rgb(249,97,11)" rx="2" ry="2" />
+<text text-anchor="" x="1192.02" y="143.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>vec_dot (16 samples, 0.19%)</title><rect x="143.1" y="37" width="2.2" height="15.0" fill="rgb(252,45,34)" rx="2" ry="2" />
+<text text-anchor="" x="146.09" y="47.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>vec_dot2 (2 samples, 0.02%)</title><rect x="1189.3" y="101" width="0.3" height="15.0" fill="rgb(216,215,14)" rx="2" ry="2" />
+<text text-anchor="" x="1192.30" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>run (8,457 samples, 99.88%)</title><rect x="11.0" y="165" width="1178.6" height="15.0" fill="rgb(252,10,20)" rx="2" ry="2" />
+<text text-anchor="" x="13.98" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >run</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>vec_abs (2 samples, 0.02%)</title><rect x="142.8" y="69" width="0.3" height="15.0" fill="rgb(206,22,47)" rx="2" ry="2" />
+<text text-anchor="" x="145.81" y="79.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>m44_mul_vec (287 samples, 3.39%)</title><rect x="1149.0" y="101" width="40.0" height="15.0" fill="rgb(223,183,29)" rx="2" ry="2" />
+<text text-anchor="" x="1152.03" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >m44..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>vec_dot (91 samples, 1.07%)</title><rect x="1134.5" y="37" width="12.7" height="15.0" fill="rgb(235,143,5)" rx="2" ry="2" />
+<text text-anchor="" x="1137.53" y="47.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__libc_start_main (8,458 samples, 99.89%)</title><rect x="10.8" y="197" width="1178.8" height="15.0" fill="rgb(245,22,23)" rx="2" ry="2" />
+<text text-anchor="" x="13.84" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >__libc_start_main</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>vec_add (1 samples, 0.01%)</title><rect x="1147.2" y="117" width="0.2" height="15.0" fill="rgb(220,146,42)" rx="2" ry="2" />
+<text text-anchor="" x="1150.22" y="127.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>impl::opt1::scene (2 samples, 0.02%)</title><rect x="1189.7" y="213" width="0.3" height="15.0" fill="rgb(236,98,20)" rx="2" ry="2" />
+<text text-anchor="" x="1192.72" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>[libm-2.33.so] (4 samples, 0.05%)</title><rect x="145.6" y="85" width="0.6" height="15.0" fill="rgb(241,163,11)" rx="2" ry="2" />
+<text text-anchor="" x="148.60" y="95.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>impl::opt1::shade (1 samples, 0.01%)</title><rect x="146.2" y="85" width="0.1" height="15.0" fill="rgb(234,87,52)" rx="2" ry="2" />
+<text text-anchor="" x="149.16" y="95.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__GI_munmap (1 samples, 0.01%)</title><rect x="10.8" y="149" width="0.2" height="15.0" fill="rgb(208,68,30)" rx="2" ry="2" />
+<text text-anchor="" x="13.84" y="159.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>impl::opt1::sphere_trace (1 samples, 0.01%)</title><rect x="10.0" y="197" width="0.1" height="15.0" fill="rgb(223,119,21)" rx="2" ry="2" />
+<text text-anchor="" x="13.00" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>_init (1 samples, 0.01%)</title><rect x="10.1" y="213" width="0.2" height="15.0" fill="rgb(249,127,26)" rx="2" ry="2" />
+<text text-anchor="" x="13.14" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>vec_dot2 (107 samples, 1.26%)</title><rect x="1132.3" y="53" width="14.9" height="15.0" fill="rgb(206,215,0)" rx="2" ry="2" />
+<text text-anchor="" x="1135.30" y="63.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>vec_abs (13 samples, 0.15%)</title><rect x="1130.5" y="69" width="1.8" height="15.0" fill="rgb(247,153,0)" rx="2" ry="2" />
+<text text-anchor="" x="1133.49" y="79.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>octahedron_distance (5,655 samples, 66.79%)</title><rect x="150.6" y="117" width="788.1" height="15.0" fill="rgb(213,175,8)" rx="2" ry="2" />
+<text text-anchor="" x="153.62" y="127.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >octahedron_distance</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>_start (8,463 samples, 99.95%)</title><rect x="10.3" y="213" width="1179.4" height="15.0" fill="rgb(243,158,25)" rx="2" ry="2" />
+<text text-anchor="" x="13.28" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >_start</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>m44_mul_vec (47 samples, 0.56%)</title><rect x="136.3" y="69" width="6.5" height="15.0" fill="rgb(223,19,34)" rx="2" ry="2" />
+<text text-anchor="" x="139.26" y="79.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>impl::opt1::render (1 samples, 0.01%)</title><rect x="1189.2" y="117" width="0.1" height="15.0" fill="rgb(225,130,8)" rx="2" ry="2" />
+<text text-anchor="" x="1192.16" y="127.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__GI___libc_free (1 samples, 0.01%)</title><rect x="10.8" y="165" width="0.2" height="15.0" fill="rgb(213,203,15)" rx="2" ry="2" />
+<text text-anchor="" x="13.84" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>impl::opt1::sphere_trace (287 samples, 3.39%)</title><rect x="1149.0" y="85" width="40.0" height="15.0" fill="rgb(230,75,23)" rx="2" ry="2" />
+<text text-anchor="" x="1152.03" y="95.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >imp..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>clamp (447 samples, 5.28%)</title><rect x="335.7" y="101" width="62.3" height="15.0" fill="rgb(242,88,8)" rx="2" ry="2" />
+<text text-anchor="" x="338.70" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >clamp</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>main (8,458 samples, 99.89%)</title><rect x="10.8" y="181" width="1178.8" height="15.0" fill="rgb(239,113,5)" rx="2" ry="2" />
+<text text-anchor="" x="13.84" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >main</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>vec4_dot (2,101 samples, 24.81%)</title><rect x="570.4" y="85" width="292.8" height="15.0" fill="rgb(227,92,26)" rx="2" ry="2" />
+<text text-anchor="" x="573.39" y="95.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >vec4_dot</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sphere_trace (287 samples, 3.39%)</title><rect x="1149.0" y="133" width="40.0" height="15.0" fill="rgb(237,185,39)" rx="2" ry="2" />
+<text text-anchor="" x="1152.03" y="143.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >sph..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>impl::opt1::shade (2 samples, 0.02%)</title><rect x="118.4" y="101" width="0.3" height="15.0" fill="rgb(223,118,8)" rx="2" ry="2" />
+<text text-anchor="" x="121.43" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>octahedron_distance (160 samples, 1.89%)</title><rect x="123.0" y="85" width="22.3" height="15.0" fill="rgb(221,86,7)" rx="2" ry="2" />
+<text text-anchor="" x="126.02" y="95.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >o..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>impl::opt1::shade (16 samples, 0.19%)</title><rect x="1132.3" y="37" width="2.2" height="15.0" fill="rgb(218,170,0)" rx="2" ry="2" />
+<text text-anchor="" x="1135.30" y="47.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>_dl_start (1 samples, 0.01%)</title><rect x="1189.6" y="197" width="0.1" height="15.0" fill="rgb(221,29,38)" rx="2" ry="2" />
+<text text-anchor="" x="1192.58" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>impl::opt1::render (1 samples, 0.01%)</title><rect x="1148.9" y="117" width="0.1" height="15.0" fill="rgb(239,127,42)" rx="2" ry="2" />
+<text text-anchor="" x="1151.89" y="127.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>impl::opt1::sphere_trace (8,159 samples, 96.36%)</title><rect x="11.8" y="133" width="1137.1" height="15.0" fill="rgb(242,180,54)" rx="2" ry="2" />
+<text text-anchor="" x="14.81" y="143.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >impl::opt1::sphere_trace</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>impl::opt1::shade (4 samples, 0.05%)</title><rect x="122.5" y="85" width="0.5" height="15.0" fill="rgb(228,47,24)" rx="2" ry="2" />
+<text text-anchor="" x="125.47" y="95.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>vec_dot (3 samples, 0.04%)</title><rect x="941.0" y="101" width="0.4" height="15.0" fill="rgb(230,116,32)" rx="2" ry="2" />
+<text text-anchor="" x="943.96" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sphere_trace_softshadow (193 samples, 2.28%)</title><rect x="118.7" y="101" width="26.9" height="15.0" fill="rgb(214,10,33)" rx="2" ry="2" />
+<text text-anchor="" x="121.70" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >s..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>impl::opt1::sphere_trace (616 samples, 7.28%)</title><rect x="484.5" y="85" width="85.9" height="15.0" fill="rgb(225,85,23)" rx="2" ry="2" />
+<text text-anchor="" x="487.54" y="95.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >impl::opt1..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sphere_trace_softshadow (1,462 samples, 17.27%)</title><rect x="943.5" y="101" width="203.7" height="15.0" fill="rgb(235,138,39)" rx="2" ry="2" />
+<text text-anchor="" x="946.46" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >sphere_trace_softshadow</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>impl::opt1::sphere_trace (16 samples, 0.19%)</title><rect x="938.7" y="101" width="2.3" height="15.0" fill="rgb(205,184,13)" rx="2" ry="2" />
+<text text-anchor="" x="941.73" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>impl::opt1::render (2 samples, 0.02%)</title><rect x="11.5" y="133" width="0.3" height="15.0" fill="rgb(208,95,36)" rx="2" ry="2" />
+<text text-anchor="" x="14.53" y="143.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>m44_mul_vec (1 samples, 0.01%)</title><rect x="1148.9" y="133" width="0.1" height="15.0" fill="rgb(241,90,13)" rx="2" ry="2" />
+<text text-anchor="" x="1151.89" y="143.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>vec_dot (484 samples, 5.72%)</title><rect x="871.3" y="69" width="67.4" height="15.0" fill="rgb(250,167,46)" rx="2" ry="2" />
+<text text-anchor="" x="874.27" y="79.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >vec_dot</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>vec_dot2 (16 samples, 0.19%)</title><rect x="143.1" y="53" width="2.2" height="15.0" fill="rgb(243,67,34)" rx="2" ry="2" />
+<text text-anchor="" x="146.09" y="63.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>impl::opt1::shade (2 samples, 0.02%)</title><rect x="1189.7" y="197" width="0.3" height="15.0" fill="rgb(241,36,34)" rx="2" ry="2" />
+<text text-anchor="" x="1192.72" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>impl::opt1::render (8,457 samples, 99.88%)</title><rect x="11.0" y="149" width="1178.6" height="15.0" fill="rgb(254,147,54)" rx="2" ry="2" />
+<text text-anchor="" x="13.98" y="159.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >impl::opt1::render</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>impl::opt1::render (1 samples, 0.01%)</title><rect x="1189.3" y="85" width="0.1" height="15.0" fill="rgb(206,17,5)" rx="2" ry="2" />
+<text text-anchor="" x="1192.30" y="95.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>vec4_dot (47 samples, 0.56%)</title><rect x="136.3" y="53" width="6.5" height="15.0" fill="rgb(225,49,15)" rx="2" ry="2" />
+<text text-anchor="" x="139.26" y="63.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>clamp (29 samples, 0.34%)</title><rect x="1020.0" y="69" width="4.0" height="15.0" fill="rgb(238,5,49)" rx="2" ry="2" />
+<text text-anchor="" x="1022.98" y="79.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>impl::opt1::sphere_trace (2 samples, 0.02%)</title><rect x="942.6" y="101" width="0.3" height="15.0" fill="rgb(227,171,33)" rx="2" ry="2" />
+<text text-anchor="" x="945.63" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>shade (1,464 samples, 17.29%)</title><rect x="943.2" y="117" width="204.0" height="15.0" fill="rgb(228,156,36)" rx="2" ry="2" />
+<text text-anchor="" x="946.19" y="127.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >shade</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>vec4_dot (343 samples, 4.05%)</title><rect x="1082.7" y="53" width="47.8" height="15.0" fill="rgb(226,139,38)" rx="2" ry="2" />
+<text text-anchor="" x="1085.69" y="63.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >vec4..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>all (8,467 samples, 100%)</title><rect x="10.0" y="245" width="1180.0" height="15.0" fill="rgb(213,67,44)" rx="2" ry="2" />
+<text text-anchor="" x="13.00" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>impl::opt1::sphere_trace (31 samples, 0.37%)</title><rect x="146.3" y="117" width="4.3" height="15.0" fill="rgb(247,33,27)" rx="2" ry="2" />
+<text text-anchor="" x="149.30" y="127.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>impl::opt1::shade (238 samples, 2.81%)</title><rect x="1049.5" y="53" width="33.2" height="15.0" fill="rgb(217,59,53)" rx="2" ry="2" />
+<text text-anchor="" x="1052.52" y="63.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >im..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>vec_length (511 samples, 6.04%)</title><rect x="867.5" y="101" width="71.2" height="15.0" fill="rgb(244,222,54)" rx="2" ry="2" />
+<text text-anchor="" x="870.51" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >vec_length</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>plane_distance (28 samples, 0.33%)</title><rect x="938.7" y="117" width="3.9" height="15.0" fill="rgb(234,115,5)" rx="2" ry="2" />
+<text text-anchor="" x="941.73" y="127.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>impl::opt1::shade (2 samples, 0.02%)</title><rect x="943.2" y="101" width="0.3" height="15.0" fill="rgb(240,201,33)" rx="2" ry="2" />
+<text text-anchor="" x="946.19" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>m44_mul_vec (581 samples, 6.86%)</title><rect x="1049.5" y="69" width="81.0" height="15.0" fill="rgb(246,173,31)" rx="2" ry="2" />
+<text text-anchor="" x="1052.52" y="79.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >m44_mul_vec</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>octahedron_distance (1,369 samples, 16.17%)</title><rect x="956.4" y="85" width="190.8" height="15.0" fill="rgb(247,97,50)" rx="2" ry="2" />
+<text text-anchor="" x="959.42" y="95.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >octahedron_distance</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>vec_scale (1 samples, 0.01%)</title><rect x="145.5" y="85" width="0.1" height="15.0" fill="rgb(238,17,1)" rx="2" ry="2" />
+<text text-anchor="" x="148.46" y="95.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>impl::opt1::shade (205 samples, 2.42%)</title><rect x="117.7" y="117" width="28.6" height="15.0" fill="rgb(237,113,15)" rx="2" ry="2" />
+<text text-anchor="" x="120.73" y="127.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >im..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>impl::opt1::shade (183 samples, 2.16%)</title><rect x="1024.0" y="69" width="25.5" height="15.0" fill="rgb(215,173,20)" rx="2" ry="2" />
+<text text-anchor="" x="1027.02" y="79.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >i..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>[libm-2.33.so] (3 samples, 0.04%)</title><rect x="118.0" y="101" width="0.4" height="15.0" fill="rgb(212,66,30)" rx="2" ry="2" />
+<text text-anchor="" x="121.01" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>plane_distance (2 samples, 0.02%)</title><rect x="942.9" y="101" width="0.3" height="15.0" fill="rgb(228,158,29)" rx="2" ry="2" />
+<text text-anchor="" x="945.91" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>main (8,467 samples, 100.00%)</title><rect x="10.0" y="229" width="1180.0" height="15.0" fill="rgb(218,124,36)" rx="2" ry="2" />
+<text text-anchor="" x="13.00" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >main</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>m44_mul_vec (2,717 samples, 32.09%)</title><rect x="484.5" y="101" width="378.7" height="15.0" fill="rgb(217,74,6)" rx="2" ry="2" />
+<text text-anchor="" x="487.54" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >m44_mul_vec</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>vec_abs (31 samples, 0.37%)</title><rect x="863.2" y="101" width="4.3" height="15.0" fill="rgb(244,176,32)" rx="2" ry="2" />
+<text text-anchor="" x="866.19" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+</g>
+</svg>
