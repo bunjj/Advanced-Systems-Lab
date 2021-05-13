@@ -2,10 +2,11 @@
 #include "impl_ref/scene.hpp"
 #include "impl_ref/impl.hpp"
 
-#include "impl_normals/impl.hpp"
+#include "impl_opt0/impl.hpp"
 
 
-namespace impl::normals {   
+namespace impl::opt0 { 
+
 
     // forward declaration
     enum shape_type {
@@ -36,7 +37,6 @@ namespace impl::normals {
     using impl::ref::vec4_from_point;
     using impl::ref::m44_mul_vec;
     using impl::ref::vec4_to_vec;
-    using impl::ref::m44_rotate_only;
 
     // import shapes
     using impl::ref::scene;
@@ -48,6 +48,19 @@ namespace impl::normals {
     using impl::ref::cone;
     using impl::ref::octa;
 
+    /**
+     * Calculates m[0:2][0:2] * v
+     */
+    static inline vec m44_rotate_only(m44 m, vec v) {
+        INS_INC1(mul, 9);
+        INS_INC1(add, 6);
+        vec res = {0,0,0};
+        res.x = m.val[0][0] * v.x + m.val[0][1] * v.y + m.val[0][2] * v.z;
+        res.y = m.val[1][0] * v.x + m.val[1][1] * v.y + m.val[1][2] * v.z;
+        res.z = m.val[2][0] * v.x + m.val[2][1] * v.y + m.val[2][2] * v.z;
+
+        return res;
+    }  
 
     vec sphere_normal(const shape s, const vec pos) {
         sphere sp = *((sphere*)s.data);
@@ -83,6 +96,8 @@ namespace impl::normals {
 
 
     vec plane_normal(const shape s, const vec pos) {
+        (void)pos; // pos is not used in planes
+
         plane p = *((plane*)s.data);
         return p.normal;
     }

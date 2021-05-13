@@ -1,6 +1,6 @@
 #pragma once
 
-namespace impl::normals {
+namespace impl::opt0 {
 
     void render_init();
     void render(int width, int height, float* pixels);
