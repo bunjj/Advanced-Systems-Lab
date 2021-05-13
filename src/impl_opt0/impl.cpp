@@ -147,9 +147,11 @@ namespace impl::opt0 {
         vec n_obj = {0,0,0};
         INS_CMP;
         if (vec2_dot2(ca) < vec2_dot2(cb)){
+            INS_DIV;
             posxz = vec2_scale(posxz, ca.x/vec2_length(posxz));
             n_obj = {posxz.x, ca.y, posxz.y};
         } else {
+            INS_DIV;
             posxz = vec2_scale(posxz, cb.x/vec2_length(posxz));
             n_obj = {posxz.x, cb.y, posxz.y};
         }
