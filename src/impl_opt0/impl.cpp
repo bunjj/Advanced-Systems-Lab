@@ -63,11 +63,13 @@ namespace impl::opt0 {
     }  
 
     vec sphere_normal(const shape s, const vec pos) {
+        INS_INC(sphere_n);
         sphere sp = *((sphere*)s.data);
         return vec_normalize(vec_sub(pos, sp.center));
     }
 
     vec box_normal(const shape s, const vec from) {
+        INS_INC(box_n);
         box b = *((box*)s.data);
         vec pos = vec4_to_vec(m44_mul_vec(s.inv_matrix, vec4_from_point(from)));
 
@@ -78,7 +80,7 @@ namespace impl::opt0 {
 
         // argmax(q.x, q.y, q.z)
         vec n_obj = {0,0,0};
-        INS_INC1(cmp, 3);
+        INS_INC1(cmp, 6);
         if (q.x > q.y && q.x > q.z && q.x > 0) {
             n_obj = {1,0,0};
         } else if (q.y > q.z && q.y > 0) {
@@ -95,8 +97,8 @@ namespace impl::opt0 {
     }
 
 
-    vec plane_normal(const shape s, const vec pos) {
-        (void)pos; // pos is not used in planes
+    vec plane_normal(const shape s, const vec) {
+        INS_INC(plane_n);
 
         plane p = *((plane*)s.data);
         return p.normal;
@@ -104,6 +106,7 @@ namespace impl::opt0 {
 
 
     vec torus_normal(const shape s, const vec from) {
+        INS_INC(torus_n);
         torus t = *((torus*)s.data);
         vec pos = vec4_to_vec(m44_mul_vec(s.inv_matrix, vec4_from_point(from)));
         
@@ -121,6 +124,7 @@ namespace impl::opt0 {
 
 
     vec cone_normal(const shape shap, const vec from) {
+        INS_INC(cone_n);
         cone c = *((cone*)shap.data);
         vec pos = vec4_to_vec(m44_mul_vec(shap.inv_matrix, vec4_from_point(from)));
 
@@ -162,7 +166,7 @@ namespace impl::opt0 {
     }
 
     vec octahedron_normal(const shape shap, const vec from) {
-        INS_INC(octa);
+        INS_INC(octa_n);
         vec pos = vec4_to_vec(m44_mul_vec(shap.inv_matrix, vec4_from_point(from)));
 
         // transform into upper right quadrant
@@ -181,8 +185,7 @@ namespace impl::opt0 {
 
 
     // replace shape.normal() with new function
-    void render_init(std::string input) {
-        (void)input; // input is not used in this instance of render_init()
+    void render_init(std::string) {
 
         for (int k = 0; k < scene.num_shapes; k++) {
 
