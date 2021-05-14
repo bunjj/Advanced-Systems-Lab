@@ -19,6 +19,9 @@
 
 #include "impl_opt0/impl.hpp"
 #include "impl_opt1/impl.hpp"
+#include "impl_opt3/impl.hpp"
+
+
 
 
 flops_t flops_counter;
@@ -202,6 +205,9 @@ void set_render_fp(const std::string& impl) {
     } else if (impl == "opt1") {
         fun_render_init = &impl::opt1::render_init;
         fun_render = &impl::opt1::render;
+    } else if (impl == "opt3") {
+        fun_render_init = &impl::opt3::render_init;
+        fun_render = &impl::opt3::render;
     } else {
         throw std::runtime_error("Unknown implementation '" + impl + "'");
     }

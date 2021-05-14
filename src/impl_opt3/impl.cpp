@@ -1,7 +1,8 @@
-#include "impl_opt1/impl.hpp"
-#include "impl_opt1/scene.hpp"
+#include "impl_opt3/impl.hpp"
 
-namespace impl::opt1 {
+#include "impl_opt3/scene.hpp"
+
+namespace impl::opt3 {
     // max distance
     static const float D = 100;
     static const float EPS = 0.001;
@@ -26,7 +27,7 @@ namespace impl::opt1 {
 
             // spheres
             for (int k = 0; k < scene.num_spheres; k++) {
-                float distance = sphere_distance(scene.spheres[k], pos);
+                float distance = sphere_distance_short(scene.spheres[k], pos, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -58,7 +59,7 @@ namespace impl::opt1 {
 
             // boxes
             for (int k = 0; k < scene.num_boxes; k++) {
-                float distance = box_distance(scene.boxes[k], pos);
+                float distance = box_distance_short(scene.boxes[k], pos, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -74,7 +75,7 @@ namespace impl::opt1 {
 
             // tori
             for (int k = 0; k < scene.num_tori; k++) {
-                float distance = torus_distance(scene.tori[k], pos);
+                float distance = torus_distance_short(scene.tori[k], pos, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -90,7 +91,7 @@ namespace impl::opt1 {
 
             // cones
             for (int k = 0; k < scene.num_cones; k++) {
-                float distance = cone_distance(scene.cones[k], pos);
+                float distance = cone_distance_short(scene.cones[k], pos, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -106,7 +107,7 @@ namespace impl::opt1 {
 
             // octahedra
             for (int k = 0; k < scene.num_octahedra; k++) {
-                float distance = octahedron_distance(scene.octahedra[k], pos);
+                float distance = octahedron_distance_short(scene.octahedra[k], pos, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -131,11 +132,11 @@ namespace impl::opt1 {
     static vec shade(vec normal, float shininess, float reflection, vec color, vec pos, vec dir, float t) {
         /* Prepare shading parameters */
         INS_MUL;
-        float alpha = shininess;       // shininess parameter
-        float ks = reflection * 0.4;   // specular parameter
-        float kd = 1.f;                // diffuse parameter
-        float ka = 0.0075f;            // ambient parameter
-        float sigma_a = 4e-6f;         // atmospheric absorbtion coeff
+        float alpha = shininess;     // shininess parameter
+        float ks = reflection * 0.4; // specular parameter
+        float kd = 1.f;              // diffuse parameter
+        float ka = 0.0075f;          // ambient parameter
+        float sigma_a = 4e-6f;       // atmospheric absorbtion coeff
 
         vec wi;                        // incident direction
         vec wr;                        // reflected direction
@@ -170,7 +171,7 @@ namespace impl::opt1 {
                     // diffuse
                     INS_MUL;
                     vec f_diffuse = vec_scale(color, kd * vec_dot(wn, wi)); // fraction of reflected light
-                    Lo = vec_add(Lo, vec_mul(Li, f_diffuse));                 // diffuse contribution to outgoing light
+                    Lo = vec_add(Lo, vec_mul(Li, f_diffuse));               // diffuse contribution to outgoing light
 
                     // specular
                     INS_INC1(mul, 2);
@@ -183,7 +184,7 @@ namespace impl::opt1 {
             }
         }
 
-        vec f_ambient = vec_scale(color, ka);   // fraction of reflected ambient light
+        vec f_ambient = vec_scale(color, ka);     // fraction of reflected ambient light
         Lo = vec_add(Lo, vec_mul(La, f_ambient)); // ambient contribution to outgoing light
 
         // atmospheric effect using exponential decay
@@ -195,7 +196,6 @@ namespace impl::opt1 {
     }
 
     static hit sphere_trace(vec origin, vec dir) {
-
         float t = 0;
         int steps = 0;
         vec color;
@@ -207,7 +207,7 @@ namespace impl::opt1 {
 
             // spheres
             for (int k = 0; k < scene.num_spheres; k++) {
-                float distance = sphere_distance(scene.spheres[k], pos);
+                float distance = sphere_distance_short(scene.spheres[k], pos, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -245,7 +245,7 @@ namespace impl::opt1 {
 
             // boxes
             for (int k = 0; k < scene.num_boxes; k++) {
-                float distance = box_distance(scene.boxes[k], pos);
+                float distance = box_distance_short(scene.boxes[k], pos, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -264,7 +264,7 @@ namespace impl::opt1 {
 
             // tori
             for (int k = 0; k < scene.num_tori; k++) {
-                float distance = torus_distance(scene.tori[k], pos);
+                float distance = torus_distance_short(scene.tori[k], pos, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -283,7 +283,7 @@ namespace impl::opt1 {
 
             // cones
             for (int k = 0; k < scene.num_cones; k++) {
-                float distance = cone_distance(scene.cones[k], pos);
+                float distance = cone_distance_short(scene.cones[k], pos, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -302,7 +302,7 @@ namespace impl::opt1 {
 
             // octahedra
             for (int k = 0; k < scene.num_octahedra; k++) {
-                float distance = octahedron_distance(scene.octahedra[k], pos);
+                float distance = octahedron_distance_short(scene.octahedra[k], pos, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -328,13 +328,12 @@ namespace impl::opt1 {
 
     void render_init(std::string input) {
         // convert scene from reference format to custom format
-        std::cout << "Reference scene already loaded (" << input << "), converting to required format" << std::endl;
-        from_ref_scene();
+        // std::cout << "Reference scene already loaded (" << input << "), converting to required format" << std::endl;
+        // from_ref_scene();
 
         // alternatively, we can just read the scene again from the json file
-        // std::cout << "Loading scene again" << std::endl;
-        // load_scene(input);
-
+        std::cout << "Loading scene again" << std::endl;
+        load_scene(input);
     }
 
     void render(int width, int height, float* pixels) {
@@ -379,4 +378,4 @@ namespace impl::opt1 {
         }
     }
 
-} // namespace impl::opt1
+} // namespace impl::opt3
