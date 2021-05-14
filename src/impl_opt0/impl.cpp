@@ -80,11 +80,13 @@ namespace impl::opt0 {
 
         // argmax(q.x, q.y, q.z)
         vec n_obj = {0,0,0};
-        INS_INC1(cmp, 6);
+        INS_INC1(cmp, 3);
         if (q.x > q.y && q.x > q.z && q.x > 0) {
             n_obj = {1,0,0};
+            INS_INC1(cmp, 2);
         } else if (q.y > q.z && q.y > 0) {
             n_obj = {0,1,0};
+            INS_INC1(cmp, 1);
         } else if (q.z > 0) {
             n_obj = {0,0,1};
         }
