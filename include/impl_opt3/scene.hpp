@@ -129,7 +129,8 @@ namespace impl::opt3 {
         INS_ADD;
         float upper_bound = current_min + sp.radius;
         float squared_distance = vec_dot2(vec_sub(sp.center, from));
-        INS_MUL; INS_CMP;
+        INS_MUL;
+        INS_CMP;
         if (squared_distance >= upper_bound * upper_bound) {
             return current_min;
         }
@@ -160,7 +161,7 @@ namespace impl::opt3 {
     static inline float box_distance(const box b, const vec from) {
         INS_INC(box);
         vec pos = m33_mul_vec(b.inv_rot, vec_sub(from, b.bottom_left));
-        //vec pos = vec4_to_vec(m44_mul_vec(b.inv_matrix, vec4_from_point(from)));
+        // vec pos = vec4_to_vec(m44_mul_vec(b.inv_matrix, vec4_from_point(from)));
         vec q = vec_sub(vec_abs(pos), b.extents);
         return FADD(vec_length(vec_max(q, 0)), min(0.0f, max(max(q.x, q.y), q.z)));
     }
@@ -168,14 +169,15 @@ namespace impl::opt3 {
     static inline float box_distance_short(const box b, const vec from, const float current_min) {
         INS_INC(box);
         vec pos = m33_mul_vec(b.inv_rot, vec_sub(from, b.bottom_left));
-        //vec pos = vec4_to_vec(m44_mul_vec(b.inv_matrix, vec4_from_point(from)));
+        // vec pos = vec4_to_vec(m44_mul_vec(b.inv_matrix, vec4_from_point(from)));
         vec q = vec_sub(vec_abs(pos), b.extents);
         float extent_values = min(0.0f, max(max(q.x, q.y), q.z));
         float intermediate_squared_dist = vec_dot2(vec_max(q, 0));
 
         INS_ADD;
         float upper_bound = extent_values + current_min;
-        INS_MUL; INS_CMP;
+        INS_MUL;
+        INS_CMP;
         if (intermediate_squared_dist >= upper_bound * upper_bound) {
             return current_min;
         }
@@ -226,7 +228,7 @@ namespace impl::opt3 {
     static inline float torus_distance(const torus t, const vec from) {
         INS_INC(torus);
         vec pos = m33_mul_vec(t.inv_rot, vec_sub(from, t.center));
-        //vec pos = vec4_to_vec(m44_mul_vec(t.inv_matrix, vec4_from_point(from)));
+        // vec pos = vec4_to_vec(m44_mul_vec(t.inv_matrix, vec4_from_point(from)));
         vec2 posxz = {pos.x, pos.z};
         INS_ADD;
         vec2 q = {vec2_length(posxz) - t.r1, pos.y};
@@ -238,15 +240,16 @@ namespace impl::opt3 {
     static inline float torus_distance_short(const torus t, const vec from, const float current_min) {
         INS_INC(torus);
         vec pos = m33_mul_vec(t.inv_rot, vec_sub(from, t.center));
-        //vec pos = vec4_to_vec(m44_mul_vec(t.inv_matrix, vec4_from_point(from)));
+        // vec pos = vec4_to_vec(m44_mul_vec(t.inv_matrix, vec4_from_point(from)));
         vec2 posxz = {pos.x, pos.z};
         INS_ADD;
         vec2 q = {vec2_length(posxz) - t.r1, pos.y};
         float q_squared = vec2_dot2(q);
 
         INS_ADD;
-        float upper_bound = current_min +t.r2;
-        INS_MUL; INS_CMP;
+        float upper_bound = current_min + t.r2;
+        INS_MUL;
+        INS_CMP;
         if (q_squared >= upper_bound * upper_bound) {
             return current_min;
         }
@@ -276,7 +279,7 @@ namespace impl::opt3 {
     static inline float cone_distance(const cone c, const vec from) {
         INS_INC(cone);
         vec pos = m33_mul_vec(c.inv_rot, vec_sub(from, c.center));
-        //vec pos = vec4_to_vec(m44_mul_vec(c.inv_matrix, vec4_from_point(from)));
+        // vec pos = vec4_to_vec(m44_mul_vec(c.inv_matrix, vec4_from_point(from)));
 
         float r1 = c.r1;
         float r2 = c.r2;
@@ -305,7 +308,7 @@ namespace impl::opt3 {
     static inline float cone_distance_short(const cone c, const vec from, const float current_min) {
         INS_INC(cone);
         vec pos = m33_mul_vec(c.inv_rot, vec_sub(from, c.center));
-        //vec pos = vec4_to_vec(m44_mul_vec(c.inv_matrix, vec4_from_point(from)));
+        // vec pos = vec4_to_vec(m44_mul_vec(c.inv_matrix, vec4_from_point(from)));
 
         float r1 = c.r1;
         float r2 = c.r2;
@@ -327,12 +330,14 @@ namespace impl::opt3 {
         float s = (cb.x < 0 && ca.y < 0) ? -1 : 1;
 
         float squared_min = min(vec2_dot2(ca), vec2_dot2(cb));
-        INS_MUL; INS_CMP;
+        INS_MUL;
+        INS_CMP;
         if (squared_min >= current_min * current_min) {
             return current_min;
         }
 
-        INS_MUL; INS_SQRT;
+        INS_MUL;
+        INS_SQRT;
         return s * sqrtf(squared_min);
     }
 
@@ -357,7 +362,7 @@ namespace impl::opt3 {
     static inline float octahedron_distance(const octa o, const vec from) {
         INS_INC(octa);
         vec pos = m33_mul_vec(o.inv_rot, vec_sub(from, o.center));
-        //vec pos = vec4_to_vec(m44_mul_vec(o.inv_matrix, vec4_from_point(from)));
+        // vec pos = vec4_to_vec(m44_mul_vec(o.inv_matrix, vec4_from_point(from)));
         pos = vec_abs(pos);
 
         float s = o.s;
@@ -392,11 +397,10 @@ namespace impl::opt3 {
         return vec_length({q.x, q.y - s + k, q.z - k});
     }
 
-
     static inline float octahedron_distance_short(const octa o, const vec from, const float current_min) {
         INS_INC(octa);
         vec pos = m33_mul_vec(o.inv_rot, vec_sub(from, o.center));
-        //vec pos = vec4_to_vec(m44_mul_vec(o.inv_matrix, vec4_from_point(from)));
+        // vec pos = vec4_to_vec(m44_mul_vec(o.inv_matrix, vec4_from_point(from)));
         pos = vec_abs(pos);
 
         float s = o.s;
@@ -429,8 +433,9 @@ namespace impl::opt3 {
 
         INS_INC1(add, 3);
         float squared_distance = vec_dot2({q.x, q.y - s + k, q.z - k});
-        
+
         INS_INC1(mul, 1);
+        INS_CMP;
         if (squared_distance >= current_min * current_min) {
             return current_min;
         }

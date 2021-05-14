@@ -4,11 +4,12 @@
  * All other implementations will use this to construct their scenes.
  */
 #include "impl_opt3/scene.hpp"
-#include "impl_ref/scene.hpp"
 
 #include <fstream>
 #include <iostream>
 #include <nlohmann/json.hpp>
+
+#include "impl_ref/scene.hpp"
 
 using json = nlohmann::json;
 
@@ -25,8 +26,6 @@ namespace impl::opt3 {
     static vec load_rot(json& j) {
         return load_vec(j["rotation"]);
     }
-
-
 
     /**
      * Global variable containing the scene for this implementation
@@ -55,12 +54,12 @@ namespace impl::opt3 {
         return make_sphere(center, r, color, reflection, shininess);
     }
 
-
     // }}}
 
     // Box {{{
 
-    box make_box(vec bottom_left, vec extents, m44 inv_matrix, vec color, float reflection, float shininess, m33 rot_matrix) {
+    box make_box(
+        vec bottom_left, vec extents, m44 inv_matrix, vec color, float reflection, float shininess, m33 rot_matrix) {
         box s;
         s.bottom_left = bottom_left;
         s.extents = extents;
@@ -78,7 +77,7 @@ namespace impl::opt3 {
         vec rot = load_rot(j);
         m44 matrix = get_transf_matrix(pos, rot);
         m44 inv_matrix = m44_inv(matrix);
-        m33 rot_matrix = m33_inv( get_rot_matrix_33(rot));
+        m33 rot_matrix = m33_inv(get_rot_matrix_33(rot));
         vec color = load_vec(j["color"]);
         float reflection = j["reflection"];
         float shininess = j["shininess"];
@@ -109,12 +108,12 @@ namespace impl::opt3 {
         return make_plane(normal, point, color, reflection, shininess);
     }
 
-
     // }}}
 
     // Torus {{{
 
-    torus make_torus(vec center, float r1, float r2, m44 inv_matrix, vec color, float reflection, float shininess, m33 rot_matrix) {
+    torus make_torus(
+        vec center, float r1, float r2, m44 inv_matrix, vec color, float reflection, float shininess, m33 rot_matrix) {
         torus s;
         s.center = center;
         s.r1 = r1;
@@ -145,13 +144,12 @@ namespace impl::opt3 {
         return make_torus(pos, r1, r2, inv_matrix, color, reflection, shininess, rot_matrix);
     }
 
-
     // }}}
 
     // Cone {{{
 
-    cone make_cone(
-        vec center, float r1, float r2, float height, m44 inv_matrix, vec color, float reflection, float shininess, m33 rot_matrix) {
+    cone make_cone(vec center, float r1, float r2, float height, m44 inv_matrix, vec color, float reflection,
+        float shininess, m33 rot_matrix) {
         cone s;
         s.center = center;
         s.r1 = r1;
@@ -186,12 +184,12 @@ namespace impl::opt3 {
         return make_cone(pos, r1, r2, height, inv_matrix, color, reflection, shininess, rot_matrix);
     }
 
-
     // }}}
 
     // Octahedron {{{
 
-    octa make_octahedron(vec center, float s_param, m44 inv_matrix, vec color, float reflection, float shininess, m33 rot_matrix) {
+    octa make_octahedron(
+        vec center, float s_param, m44 inv_matrix, vec color, float reflection, float shininess, m33 rot_matrix) {
         octa s;
         s.center = center;
         s.s = s_param;
@@ -212,15 +210,14 @@ namespace impl::opt3 {
 
         m44 matrix = get_transf_matrix(pos, rot);
         m44 inv_matrix = m44_inv(matrix);
-        m33 rot_matrix = m33_inv( get_rot_matrix_33(rot));
+        m33 rot_matrix = m33_inv(get_rot_matrix_33(rot));
 
         vec color = load_vec(j["color"]);
         float reflection = j["reflection"];
         float shininess = j["shininess"];
 
-        return make_octahedron(pos, s, inv_matrix, color, reflection, shininess,rot_matrix);
+        return make_octahedron(pos, s, inv_matrix, color, reflection, shininess, rot_matrix);
     }
-
 
     // }}}
 
@@ -246,7 +243,6 @@ namespace impl::opt3 {
         l.emission = load_vec(j["emission"]);
         return l;
     }
-
 
     static void load_light(json& j) {
         json light = j["pointlight"];
@@ -356,6 +352,5 @@ namespace impl::opt3 {
         // don't have to save shapes since it uses static variable
         load_shapes(j);
     }
-
 
 } // namespace impl::opt3

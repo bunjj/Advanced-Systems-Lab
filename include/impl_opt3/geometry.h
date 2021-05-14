@@ -85,8 +85,6 @@ namespace impl::opt3 {
         return FSQRT(vec_dot2(v));
     }
 
-    
-
     static inline vec vec_normalize(vec v) {
         float len = vec_length(v);
         INS_INC1(div, 3);
@@ -194,31 +192,34 @@ namespace impl::opt3 {
     }
 
     static inline vec get_base_vec(int idx) {
-        switch (idx)
-        {
-        case 0:
-            return {1, 0, 0};
-        case 1:
-            return {0, 1, 0};
-        case 2:
-            return {0, 0, 1};
-        default:
-            return {0, 0, 0,};
+        switch (idx) {
+            case 0:
+                return {1, 0, 0};
+            case 1:
+                return {0, 1, 0};
+            case 2:
+                return {0, 0, 1};
+            default:
+                return {
+                    0,
+                    0,
+                    0,
+                };
         }
     }
 
-/**    Define a 3x3 matrix 
- *
- *    Used for rotations
- */
+    /**    Define a 3x3 matrix
+     *
+     *    Used for rotations
+     */
 
-    struct m33{
+    struct m33 {
         /** similarly defined as m33
          */
         float val[3][3];
         m33(){};
 
-        m33(vec e1, vec e2, vec e3){
+        m33(vec e1, vec e2, vec e3) {
             val[0][0] = e1.x;
             val[1][0] = e1.y;
             val[2][0] = e1.z;
@@ -230,7 +231,6 @@ namespace impl::opt3 {
             val[2][2] = e3.z;
         };
     };
-
 
     static const m33 identity_33 = m33(get_base_vec(0), get_base_vec(1), get_base_vec(2));
     // }}}
@@ -279,7 +279,7 @@ namespace impl::opt3 {
     m44 m44_inv(m44 m);
 
     m33 m33_inv(m33 m);
-    m33 get_rot_matrix_33( vec rot);
+    m33 get_rot_matrix_33(vec rot);
     std::ostream& operator<<(std::ostream& out, const m44& m);
 
     /**
@@ -294,12 +294,12 @@ namespace impl::opt3 {
         return {x, y, z, t};
     }
 
-    static inline vec m33_mul_vec(m33 m, vec v){
-        float x = vec_dot(vec_init(m.val[0]),v);
+    static inline vec m33_mul_vec(m33 m, vec v) {
+        float x = vec_dot(vec_init(m.val[0]), v);
         float y = vec_dot(vec_init(m.val[1]), v);
         float z = vec_dot(vec_init(m.val[2]), v);
 
-        return {x,y,z};
+        return {x, y, z};
     }
 
     // }}}

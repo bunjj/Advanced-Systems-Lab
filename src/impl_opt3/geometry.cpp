@@ -126,8 +126,8 @@ namespace impl::opt3 {
         return m;
     }
 
-    m33 get_rot_matrix_33(vec rot){
-         INS_INC1(div, 3);
+    m33 get_rot_matrix_33(vec rot) {
+        INS_INC1(div, 3);
         INS_INC1(mul, 3);
         float c = TO_RAD(rot.x);
         float b = TO_RAD(rot.y);
@@ -155,12 +155,12 @@ namespace impl::opt3 {
 
         m.val[0][2] = ca * sb * cc + sa * sc;
         m.val[1][2] = sa * sb * cc - ca * sc;
-        m.val[2][2] = cb * cc;     
+        m.val[2][2] = cb * cc;
 
-        return m;  
+        return m;
     }
 
-    m33 get_rot_from_trans(m44 trans){
+    m33 get_rot_from_trans(m44 trans) {
         m33 m = identity_33;
         m.val[0][0] = trans.val[0][0];
         m.val[0][1] = trans.val[0][1];
@@ -172,13 +172,13 @@ namespace impl::opt3 {
         m.val[2][1] = trans.val[2][1];
         m.val[2][2] = trans.val[2][2];
 
-        return m; 
+        return m;
     }
 
     /**
      * Computes only inverse for rotations, i.e computes the transpose. have to cleanup the code
      */
-    m33 m33_inv(m33 m){
+    m33 m33_inv(m33 m) {
         m33 m_t = identity_33;
         m_t.val[0][0] = m.val[0][0];
         m_t.val[0][1] = m.val[1][0];
