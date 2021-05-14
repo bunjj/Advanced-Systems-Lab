@@ -9,6 +9,7 @@
 #include <iostream>
 #include <memory>
 
+
 #include "instrument.h"
 #include "timing.h"
 #include "util.h"
@@ -16,6 +17,7 @@
 #include "impl_ref/impl.hpp"
 #include "impl_ref/scene.hpp"
 
+#include "impl_opt0/impl.hpp"
 #include "impl_opt1/impl.hpp"
 
 
@@ -194,6 +196,9 @@ void set_render_fp(const std::string& impl) {
     if (impl == "ref") {
         fun_render_init = &impl::ref::render_init;
         fun_render = &impl::ref::render;
+    } else if (impl == "opt0") {
+        fun_render_init = &impl::opt0::render_init;
+        fun_render = &impl::opt0::render;
     } else if (impl == "opt1") {
         fun_render_init = &impl::opt1::render_init;
         fun_render = &impl::opt1::render;

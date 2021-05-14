@@ -23,6 +23,12 @@ typedef struct {
     uint64_t torus;
     uint64_t cone;
     uint64_t octa;
+    uint64_t sphere_n;
+    uint64_t plane_n;
+    uint64_t box_n;
+    uint64_t torus_n;
+    uint64_t cone_n;
+    uint64_t octa_n;
 } flops_t;
 
 extern flops_t flops_counter;
@@ -47,24 +53,30 @@ static inline void ins_dump(const char* title) {
         fprintf(stderr, "%s\n", title);
     }
     fprintf(stderr, "=== FLOPS COUNTER ==\n");
-    fprintf(stderr, "ADD   : %12" PRIu64 "\n", flops_counter.add);
-    fprintf(stderr, "MUL   : %12" PRIu64 "\n", flops_counter.mul);
-    fprintf(stderr, "FMA   : %12" PRIu64 "\n", flops_counter.fma);
-    fprintf(stderr, "DIV   : %12" PRIu64 "\n", flops_counter.div);
-    fprintf(stderr, "SQRT  : %12" PRIu64 "\n", flops_counter.sqrt);
-    fprintf(stderr, "ABS   : %12" PRIu64 "\n", flops_counter.abs);
-    fprintf(stderr, "CMP   : %12" PRIu64 "\n", flops_counter.cmp);
-    fprintf(stderr, "POW   : %12" PRIu64 "\n", flops_counter.pow);
-    fprintf(stderr, "TAN   : %12" PRIu64 "\n", flops_counter.tan);
-    fprintf(stderr, "SPHERE: %12" PRIu64 "\n", flops_counter.sphere);
-    fprintf(stderr, "PLANE : %12" PRIu64 "\n", flops_counter.plane);
-    fprintf(stderr, "BOX   : %12" PRIu64 "\n", flops_counter.box);
-    fprintf(stderr, "TORUS : %12" PRIu64 "\n", flops_counter.torus);
-    fprintf(stderr, "CONE  : %12" PRIu64 "\n", flops_counter.cone);
-    fprintf(stderr, "OCTA  : %12" PRIu64 "\n", flops_counter.octa);
-    fprintf(stderr, "====================\n");
-    fprintf(stderr, "TOTAL : %12" PRIu64 "\n", ins_total());
-    fprintf(stderr, "====================\n");
+    fprintf(stderr, "ADD     : %12" PRIu64 "\n", flops_counter.add);
+    fprintf(stderr, "MUL     : %12" PRIu64 "\n", flops_counter.mul);
+    fprintf(stderr, "FMA     : %12" PRIu64 "\n", flops_counter.fma);
+    fprintf(stderr, "DIV     : %12" PRIu64 "\n", flops_counter.div);
+    fprintf(stderr, "SQRT    : %12" PRIu64 "\n", flops_counter.sqrt);
+    fprintf(stderr, "ABS     : %12" PRIu64 "\n", flops_counter.abs);
+    fprintf(stderr, "CMP     : %12" PRIu64 "\n", flops_counter.cmp);
+    fprintf(stderr, "POW     : %12" PRIu64 "\n", flops_counter.pow);
+    fprintf(stderr, "TAN     : %12" PRIu64 "\n", flops_counter.tan);
+    fprintf(stderr, "SPHERE  : %12" PRIu64 "\n", flops_counter.sphere);
+    fprintf(stderr, "PLANE   : %12" PRIu64 "\n", flops_counter.plane);
+    fprintf(stderr, "BOX     : %12" PRIu64 "\n", flops_counter.box);
+    fprintf(stderr, "TORUS   : %12" PRIu64 "\n", flops_counter.torus);
+    fprintf(stderr, "CONE    : %12" PRIu64 "\n", flops_counter.cone);
+    fprintf(stderr, "OCTA    : %12" PRIu64 "\n", flops_counter.octa);
+    fprintf(stderr, "SPHERE_N: %12" PRIu64 "\n", flops_counter.sphere_n);
+    fprintf(stderr, "PLANE_N : %12" PRIu64 "\n", flops_counter.plane_n);
+    fprintf(stderr, "BOX_N   : %12" PRIu64 "\n", flops_counter.box_n);
+    fprintf(stderr, "TORUS_N : %12" PRIu64 "\n", flops_counter.torus_n);
+    fprintf(stderr, "CONE _N : %12" PRIu64 "\n", flops_counter.cone_n);
+    fprintf(stderr, "OCTA_N  : %12" PRIu64 "\n", flops_counter.octa_n);
+    fprintf(stderr, "=======================\n");
+    fprintf(stderr, "TOTAL   : %12" PRIu64 "\n", ins_total());
+    fprintf(stderr, "=======================\n");
 }
 
 static inline void ins_rst(void) {
