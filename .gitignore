@@ -14,3 +14,4 @@ __pycache__/
 .Rhistory
 /benchmark/*.json
 .DS_Store
+.root
