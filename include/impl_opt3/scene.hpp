@@ -50,6 +50,7 @@ namespace impl::opt3 {
     struct box {
         vec bottom_left;
         vec extents;
+        m44 matrix;
         m44 inv_matrix;
         vec color;
         float reflection;
@@ -61,6 +62,7 @@ namespace impl::opt3 {
         vec center;
         float r1;
         float r2;
+        m44 matrix;
         m44 inv_matrix;
         vec color;
         float reflection;
@@ -73,6 +75,7 @@ namespace impl::opt3 {
         float r1;
         float r2;
         float height;
+        m44 matrix;
         m44 inv_matrix;
         vec color;
         float reflection;
@@ -83,6 +86,7 @@ namespace impl::opt3 {
     struct octa {
         vec center;
         float s;
+        m44 matrix;
         m44 inv_matrix;
         vec color;
         float reflection;
@@ -138,25 +142,6 @@ namespace impl::opt3 {
         return FSQRT(squared_distance) - sp.radius;
     }
 
-    static inline vec sphere_normal(sphere s, vec pos) {
-        // return vec_normalize(vec_sub(pos, s.center));
-
-        // Numerical approximation of the normal (for now)
-        static const float delta = 10e-5;
-        vec delta1 = {delta, 0, 0};
-        vec delta2 = {0, delta, 0};
-        vec delta3 = {0, 0, delta};
-
-        INS_INC1(add, 3);
-        vec normal = vec_normalize({
-            sphere_distance(s, vec_add(pos, delta1)) - sphere_distance(s, vec_sub(pos, delta1)),
-            sphere_distance(s, vec_add(pos, delta2)) - sphere_distance(s, vec_sub(pos, delta2)),
-            sphere_distance(s, vec_add(pos, delta3)) - sphere_distance(s, vec_sub(pos, delta3)),
-        });
-
-        return normal;
-    }
-
     // Box
     static inline float box_distance(const box b, const vec from) {
         INS_INC(box);
@@ -184,44 +169,10 @@ namespace impl::opt3 {
         return FADD(FSQRT(intermediate_squared_dist), extent_values);
     }
 
-    static inline vec box_normal(box s, vec pos) {
-        // Numerical approximation of the normal (for now)
-        static const float delta = 10e-5;
-        vec delta1 = {delta, 0, 0};
-        vec delta2 = {0, delta, 0};
-        vec delta3 = {0, 0, delta};
-
-        INS_INC1(add, 3);
-        vec normal = vec_normalize({
-            box_distance(s, vec_add(pos, delta1)) - box_distance(s, vec_sub(pos, delta1)),
-            box_distance(s, vec_add(pos, delta2)) - box_distance(s, vec_sub(pos, delta2)),
-            box_distance(s, vec_add(pos, delta3)) - box_distance(s, vec_sub(pos, delta3)),
-        });
-
-        return normal;
-    }
-
     // Plane
     static inline float plane_distance(const plane p, const vec from) {
         INS_INC(plane);
         return vec_dot(p.normal, vec_sub(from, p.point));
-    }
-
-    static inline vec plane_normal(plane s, vec pos) {
-        // Numerical approximation of the normal (for now)
-        static const float delta = 10e-5;
-        vec delta1 = {delta, 0, 0};
-        vec delta2 = {0, delta, 0};
-        vec delta3 = {0, 0, delta};
-
-        INS_INC1(add, 3);
-        vec normal = vec_normalize({
-            plane_distance(s, vec_add(pos, delta1)) - plane_distance(s, vec_sub(pos, delta1)),
-            plane_distance(s, vec_add(pos, delta2)) - plane_distance(s, vec_sub(pos, delta2)),
-            plane_distance(s, vec_add(pos, delta3)) - plane_distance(s, vec_sub(pos, delta3)),
-        });
-
-        return normal;
     }
 
     // Torus
@@ -256,23 +207,6 @@ namespace impl::opt3 {
 
         INS_ADD;
         return FSQRT(q_squared) - t.r2;
-    }
-
-    static inline vec torus_normal(torus s, vec pos) {
-        // Numerical approximation of the normal (for now)
-        static const float delta = 10e-5;
-        vec delta1 = {delta, 0, 0};
-        vec delta2 = {0, delta, 0};
-        vec delta3 = {0, 0, delta};
-
-        INS_INC1(add, 3);
-        vec normal = vec_normalize({
-            torus_distance(s, vec_add(pos, delta1)) - torus_distance(s, vec_sub(pos, delta1)),
-            torus_distance(s, vec_add(pos, delta2)) - torus_distance(s, vec_sub(pos, delta2)),
-            torus_distance(s, vec_add(pos, delta3)) - torus_distance(s, vec_sub(pos, delta3)),
-        });
-
-        return normal;
     }
 
     // Cone
@@ -339,23 +273,6 @@ namespace impl::opt3 {
         INS_MUL;
         INS_SQRT;
         return s * sqrtf(squared_min);
-    }
-
-    static inline vec cone_normal(cone s, vec pos) {
-        // Numerical approximation of the normal (for now)
-        static const float delta = 10e-5;
-        vec delta1 = {delta, 0, 0};
-        vec delta2 = {0, delta, 0};
-        vec delta3 = {0, 0, delta};
-
-        INS_INC1(add, 3);
-        vec normal = vec_normalize({
-            cone_distance(s, vec_add(pos, delta1)) - cone_distance(s, vec_sub(pos, delta1)),
-            cone_distance(s, vec_add(pos, delta2)) - cone_distance(s, vec_sub(pos, delta2)),
-            cone_distance(s, vec_add(pos, delta3)) - cone_distance(s, vec_sub(pos, delta3)),
-        });
-
-        return normal;
     }
 
     // Octahedron
@@ -442,21 +359,118 @@ namespace impl::opt3 {
         return FSQRT(squared_distance);
     }
 
-    static inline vec octahedron_normal(octa s, vec pos) {
-        // Numerical approximation of the normal (for now)
-        static const float delta = 10e-5;
-        vec delta1 = {delta, 0, 0};
-        vec delta2 = {0, delta, 0};
-        vec delta3 = {0, 0, delta};
+    static inline vec sphere_normal(const sphere sp, const vec pos) {
+        INS_INC(sphere_n);
+        return vec_normalize(vec_sub(pos, sp.center));
+    }
 
-        INS_INC1(add, 3);
-        vec normal = vec_normalize({
-            octahedron_distance(s, vec_add(pos, delta1)) - octahedron_distance(s, vec_sub(pos, delta1)),
-            octahedron_distance(s, vec_add(pos, delta2)) - octahedron_distance(s, vec_sub(pos, delta2)),
-            octahedron_distance(s, vec_add(pos, delta3)) - octahedron_distance(s, vec_sub(pos, delta3)),
-        });
+    static inline vec box_normal(const box b, const vec from) {
+        INS_INC(box_n);
+        vec pos = vec4_to_vec(m44_mul_vec(b.inv_matrix, vec4_from_point(from)));
 
-        return normal;
+        // transform into upper right quadrant
+        vec abs = vec_abs(pos);
+        vec sign = vec_div(pos, abs);
+        vec q = vec_sub(abs, b.extents);
+
+        // argmax(q.x, q.y, q.z)
+        vec n_obj = {0, 0, 0};
+        INS_INC1(cmp, 3);
+        if (q.x > q.y && q.x > q.z && q.x > 0) {
+            n_obj = {1, 0, 0};
+            INS_INC1(cmp, 2);
+        } else if (q.y > q.z && q.y > 0) {
+            n_obj = {0, 1, 0};
+            INS_INC1(cmp, 1);
+        } else if (q.z > 0) {
+            n_obj = {0, 0, 1};
+        }
+
+        // invert transform from upper right quadrant, before abs()
+        n_obj = vec_mul(sign, n_obj);
+
+        vec n_world = m44_rotate_only(b.matrix, n_obj);
+        return n_world;
+    }
+
+    static inline vec plane_normal(const plane p, const vec) {
+        INS_INC(plane_n);
+        return p.normal;
+    }
+
+    static inline vec torus_normal(const torus t, const vec from) {
+        INS_INC(torus_n);
+        vec pos = vec4_to_vec(m44_mul_vec(t.inv_matrix, vec4_from_point(from)));
+
+        vec2 posxz = {pos.x, pos.z};
+
+        INS_ADD;
+        INS_DIV;
+        posxz = vec2_scale(posxz, 1 - t.r1 / vec2_length(posxz));
+        vec q = {posxz.x, pos.y, posxz.y};
+        vec n_obj = vec_normalize(q);
+
+        vec n_world = m44_rotate_only(t.matrix, n_obj);
+        return n_world;
+    }
+
+    static inline vec cone_normal(const cone c, const vec from) {
+        INS_INC(cone_n);
+        vec pos = vec4_to_vec(m44_mul_vec(c.inv_matrix, vec4_from_point(from)));
+
+        float r1 = c.r1;
+        float r2 = c.r2;
+        float h = c.height;
+
+        // transform into rotation invariant subspace around y-axis
+        vec2 posxz = {pos.x, pos.z};
+        vec2 q = {vec2_length(posxz), pos.y};
+        vec2 k1 = {r2, h};
+        INS_ADD;
+        INS_MUL;
+        vec2 k2 = {r2 - r1, 2 * h};
+        INS_INC1(add, 2);
+        INS_ABS;
+        INS_CMP;
+        vec2 ca = {q.x - min(q.x, (q.y < 0 ? r1 : r2)), fabsf(q.y) - h};
+        INS_DIV;
+        vec2 cb =
+            vec2_add(vec2_sub(q, k1), vec2_scale(k2, clamp(vec2_dot(vec2_sub(k1, q), k2) / vec2_dot2(k2), 0.0f, 1.0f)));
+
+        // invert transform from rotation invariant subspace
+        vec n_obj = {0, 0, 0};
+        INS_CMP;
+        if (vec2_dot2(ca) < vec2_dot2(cb)) {
+            INS_DIV;
+            posxz = vec2_scale(posxz, ca.x / vec2_length(posxz));
+            n_obj = {posxz.x, ca.y, posxz.y};
+        } else {
+            INS_DIV;
+            posxz = vec2_scale(posxz, cb.x / vec2_length(posxz));
+            n_obj = {posxz.x, cb.y, posxz.y};
+        }
+        n_obj = vec_normalize(n_obj);
+
+        vec n_world = m44_rotate_only(c.matrix, n_obj);
+        return n_world;
+    }
+
+    static inline vec octahedron_normal(const octa o, const vec from) {
+        INS_INC(octa_n);
+        vec pos = vec4_to_vec(m44_mul_vec(o.inv_matrix, vec4_from_point(from)));
+
+        // transform into upper right quadrant
+        vec abs = vec_abs(pos);
+        vec sign = vec_div(pos, abs);
+
+        vec n_obj = {1, 1, 1};
+        n_obj = vec_normalize(n_obj);
+
+        // invert transform from upper right quadrant, before abs()
+        n_obj = vec_mul(sign, n_obj);
+
+        vec n_world = m44_rotate_only(o.matrix, n_obj);
+        return n_world;
     }
 
 } // namespace impl::opt3
