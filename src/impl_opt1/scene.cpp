@@ -74,10 +74,11 @@ namespace impl::opt1 {
 
     // Box {{{
 
-    box make_box(vec bottom_left, vec extents, m44 inv_matrix, vec color, float reflection, float shininess) {
+    box make_box(vec bottom_left, vec extents, m44 matrix, m44 inv_matrix, vec color, float reflection, float shininess) {
         box s;
         s.bottom_left = bottom_left;
         s.extents = extents;
+        s.matrix = matrix;
         s.inv_matrix = inv_matrix;
         s.color = color;
         s.reflection = reflection;
@@ -94,16 +95,17 @@ namespace impl::opt1 {
         vec color = load_vec(j["color"]);
         float reflection = j["reflection"];
         float shininess = j["shininess"];
-        return make_box(pos, extents, inv_matrix, color, reflection, shininess);
+        return make_box(pos, extents, matrix, inv_matrix, color, reflection, shininess);
     }
 
     box from_ref_box(impl::ref::shape ref_shape) {
         impl::ref::box b = *((impl::ref::box*)ref_shape.data);
         vec bottom_left = from_ref_vec(b.bottom_left);
         vec extents = from_ref_vec(b.extents);
+        m44 matrix = from_ref_m44(ref_shape.matrix);
         m44 inv_matrix = from_ref_m44(ref_shape.inv_matrix);
         vec color = from_ref_vec(ref_shape.color);
-        return make_box(bottom_left, extents, inv_matrix, color, ref_shape.reflection, ref_shape.shininess);
+        return make_box(bottom_left, extents, matrix, inv_matrix, color, ref_shape.reflection, ref_shape.shininess);
     }
 
     // }}}
@@ -142,11 +144,12 @@ namespace impl::opt1 {
 
     // Torus {{{
 
-    torus make_torus(vec center, float r1, float r2, m44 inv_matrix, vec color, float reflection, float shininess) {
+    torus make_torus(vec center, float r1, float r2, m44 matrix, m44 inv_matrix, vec color, float reflection, float shininess) {
         torus s;
         s.center = center;
         s.r1 = r1;
         s.r2 = r2;
+        s.matrix = matrix;
         s.inv_matrix = inv_matrix;
         s.color = color;
         s.reflection = reflection;
@@ -169,15 +172,16 @@ namespace impl::opt1 {
         float reflection = j["reflection"];
         float shininess = j["shininess"];
 
-        return make_torus(pos, r1, r2, inv_matrix, color, reflection, shininess);
+        return make_torus(pos, r1, r2, matrix, inv_matrix, color, reflection, shininess);
     }
 
     torus from_ref_torus(impl::ref::shape ref_shape) {
         impl::ref::torus t = *((impl::ref::torus*)ref_shape.data);
         vec center = from_ref_vec(t.center);
+        m44 matrix = from_ref_m44(ref_shape.matrix);
         m44 inv_matrix = from_ref_m44(ref_shape.inv_matrix);
         vec color = from_ref_vec(ref_shape.color);
-        return make_torus(center, t.r1, t.r2, inv_matrix, color, ref_shape.reflection, ref_shape.shininess);
+        return make_torus(center, t.r1, t.r2, matrix, inv_matrix, color, ref_shape.reflection, ref_shape.shininess);
     }
 
     // }}}
@@ -185,12 +189,13 @@ namespace impl::opt1 {
     // Cone {{{
 
     cone make_cone(
-        vec center, float r1, float r2, float height, m44 inv_matrix, vec color, float reflection, float shininess) {
+        vec center, float r1, float r2, float height, m44 matrix, m44 inv_matrix, vec color, float reflection, float shininess) {
         cone s;
         s.center = center;
         s.r1 = r1;
         s.r2 = r2;
         s.height = height;
+        s.matrix = matrix;
         s.inv_matrix = inv_matrix;
         s.color = color;
         s.reflection = reflection;
@@ -215,25 +220,27 @@ namespace impl::opt1 {
         float reflection = j["reflection"];
         float shininess = j["shininess"];
 
-        return make_cone(pos, r1, r2, height, inv_matrix, color, reflection, shininess);
+        return make_cone(pos, r1, r2, height, matrix, inv_matrix, color, reflection, shininess);
     }
 
     cone from_ref_cone(impl::ref::shape ref_shape) {
         impl::ref::cone c = *((impl::ref::cone*)ref_shape.data);
         vec center = from_ref_vec(c.center);
+        m44 matrix = from_ref_m44(ref_shape.matrix);
         m44 inv_matrix = from_ref_m44(ref_shape.inv_matrix);
         vec color = from_ref_vec(ref_shape.color);
-        return make_cone(center, c.r1, c.r2, c.height, inv_matrix, color, ref_shape.reflection, ref_shape.shininess);
+        return make_cone(center, c.r1, c.r2, c.height, matrix, inv_matrix, color, ref_shape.reflection, ref_shape.shininess);
     }
 
     // }}}
 
     // Octahedron {{{
 
-    octa make_octahedron(vec center, float s_param, m44 inv_matrix, vec color, float reflection, float shininess) {
+    octa make_octahedron(vec center, float s_param, m44 matrix, m44 inv_matrix, vec color, float reflection, float shininess) {
         octa s;
         s.center = center;
         s.s = s_param;
+        s.matrix = matrix;
         s.inv_matrix = inv_matrix;
         s.color = color;
         s.reflection = reflection;
@@ -255,15 +262,16 @@ namespace impl::opt1 {
         float reflection = j["reflection"];
         float shininess = j["shininess"];
 
-        return make_octahedron(pos, s, inv_matrix, color, reflection, shininess);
+        return make_octahedron(pos, s, matrix, inv_matrix, color, reflection, shininess);
     }
 
     octa from_ref_octa(impl::ref::shape ref_shape) {
         impl::ref::octa o = *((impl::ref::octa*)ref_shape.data);
         vec center = from_ref_vec(o.center);
+        m44 matrix = from_ref_m44(ref_shape.matrix);
         m44 inv_matrix = from_ref_m44(ref_shape.inv_matrix);
         vec color = from_ref_vec(ref_shape.color);
-        return make_octahedron(center, o.s, inv_matrix, color, ref_shape.reflection, ref_shape.shininess);
+        return make_octahedron(center, o.s, matrix, inv_matrix, color, ref_shape.reflection, ref_shape.shininess);
     }
 
     // }}}
