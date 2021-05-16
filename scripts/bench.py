@@ -16,10 +16,16 @@ all_shapes_scene_creator = script_dir / ".." / \
 
 fields = ["Width", "Height", "Flops", "Cycles", "Microseconds"]
 
+x_base = 0
+x_end = 0
+x_step = 0
+
 
 def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 
+def get_range():
+    return range(x_base, x_end, x_step)
 
 def run_single(impl, scene, width, height):
     p = subprocess.run([str(run_exec), impl, str(scene), str(
@@ -47,9 +53,7 @@ def run_size_benchmark(impl, name, results: dict):
     Results from this benchmark run are added to the dictionary for the widths under 'name'
     """
 
-    widths = range(200, 4000, 200)
-
-    for width in widths:
+    for width in get_range():
         eprint("{}x{}".format(width, width))
         r = results.setdefault(width, {})
         r[name] = run_single(impl, input_scene, width, width)
@@ -64,13 +68,11 @@ def run_shape_benchmark(impl, temp_dir, shape, name, results):
     Results from this benchmark run are added to the dictionary for the number of shapes under 'name'
     """
 
-    nums = range(10, 210, 10)
-
     # Fixed size
     width = 1920
     height = 1080
 
-    for num_shapes in nums:
+    for num_shapes in get_range():
         eprint(f"{num_shapes} x {shape} @ {width}x{height}")
         fname = f"{impl}-{shape}-{num_shapes}-{width}x{height}-{name}.json"
         scene_path = temp_dir / fname
@@ -151,13 +153,19 @@ def main(temp_dir):
         "-Ofast",
         "-Ofast -march=native"]
 
-    if len(sys.argv) < 3:
-        eprint(f"Usage: {sys.argv[0]} <impl> <type>")
+    if len(sys.argv) < 6:
+        eprint(f"Usage: {sys.argv[0]} <impl> <type> <x-base> <x-end> <x-step>")
         eprint("\t<type> must be one of the following: 'size', 'all', 'box', 'sphere', 'cone', 'torus', 'octahedron'")
         sys.exit(1)
 
     impl = sys.argv[1]
     benchmark_type = sys.argv[2]
+    global x_base
+    global x_end
+    global x_step
+    x_base = int(sys.argv[3])
+    x_end = int(sys.argv[4])
+    x_step = int(sys.argv[5])
 
     if benchmark_type == "size":
         flops_runner = lambda results: run_size_benchmark(
