@@ -50,7 +50,7 @@ namespace impl::opt3 {
     struct box {
         vec bottom_left;
         vec extents;
-        m44 matrix;
+        m33 rot;
         m44 inv_matrix;
         vec color;
         float reflection;
@@ -62,7 +62,7 @@ namespace impl::opt3 {
         vec center;
         float r1;
         float r2;
-        m44 matrix;
+        m33 rot;
         m44 inv_matrix;
         vec color;
         float reflection;
@@ -75,7 +75,7 @@ namespace impl::opt3 {
         float r1;
         float r2;
         float height;
-        m44 matrix;
+        m33 rot;
         m44 inv_matrix;
         vec color;
         float reflection;
@@ -86,7 +86,7 @@ namespace impl::opt3 {
     struct octa {
         vec center;
         float s;
-        m44 matrix;
+        m33 rot;
         m44 inv_matrix;
         vec color;
         float reflection;
@@ -146,7 +146,6 @@ namespace impl::opt3 {
     static inline float box_distance(const box b, const vec from) {
         INS_INC(box);
         vec pos = m33_mul_vec(b.inv_rot, vec_sub(from, b.bottom_left));
-        // vec pos = vec4_to_vec(m44_mul_vec(b.inv_matrix, vec4_from_point(from)));
         vec q = vec_sub(vec_abs(pos), b.extents);
         return FADD(vec_length(vec_max(q, 0)), min(0.0f, max(max(q.x, q.y), q.z)));
     }
@@ -154,7 +153,6 @@ namespace impl::opt3 {
     static inline float box_distance_short(const box b, const vec from, const float current_min) {
         INS_INC(box);
         vec pos = m33_mul_vec(b.inv_rot, vec_sub(from, b.bottom_left));
-        // vec pos = vec4_to_vec(m44_mul_vec(b.inv_matrix, vec4_from_point(from)));
         vec q = vec_sub(vec_abs(pos), b.extents);
         float extent_values = min(0.0f, max(max(q.x, q.y), q.z));
         float intermediate_squared_dist = vec_dot2(vec_max(q, 0));
@@ -179,7 +177,6 @@ namespace impl::opt3 {
     static inline float torus_distance(const torus t, const vec from) {
         INS_INC(torus);
         vec pos = m33_mul_vec(t.inv_rot, vec_sub(from, t.center));
-        // vec pos = vec4_to_vec(m44_mul_vec(t.inv_matrix, vec4_from_point(from)));
         vec2 posxz = {pos.x, pos.z};
         INS_ADD;
         vec2 q = {vec2_length(posxz) - t.r1, pos.y};
@@ -191,7 +188,6 @@ namespace impl::opt3 {
     static inline float torus_distance_short(const torus t, const vec from, const float current_min) {
         INS_INC(torus);
         vec pos = m33_mul_vec(t.inv_rot, vec_sub(from, t.center));
-        // vec pos = vec4_to_vec(m44_mul_vec(t.inv_matrix, vec4_from_point(from)));
         vec2 posxz = {pos.x, pos.z};
         INS_ADD;
         vec2 q = {vec2_length(posxz) - t.r1, pos.y};
@@ -213,7 +209,6 @@ namespace impl::opt3 {
     static inline float cone_distance(const cone c, const vec from) {
         INS_INC(cone);
         vec pos = m33_mul_vec(c.inv_rot, vec_sub(from, c.center));
-        // vec pos = vec4_to_vec(m44_mul_vec(c.inv_matrix, vec4_from_point(from)));
 
         float r1 = c.r1;
         float r2 = c.r2;
@@ -242,7 +237,6 @@ namespace impl::opt3 {
     static inline float cone_distance_short(const cone c, const vec from, const float current_min) {
         INS_INC(cone);
         vec pos = m33_mul_vec(c.inv_rot, vec_sub(from, c.center));
-        // vec pos = vec4_to_vec(m44_mul_vec(c.inv_matrix, vec4_from_point(from)));
 
         float r1 = c.r1;
         float r2 = c.r2;
@@ -279,7 +273,6 @@ namespace impl::opt3 {
     static inline float octahedron_distance(const octa o, const vec from) {
         INS_INC(octa);
         vec pos = m33_mul_vec(o.inv_rot, vec_sub(from, o.center));
-        // vec pos = vec4_to_vec(m44_mul_vec(o.inv_matrix, vec4_from_point(from)));
         pos = vec_abs(pos);
 
         float s = o.s;
@@ -317,7 +310,6 @@ namespace impl::opt3 {
     static inline float octahedron_distance_short(const octa o, const vec from, const float current_min) {
         INS_INC(octa);
         vec pos = m33_mul_vec(o.inv_rot, vec_sub(from, o.center));
-        // vec pos = vec4_to_vec(m44_mul_vec(o.inv_matrix, vec4_from_point(from)));
         pos = vec_abs(pos);
 
         float s = o.s;
@@ -366,7 +358,7 @@ namespace impl::opt3 {
 
     static inline vec box_normal(const box b, const vec from) {
         INS_INC(box_n);
-        vec pos = vec4_to_vec(m44_mul_vec(b.inv_matrix, vec4_from_point(from)));
+        vec pos = m33_mul_vec(b.inv_rot, vec_sub(from, b.bottom_left));
 
         // transform into upper right quadrant
         vec abs = vec_abs(pos);
@@ -389,8 +381,7 @@ namespace impl::opt3 {
         // invert transform from upper right quadrant, before abs()
         n_obj = vec_mul(sign, n_obj);
 
-        vec n_world = m44_rotate_only(b.matrix, n_obj);
-        return n_world;
+        return m33_mul_vec(b.rot, n_obj);
     }
 
     static inline vec plane_normal(const plane p, const vec) {
@@ -400,7 +391,7 @@ namespace impl::opt3 {
 
     static inline vec torus_normal(const torus t, const vec from) {
         INS_INC(torus_n);
-        vec pos = vec4_to_vec(m44_mul_vec(t.inv_matrix, vec4_from_point(from)));
+        vec pos = m33_mul_vec(t.inv_rot, vec_sub(from, t.center));
 
         vec2 posxz = {pos.x, pos.z};
 
@@ -410,13 +401,12 @@ namespace impl::opt3 {
         vec q = {posxz.x, pos.y, posxz.y};
         vec n_obj = vec_normalize(q);
 
-        vec n_world = m44_rotate_only(t.matrix, n_obj);
-        return n_world;
+        return m33_mul_vec(t.rot, n_obj);
     }
 
     static inline vec cone_normal(const cone c, const vec from) {
         INS_INC(cone_n);
-        vec pos = vec4_to_vec(m44_mul_vec(c.inv_matrix, vec4_from_point(from)));
+        vec pos = m33_mul_vec(c.inv_rot, vec_sub(from, c.center));
 
         float r1 = c.r1;
         float r2 = c.r2;
@@ -451,13 +441,12 @@ namespace impl::opt3 {
         }
         n_obj = vec_normalize(n_obj);
 
-        vec n_world = m44_rotate_only(c.matrix, n_obj);
-        return n_world;
+        return m33_mul_vec(c.rot, n_obj);
     }
 
     static inline vec octahedron_normal(const octa o, const vec from) {
         INS_INC(octa_n);
-        vec pos = vec4_to_vec(m44_mul_vec(o.inv_matrix, vec4_from_point(from)));
+        vec pos = m33_mul_vec(o.inv_rot, vec_sub(from, o.center));
 
         // transform into upper right quadrant
         vec abs = vec_abs(pos);
@@ -469,8 +458,7 @@ namespace impl::opt3 {
         // invert transform from upper right quadrant, before abs()
         n_obj = vec_mul(sign, n_obj);
 
-        vec n_world = m44_rotate_only(o.matrix, n_obj);
-        return n_world;
+        return m33_mul_vec(o.rot, n_obj);
     }
 
 } // namespace impl::opt3
