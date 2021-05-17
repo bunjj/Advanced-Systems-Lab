@@ -376,6 +376,8 @@ namespace impl::opt3 {
         } else if (q.z > 0) {
             INS_INC1(cmp, 6);
             n_obj = {0, 0, 1};
+        } else {
+            INS_INC1(cmp, 6);
         }
 
         // invert transform from upper right quadrant, before abs()
