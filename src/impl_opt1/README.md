@@ -1,6 +1,6 @@
 # Opt1
 
-## Changes (w.r.t. reference)
+## Changes (w.r.t. opt0)
 - Data representation:
     - Get rid of generic shape struct, different shapes store only what they actually need.
     - Scene now has arrays for each shape type, i.e., a scene is a struct containing pointers to arrays of structs.

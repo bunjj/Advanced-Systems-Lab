@@ -58,8 +58,8 @@ namespace impl::opt3 {
 
     // Box {{{
 
-    box make_box(
-        vec bottom_left, vec extents, m44 inv_matrix, vec color, float reflection, float shininess, m33 rot_matrix) {
+    box make_box(vec bottom_left, vec extents, m44 inv_matrix, vec color, float reflection, float shininess, m33 rot,
+        m33 rot_matrix) {
         box s;
         s.bottom_left = bottom_left;
         s.extents = extents;
@@ -67,6 +67,7 @@ namespace impl::opt3 {
         s.color = color;
         s.reflection = reflection;
         s.shininess = shininess;
+        s.rot = rot;
         s.inv_rot = rot_matrix;
         return s;
     }
@@ -77,11 +78,12 @@ namespace impl::opt3 {
         vec rot = load_rot(j);
         m44 matrix = get_transf_matrix(pos, rot);
         m44 inv_matrix = m44_inv(matrix);
-        m33 rot_matrix = m33_inv(get_rot_matrix_33(rot));
+        m33 rot_m = get_rot_matrix_33(rot);
+        m33 inv_rot = m33_inv(rot_m);
         vec color = load_vec(j["color"]);
         float reflection = j["reflection"];
         float shininess = j["shininess"];
-        return make_box(pos, extents, inv_matrix, color, reflection, shininess, rot_matrix);
+        return make_box(pos, extents, inv_matrix, color, reflection, shininess, rot_m, inv_rot);
     }
 
     // }}}
@@ -112,8 +114,8 @@ namespace impl::opt3 {
 
     // Torus {{{
 
-    torus make_torus(
-        vec center, float r1, float r2, m44 inv_matrix, vec color, float reflection, float shininess, m33 rot_matrix) {
+    torus make_torus(vec center, float r1, float r2, m44 inv_matrix, vec color, float reflection, float shininess,
+        m33 rot, m33 inv_rot) {
         torus s;
         s.center = center;
         s.r1 = r1;
@@ -122,7 +124,8 @@ namespace impl::opt3 {
         s.color = color;
         s.reflection = reflection;
         s.shininess = shininess;
-        s.inv_rot = rot_matrix;
+        s.rot = rot;
+        s.inv_rot = inv_rot;
         return s;
     }
 
@@ -136,12 +139,13 @@ namespace impl::opt3 {
 
         m44 matrix = get_transf_matrix(pos, rot);
         m44 inv_matrix = m44_inv(matrix);
-        m33 rot_matrix = m33_inv(get_rot_matrix_33(rot));
+        m33 rot_m = get_rot_matrix_33(rot);
+        m33 inv_rot = m33_inv(rot_m);
         vec color = load_vec(j["color"]);
         float reflection = j["reflection"];
         float shininess = j["shininess"];
 
-        return make_torus(pos, r1, r2, inv_matrix, color, reflection, shininess, rot_matrix);
+        return make_torus(pos, r1, r2, inv_matrix, color, reflection, shininess, rot_m, inv_rot);
     }
 
     // }}}
@@ -149,7 +153,7 @@ namespace impl::opt3 {
     // Cone {{{
 
     cone make_cone(vec center, float r1, float r2, float height, m44 inv_matrix, vec color, float reflection,
-        float shininess, m33 rot_matrix) {
+        float shininess, m33 rot, m33 inv_rot) {
         cone s;
         s.center = center;
         s.r1 = r1;
@@ -159,7 +163,8 @@ namespace impl::opt3 {
         s.color = color;
         s.reflection = reflection;
         s.shininess = shininess;
-        s.inv_rot = rot_matrix;
+        s.rot = rot;
+        s.inv_rot = inv_rot;
         return s;
     }
 
@@ -175,13 +180,14 @@ namespace impl::opt3 {
 
         m44 matrix = get_transf_matrix(pos, rot);
         m44 inv_matrix = m44_inv(matrix);
-        m33 rot_matrix = m33_inv(get_rot_matrix_33(rot));
+        m33 rot_m = get_rot_matrix_33(rot);
+        m33 inv_rot = m33_inv(rot_m);
 
         vec color = load_vec(j["color"]);
         float reflection = j["reflection"];
         float shininess = j["shininess"];
 
-        return make_cone(pos, r1, r2, height, inv_matrix, color, reflection, shininess, rot_matrix);
+        return make_cone(pos, r1, r2, height, inv_matrix, color, reflection, shininess, rot_m, inv_rot);
     }
 
     // }}}
@@ -189,7 +195,7 @@ namespace impl::opt3 {
     // Octahedron {{{
 
     octa make_octahedron(
-        vec center, float s_param, m44 inv_matrix, vec color, float reflection, float shininess, m33 rot_matrix) {
+        vec center, float s_param, m44 inv_matrix, vec color, float reflection, float shininess, m33 rot, m33 inv_rot) {
         octa s;
         s.center = center;
         s.s = s_param;
@@ -197,7 +203,8 @@ namespace impl::opt3 {
         s.color = color;
         s.reflection = reflection;
         s.shininess = shininess;
-        s.inv_rot = rot_matrix;
+        s.rot = rot;
+        s.inv_rot = inv_rot;
         return s;
     }
 
@@ -210,13 +217,14 @@ namespace impl::opt3 {
 
         m44 matrix = get_transf_matrix(pos, rot);
         m44 inv_matrix = m44_inv(matrix);
-        m33 rot_matrix = m33_inv(get_rot_matrix_33(rot));
+        m33 rot_m = get_rot_matrix_33(rot);
+        m33 inv_rot = m33_inv(rot_m);
 
         vec color = load_vec(j["color"]);
         float reflection = j["reflection"];
         float shininess = j["shininess"];
 
-        return make_octahedron(pos, s, inv_matrix, color, reflection, shininess, rot_matrix);
+        return make_octahedron(pos, s, inv_matrix, color, reflection, shininess, rot_m, inv_rot);
     }
 
     // }}}
