@@ -146,14 +146,14 @@ def run_with_flags(flag, do_instrument, datapoint_base: dict):
 
             datapoint_base2 = datapoint_base.copy()
             datapoint_base2.update({
-                "flag": flag,
+                "flags": flag,
                 "impl": impl,
                 "type": bench_type})
 
             if bench_type == "size":
-                run_size_benchmark(impl, datapoint_base)
+                run_size_benchmark(impl, datapoint_base2)
             else:
-                run_shape_benchmark(impl, bench_type, datapoint_base)
+                run_shape_benchmark(impl, bench_type, datapoint_base2)
 
 def print_header(name):
     eprint(f"\033[32;1m{name}\033[0m")
@@ -165,10 +165,10 @@ def main(temp_dir):
 
     print_header("Flops Counter")
     # Count flops first
-    run_with_flags("", True, {"flops": True})
+    run_with_flags("", True, {"has_flops": True})
 
     for flag in flags:
-        run_with_flags(flag, False, {"flops": False})
+        run_with_flags(flag, False, {"has_flops": False})
 
     print(json.dumps(datapoints, indent=4))
 
