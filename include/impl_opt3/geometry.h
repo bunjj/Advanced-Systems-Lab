@@ -307,20 +307,6 @@ namespace impl::opt3 {
         return {x, y, z};
     }
 
-    /**
-     * Calculates m[0:2][0:2] * v
-     */
-    static inline vec m44_rotate_only(m44 m, vec v) {
-        INS_INC1(mul, 9);
-        INS_INC1(add, 6);
-        vec res = {0,0,0};
-        res.x = m.val[0][0] * v.x + m.val[0][1] * v.y + m.val[0][2] * v.z;
-        res.y = m.val[1][0] * v.x + m.val[1][1] * v.y + m.val[1][2] * v.z;
-        res.z = m.val[2][0] * v.x + m.val[2][1] * v.y + m.val[2][2] * v.z;
-
-        return res;
-    }  
-
     // }}}
 
 } // namespace impl::opt3
