@@ -136,20 +136,26 @@ namespace impl::vec1 {
 
                 float dists[8];
 
-                torus_distance_vectorized(k, dists, scene.torus_vecs.center_x, scene.torus_vecs.center_y, scene.torus_vecs.center_z, scene.torus_vecs.r1, scene.torus_vecs.r2, scene.torus_vecs.inv_rot, pos);
+                int not_terminate_early = torus_distance_short_vectorized(k, dists, scene.torus_vecs.center_x, scene.torus_vecs.center_y, scene.torus_vecs.center_z, scene.torus_vecs.r1, scene.torus_vecs.r2, scene.torus_vecs.inv_rot, pos, min_distance);
 
-                for (int i = 0; i < 8; i++) {
-                    INS_CMP;
-                    if (dists[i] < min_distance) {
-                        min_distance = dists[i];
+                if (not_terminate_early) {
+                    // compute rest of distance function
+                    torus_distance_rest_vectorized(k, dists, dists, scene.torus_vecs.r2);
 
+                    for (int i = 0; i < 8; i++) {
                         INS_CMP;
-                        INS_MUL;
-                        if (min_distance <= EPS * t) {
-                            return 0.0f;
+                        if (dists[i] < min_distance) {
+                            min_distance = dists[i];
+
+                            INS_CMP;
+                            INS_MUL;
+                            if (min_distance <= EPS * t) {
+                                return 0.0f;
+                            }
                         }
                     }
                 }
+
             }
 
             // remaining torus iterations
@@ -410,23 +416,29 @@ namespace impl::vec1 {
 
                 float dists[8];
 
-                torus_distance_vectorized(k, dists, scene.torus_vecs.center_x, scene.torus_vecs.center_y, scene.torus_vecs.center_z, scene.torus_vecs.r1, scene.torus_vecs.r2, scene.torus_vecs.inv_rot, pos);
+                int not_terminate_early = torus_distance_short_vectorized(k, dists, scene.torus_vecs.center_x, scene.torus_vecs.center_y, scene.torus_vecs.center_z, scene.torus_vecs.r1, scene.torus_vecs.r2, scene.torus_vecs.inv_rot, pos, min_distance);
 
-                for (int i = 0; i < 8; i++) {
-                    INS_CMP;
-                    if (dists[i] < min_distance) {
-                        min_distance = dists[i];
+                if (not_terminate_early) {
+                    // compute rest of distance function
+                    torus_distance_rest_vectorized(k, dists, dists, scene.torus_vecs.r2);
 
+                    for (int i = 0; i < 8; i++) {
                         INS_CMP;
-                        INS_MUL;
-                        if (min_distance <= EPS * t) {
-                            torus s = scene.tori[k+i];
-                            vec normal = torus_normal(s, pos);
-                            color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
-                            return {true, t, steps, color};
+                        if (dists[i] < min_distance) {
+                            min_distance = dists[i];
+
+                            INS_CMP;
+                            INS_MUL;
+                            if (min_distance <= EPS * t) {
+                                torus s = scene.tori[k+i];
+                                vec normal = torus_normal(s, pos);
+                                color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
+                                return {true, t, steps, color};
+                            }
                         }
                     }
                 }
+
             }
 
             // remaining torus iterations

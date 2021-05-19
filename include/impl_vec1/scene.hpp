@@ -593,6 +593,90 @@ namespace impl::vec1 {
         return FSQRT(q_squared) - t.r2;
     }
 
+    /**
+     * Computes the first part of the torus distance function and stores the intermediate results res.
+     * Returns zero if early termination is possible, and a nonzero value otherwise.
+     *
+     * If early termination is not possible, the distance function computation can be completed by calling
+     * torus_distance_rest_vectorized() with the intermediate results in res.
+     */
+    static inline int torus_distance_short_vectorized(int idx, float* res, float* center_x, float* center_y, float* center_z, float* rad1, float* rad2, float* inv_rot[3][3], const vec from, float current_min) {
+
+        __m256 c_x = _mm256_loadu_ps(center_x + idx);
+        __m256 c_y = _mm256_loadu_ps(center_y + idx);
+        __m256 c_z = _mm256_loadu_ps(center_z + idx);
+        __m256 r1 = _mm256_loadu_ps(rad1 + idx);
+        __m256 r2 = _mm256_loadu_ps(rad2 + idx);
+
+        __m256 inv_rot_00 = _mm256_loadu_ps(inv_rot[0][0] + idx);
+        __m256 inv_rot_01 = _mm256_loadu_ps(inv_rot[0][1] + idx);
+        __m256 inv_rot_02 = _mm256_loadu_ps(inv_rot[0][2] + idx);
+        __m256 inv_rot_10 = _mm256_loadu_ps(inv_rot[1][0] + idx);
+        __m256 inv_rot_11 = _mm256_loadu_ps(inv_rot[1][1] + idx);
+        __m256 inv_rot_12 = _mm256_loadu_ps(inv_rot[1][2] + idx);
+        __m256 inv_rot_20 = _mm256_loadu_ps(inv_rot[2][0] + idx);
+        __m256 inv_rot_21 = _mm256_loadu_ps(inv_rot[2][1] + idx);
+        __m256 inv_rot_22 = _mm256_loadu_ps(inv_rot[2][2] + idx);
+
+        __m256 from_x = _mm256_set1_ps(from.x);
+        __m256 from_y = _mm256_set1_ps(from.y);
+        __m256 from_z = _mm256_set1_ps(from.z);
+        __m256 curr_min = _mm256_set1_ps(current_min);
+
+        // vec t = vec_sub(from, to.center);
+        __m256 t_x = _mm256_sub_ps(from_x, c_x);
+        __m256 t_y = _mm256_sub_ps(from_y, c_y);
+        __m256 t_z = _mm256_sub_ps(from_z, c_z);
+
+        // vec pos = m33_mul_vec(to.inv_rot, t);
+        __m256 pos_x = vectorized_vec_dot(inv_rot_00, inv_rot_01, inv_rot_02, t_x, t_y, t_z);
+        __m256 pos_y = vectorized_vec_dot(inv_rot_10, inv_rot_11, inv_rot_12, t_x, t_y, t_z);
+        __m256 pos_z = vectorized_vec_dot(inv_rot_20, inv_rot_21, inv_rot_22, t_x, t_y, t_z);
+
+        // vec2 posxz = {pos.x, pos.z};
+        // float posxz_len = vec2_length(posxz);
+        __m256 pos_x_square = _mm256_mul_ps(pos_x, pos_x);
+        __m256 pos_xz_square = _mm256_fmadd_ps(pos_z, pos_z, pos_x_square);
+
+        __m256 pos_xz_len = _mm256_sqrt_ps(pos_xz_square);
+
+        // float q1 = posxz_len - to.r1;
+        __m256 q1 = _mm256_sub_ps(pos_xz_len, r1);
+
+        // vec2 q = {q1, pos.y};
+        // float q_len = vec2_length(q);
+        __m256 q1_square = _mm256_mul_ps(q1, q1);
+        __m256 q_square = _mm256_fmadd_ps(pos_y, pos_y, q1_square);
+
+        // short circuit termination mask
+        __m256 upper_bound = _mm256_add_ps(curr_min, r2);
+        __m256 upper_bound_square = _mm256_mul_ps(upper_bound, upper_bound);
+        __m256 mask = _mm256_cmp_ps(q_square, upper_bound_square, _CMP_LT_OQ);
+        int mask_int = _mm256_movemask_ps(mask);
+
+        _mm256_storeu_ps(res, q_square);
+        return mask_int;
+    }
+
+    /**
+     * Computes the remaining part of the torus distance function if early termination is not possible.
+     *
+     * Note that the intermediate results computed by torus_distance_short_vectorized() need to be passed
+     * as parameter tmp.
+     */
+    static inline void torus_distance_rest_vectorized(int idx, float* tmp, float* res, float* rad2) {
+
+        __m256 q_square = _mm256_loadu_ps(tmp);
+        __m256 r2 = _mm256_loadu_ps(rad2 + idx);
+
+        __m256 q_len = _mm256_sqrt_ps(q_square);
+
+        // return q_len - to.r2;
+        __m256 dist = _mm256_sub_ps(q_len, r2);
+
+        _mm256_store_ps(res, dist);
+    }
+
     // Cone
     static inline float cone_distance(const cone c, const vec from) {
         INS_INC(cone);
