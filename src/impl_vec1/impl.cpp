@@ -88,7 +88,28 @@ namespace impl::vec1 {
             }
 
             // boxes
-            for (int k = 0; k < scene.num_boxes; k++) {
+            for (k = 0; k < scene.num_boxes - 7; k += 8) {
+
+                float dists[8];
+
+                box_distance_vectorized(k, dists, scene.box_vecs.bottom_left_x, scene.box_vecs.bottom_left_y, scene.box_vecs.bottom_left_z, scene.box_vecs.extents_x, scene.box_vecs.extents_y, scene.box_vecs.extents_z, scene.box_vecs.inv_rot, pos);
+
+                for (int i = 0; i < 8; i++) {
+                    INS_CMP;
+                    if (dists[i] < min_distance) {
+                        min_distance = dists[i];
+
+                        INS_CMP;
+                        INS_MUL;
+                        if (min_distance <= EPS * t) {
+                            return 0.0f;
+                        }
+                    }
+                }
+            }
+
+            // remaining box iterations
+            for (; k < scene.num_boxes; k++) {
                 float distance = box_distance_short(scene.boxes[k], pos, min_distance);
 
                 INS_CMP;
@@ -307,7 +328,31 @@ namespace impl::vec1 {
             }
 
             // boxes
-            for (int k = 0; k < scene.num_boxes; k++) {
+            for (k = 0; k < scene.num_boxes - 7; k += 8) {
+
+                float dists[8];
+
+                box_distance_vectorized(k, dists, scene.box_vecs.bottom_left_x, scene.box_vecs.bottom_left_y, scene.box_vecs.bottom_left_z, scene.box_vecs.extents_x, scene.box_vecs.extents_y, scene.box_vecs.extents_z, scene.box_vecs.inv_rot, pos);
+
+                for (int i = 0; i < 8; i++) {
+                    INS_CMP;
+                    if (dists[i] < min_distance) {
+                        min_distance = dists[i];
+
+                        INS_CMP;
+                        INS_MUL;
+                        if (min_distance <= EPS * t) {
+                            box s = scene.boxes[k+i];
+                            vec normal = box_normal(s, pos);
+                            color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
+                            return {true, t, steps, color};
+                        }
+                    }
+                }
+            }
+
+            // remaining box iterations
+            for (; k < scene.num_boxes; k++) {
                 float distance = box_distance_short(scene.boxes[k], pos, min_distance);
 
                 INS_CMP;

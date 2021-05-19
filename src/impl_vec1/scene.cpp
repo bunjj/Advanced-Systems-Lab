@@ -310,10 +310,29 @@ namespace impl::vec1 {
         scene.octahedra = (octa*)malloc(sizeof(octa) * scene.num_octahedra);
 
         // allocate memory for the vectorized data layout
+        // spheres
         scene.sphere_vecs.center_x = (float*)malloc(sizeof(float) * scene.num_spheres);
         scene.sphere_vecs.center_y = (float*)malloc(sizeof(float) * scene.num_spheres);
         scene.sphere_vecs.center_z = (float*)malloc(sizeof(float) * scene.num_spheres);
         scene.sphere_vecs.radius = (float*)malloc(sizeof(float) * scene.num_spheres);
+
+        // boxes
+        scene.box_vecs.bottom_left_x = (float*)malloc(sizeof(float) * scene.num_boxes);
+        scene.box_vecs.bottom_left_y = (float*)malloc(sizeof(float) * scene.num_boxes);
+        scene.box_vecs.bottom_left_z = (float*)malloc(sizeof(float) * scene.num_boxes);
+        scene.box_vecs.extents_x = (float*)malloc(sizeof(float) * scene.num_boxes);
+        scene.box_vecs.extents_y = (float*)malloc(sizeof(float) * scene.num_boxes);
+        scene.box_vecs.extents_z = (float*)malloc(sizeof(float) * scene.num_boxes);
+
+        scene.box_vecs.inv_rot[0][0] = (float*)malloc(sizeof(float) * scene.num_boxes);
+        scene.box_vecs.inv_rot[0][1] = (float*)malloc(sizeof(float) * scene.num_boxes);
+        scene.box_vecs.inv_rot[0][2] = (float*)malloc(sizeof(float) * scene.num_boxes);
+        scene.box_vecs.inv_rot[1][0] = (float*)malloc(sizeof(float) * scene.num_boxes);
+        scene.box_vecs.inv_rot[1][1] = (float*)malloc(sizeof(float) * scene.num_boxes);
+        scene.box_vecs.inv_rot[1][2] = (float*)malloc(sizeof(float) * scene.num_boxes);
+        scene.box_vecs.inv_rot[2][0] = (float*)malloc(sizeof(float) * scene.num_boxes);
+        scene.box_vecs.inv_rot[2][1] = (float*)malloc(sizeof(float) * scene.num_boxes);
+        scene.box_vecs.inv_rot[2][2] = (float*)malloc(sizeof(float) * scene.num_boxes);
 
         // second pass to actually load the shapes
         int sphere_idx = 0;
@@ -327,18 +346,42 @@ namespace impl::vec1 {
             json current_shape = j["objects"][i];
             std::string current = current_shape["kind"].get<std::string>();
             if (current == "sphere") {
-                scene.spheres[sphere_idx++] = load_sphere(current_shape);
+                scene.spheres[sphere_idx] = load_sphere(current_shape);
 
                 // vectorized data layout
-                scene.sphere_vecs.center_x[sphere_idx-1] = scene.spheres[sphere_idx-1].center.x;
-                scene.sphere_vecs.center_y[sphere_idx-1] = scene.spheres[sphere_idx-1].center.y;
-                scene.sphere_vecs.center_z[sphere_idx-1] = scene.spheres[sphere_idx-1].center.z;
-                scene.sphere_vecs.radius[sphere_idx-1] = scene.spheres[sphere_idx-1].radius;
+                scene.sphere_vecs.center_x[sphere_idx] = scene.spheres[sphere_idx].center.x;
+                scene.sphere_vecs.center_y[sphere_idx] = scene.spheres[sphere_idx].center.y;
+                scene.sphere_vecs.center_z[sphere_idx] = scene.spheres[sphere_idx].center.z;
+                scene.sphere_vecs.radius[sphere_idx] = scene.spheres[sphere_idx].radius;
+
+                sphere_idx++;
 
             } else if (current == "plane") {
                 scene.planes[plane_idx++] = load_plane(current_shape);
             } else if (current == "box") {
-                scene.boxes[box_idx++] = load_box(current_shape);
+                scene.boxes[box_idx] = load_box(current_shape);
+
+                // vectorized data layout
+                scene.box_vecs.bottom_left_x[box_idx] = scene.boxes[box_idx].bottom_left.x;
+                scene.box_vecs.bottom_left_y[box_idx] = scene.boxes[box_idx].bottom_left.y;
+                scene.box_vecs.bottom_left_z[box_idx] = scene.boxes[box_idx].bottom_left.z;
+
+                scene.box_vecs.extents_x[box_idx] = scene.boxes[box_idx].extents.x;
+                scene.box_vecs.extents_y[box_idx] = scene.boxes[box_idx].extents.y;
+                scene.box_vecs.extents_z[box_idx] = scene.boxes[box_idx].extents.z;
+
+                scene.box_vecs.inv_rot[0][0][box_idx] = scene.boxes[box_idx].inv_rot.val[0][0];
+                scene.box_vecs.inv_rot[0][1][box_idx] = scene.boxes[box_idx].inv_rot.val[0][1];
+                scene.box_vecs.inv_rot[0][2][box_idx] = scene.boxes[box_idx].inv_rot.val[0][2];
+                scene.box_vecs.inv_rot[1][0][box_idx] = scene.boxes[box_idx].inv_rot.val[1][0];
+                scene.box_vecs.inv_rot[1][1][box_idx] = scene.boxes[box_idx].inv_rot.val[1][1];
+                scene.box_vecs.inv_rot[1][2][box_idx] = scene.boxes[box_idx].inv_rot.val[1][2];
+                scene.box_vecs.inv_rot[2][0][box_idx] = scene.boxes[box_idx].inv_rot.val[2][0];
+                scene.box_vecs.inv_rot[2][1][box_idx] = scene.boxes[box_idx].inv_rot.val[2][1];
+                scene.box_vecs.inv_rot[2][2][box_idx] = scene.boxes[box_idx].inv_rot.val[2][2];
+
+                box_idx++;
+
             } else if (current == "torus") {
                 scene.tori[torus_idx++] = load_torus(current_shape);
             } else if (current == "cone") {

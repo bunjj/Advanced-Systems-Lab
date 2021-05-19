@@ -103,6 +103,18 @@ namespace impl::vec1 {
         float* radius;
     };
 
+    struct box_vectors {
+        float* bottom_left_x;
+        float* bottom_left_y;
+        float* bottom_left_z;
+        float* extents_x;
+        float* extents_y;
+        float* extents_z;
+
+        // arrays for each entry of the matrix
+        float* inv_rot[3][3];
+    };
+
     struct scene {
         light* lights;
         int num_lights;
@@ -123,6 +135,7 @@ namespace impl::vec1 {
         octa* octahedra;
 
         sphere_vectors sphere_vecs;
+        box_vectors box_vecs;
     };
 
     extern struct scene scene;
@@ -247,6 +260,104 @@ namespace impl::vec1 {
         vec pos = m33_mul_vec(b.inv_rot, vec_sub(from, b.bottom_left));
         vec q = vec_sub(vec_abs(pos), b.extents);
         return FADD(vec_length(vec_max(q, 0)), min(0.0f, max(max(q.x, q.y), q.z)));
+    }
+
+    // TODO: remove
+    static inline float box_distance_elaborate(const box b, const vec from) {
+        vec t = vec_sub(from, b.bottom_left);
+        vec pos = m33_mul_vec(b.inv_rot, t);
+        vec pos_abs = vec_abs(pos);
+        vec q = vec_sub(pos_abs, b.extents);
+        vec max_q_0 = vec_max(q, 0);
+        float left = vec_length(max_q_0);
+        float max_qx_qy = max(q.x, q.y);
+        float max_qx_qy_qz = max(max_qx_qy, q.z);
+        float right = min(0.0f, max_qx_qy_qz);
+        return left + right;
+    }
+
+    static inline void box_distance_vectorized(int idx, float* res, float* bottom_left_x, float* bottom_left_y, float* bottom_left_z, float* extents_x, float* extents_y, float* extents_z, float* inv_rot[3][3], const vec from) {
+
+        // load everything
+        __m256 bl_x = _mm256_loadu_ps(bottom_left_x + idx);
+        __m256 bl_y = _mm256_loadu_ps(bottom_left_y + idx);
+        __m256 bl_z = _mm256_loadu_ps(bottom_left_z + idx);
+
+        __m256 ext_x = _mm256_loadu_ps(extents_x + idx);
+        __m256 ext_y = _mm256_loadu_ps(extents_y + idx);
+        __m256 ext_z = _mm256_loadu_ps(extents_z + idx);
+
+        __m256 inv_rot_00 = _mm256_loadu_ps(inv_rot[0][0] + idx);
+        __m256 inv_rot_01 = _mm256_loadu_ps(inv_rot[0][1] + idx);
+        __m256 inv_rot_02 = _mm256_loadu_ps(inv_rot[0][2] + idx);
+        __m256 inv_rot_10 = _mm256_loadu_ps(inv_rot[1][0] + idx);
+        __m256 inv_rot_11 = _mm256_loadu_ps(inv_rot[1][1] + idx);
+        __m256 inv_rot_12 = _mm256_loadu_ps(inv_rot[1][2] + idx);
+        __m256 inv_rot_20 = _mm256_loadu_ps(inv_rot[2][0] + idx);
+        __m256 inv_rot_21 = _mm256_loadu_ps(inv_rot[2][1] + idx);
+        __m256 inv_rot_22 = _mm256_loadu_ps(inv_rot[2][2] + idx);
+
+        __m256 from_x = _mm256_set1_ps(from.x);
+        __m256 from_y = _mm256_set1_ps(from.y);
+        __m256 from_z = _mm256_set1_ps(from.z);
+
+        // vec t = vec_sub(from, b.bottom_left);
+        __m256 t_x = _mm256_sub_ps(bl_x, from_x);
+        __m256 t_y = _mm256_sub_ps(bl_y, from_y);
+        __m256 t_z = _mm256_sub_ps(bl_z, from_z);
+
+        // vec pos = m33_mul_vec(b.inv_rot, t);
+        __m256 pos_x1 = _mm256_mul_ps(inv_rot_00, t_x);
+        __m256 pos_x2 = _mm256_fmadd_ps(inv_rot_01, t_y, pos_x1);
+        __m256 pos_x = _mm256_fmadd_ps(inv_rot_02, t_z, pos_x2);
+
+        __m256 pos_y1 = _mm256_mul_ps(inv_rot_10, t_x);
+        __m256 pos_y2 = _mm256_fmadd_ps(inv_rot_11, t_y, pos_y1);
+        __m256 pos_y = _mm256_fmadd_ps(inv_rot_12, t_z, pos_y2);
+
+        __m256 pos_z1 = _mm256_mul_ps(inv_rot_20, t_x);
+        __m256 pos_z2 = _mm256_fmadd_ps(inv_rot_21, t_y, pos_z1);
+        __m256 pos_z = _mm256_fmadd_ps(inv_rot_22, t_z, pos_z2);
+
+        // vec pos_abs = vec_abs(pos);
+
+        // can compute absolute value by setting the sign bits to 0
+        __m256 abs_mask = _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF));
+        __m256 pos_abs_x = _mm256_and_ps(abs_mask, pos_x);
+        __m256 pos_abs_y = _mm256_and_ps(abs_mask, pos_y);
+        __m256 pos_abs_z = _mm256_and_ps(abs_mask, pos_z);
+
+        // vec q = vec_sub(pos_abs, b.extents);
+        __m256 q_x = _mm256_sub_ps(pos_abs_x, ext_x);
+        __m256 q_y = _mm256_sub_ps(pos_abs_y, ext_y);
+        __m256 q_z = _mm256_sub_ps(pos_abs_z, ext_z);
+
+        // vec max_q_0 = vec_max(q, 0);
+        __m256 zero = _mm256_setzero_ps();
+        __m256 max_q_0_x = _mm256_max_ps(q_x, zero);
+        __m256 max_q_0_y = _mm256_max_ps(q_y, zero);
+        __m256 max_q_0_z = _mm256_max_ps(q_z, zero);
+
+        // float left = vec_length(max_q_0);
+        __m256 lsquare_x = _mm256_mul_ps(max_q_0_x, max_q_0_x);
+        __m256 lsquare_xy = _mm256_fmadd_ps(max_q_0_y, max_q_0_y, lsquare_x);
+        __m256 lsquare_xyz = _mm256_fmadd_ps(max_q_0_z, max_q_0_z, lsquare_xy);
+
+        __m256 left = _mm256_sqrt_ps(lsquare_xyz);
+
+        // float max_qx_qy = max(q.x, q.y);
+        __m256 max_qx_qy = _mm256_max_ps(q_x, q_y);
+
+        // float max_qx_qy_qz = max(max_qx_qy, q.z);
+        __m256 max_qx_qy_qz = _mm256_max_ps(max_qx_qy, q_z);
+
+        // float right = min(0.0f, max_qx_qy_qz);
+        __m256 right = _mm256_min_ps(zero, max_qx_qy_qz);
+
+        // return left + right;
+        __m256 dist = _mm256_add_ps(left, right);
+
+        _mm256_storeu_ps(res, dist);
     }
 
     static inline float box_distance_short(const box b, const vec from, const float current_min) {
