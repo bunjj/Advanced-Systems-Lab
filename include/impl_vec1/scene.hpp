@@ -235,11 +235,11 @@ namespace impl::vec1 {
      * Computes the remaining part of the sphere distance function if early termination is not possible.
      *
      * Note that the intermediate results computed by sphere_distance_short_vectorized() need to be passed
-     * as parameter squared_lens.
+     * as parameter tmp.
      */
-    static inline void sphere_distance_rest_vectorized(int idx, float* squared_lens, float* res, float* radius) {
+    static inline void sphere_distance_rest_vectorized(int idx, float* tmp, float* res, float* radius) {
 
-        __m256 tsquare_xyz = _mm256_loadu_ps(squared_lens);
+        __m256 tsquare_xyz = _mm256_loadu_ps(tmp);
         __m256 r = _mm256_loadu_ps(radius + idx);
 
         __m256 t_len = _mm256_sqrt_ps(tsquare_xyz);
@@ -257,7 +257,10 @@ namespace impl::vec1 {
         return FADD(vec_length(vec_max(q, 0)), min(0.0f, max(max(q.x, q.y), q.z)));
     }
 
-    // TODO: remove
+    /**
+     * This is a more explicit version of the box_distance() above.
+     * This makes it easier to vectorize.
+     */
     static inline float box_distance_elaborate(const box b, const vec from) {
         vec t = vec_sub(from, b.bottom_left);
         vec pos = m33_mul_vec(b.inv_rot, t);
@@ -362,6 +365,109 @@ namespace impl::vec1 {
             return current_min;
         }
         return FADD(FSQRT(intermediate_squared_dist), extent_values);
+    }
+
+    /**
+     * Computes the first part of the box distance function and stores the intermediate results in res1 and res2.
+     * Returns zero if early termination is possible, and a nonzero value otherwise.
+     *
+     * If early termination is not possible, the distance function computation can be completed by calling
+     * box_distance_rest_vectorized() with the intermediate results in res1 and res2.
+     */
+    static inline int box_distance_short_vectorized(int idx, float* res1, float* res2, float* bottom_left_x, float* bottom_left_y, float* bottom_left_z, float* extents_x, float* extents_y, float* extents_z, float* inv_rot[3][3], const vec from, float current_min) {
+
+        // load everything
+        __m256 bl_x = _mm256_loadu_ps(bottom_left_x + idx);
+        __m256 bl_y = _mm256_loadu_ps(bottom_left_y + idx);
+        __m256 bl_z = _mm256_loadu_ps(bottom_left_z + idx);
+
+        __m256 ext_x = _mm256_loadu_ps(extents_x + idx);
+        __m256 ext_y = _mm256_loadu_ps(extents_y + idx);
+        __m256 ext_z = _mm256_loadu_ps(extents_z + idx);
+
+        __m256 inv_rot_00 = _mm256_loadu_ps(inv_rot[0][0] + idx);
+        __m256 inv_rot_01 = _mm256_loadu_ps(inv_rot[0][1] + idx);
+        __m256 inv_rot_02 = _mm256_loadu_ps(inv_rot[0][2] + idx);
+        __m256 inv_rot_10 = _mm256_loadu_ps(inv_rot[1][0] + idx);
+        __m256 inv_rot_11 = _mm256_loadu_ps(inv_rot[1][1] + idx);
+        __m256 inv_rot_12 = _mm256_loadu_ps(inv_rot[1][2] + idx);
+        __m256 inv_rot_20 = _mm256_loadu_ps(inv_rot[2][0] + idx);
+        __m256 inv_rot_21 = _mm256_loadu_ps(inv_rot[2][1] + idx);
+        __m256 inv_rot_22 = _mm256_loadu_ps(inv_rot[2][2] + idx);
+
+        __m256 from_x = _mm256_set1_ps(from.x);
+        __m256 from_y = _mm256_set1_ps(from.y);
+        __m256 from_z = _mm256_set1_ps(from.z);
+        __m256 curr_min = _mm256_set1_ps(current_min);
+
+        // vec t = vec_sub(from, b.bottom_left);
+        __m256 t_x = _mm256_sub_ps(bl_x, from_x);
+        __m256 t_y = _mm256_sub_ps(bl_y, from_y);
+        __m256 t_z = _mm256_sub_ps(bl_z, from_z);
+
+        // vec pos = m33_mul_vec(b.inv_rot, t);
+        __m256 pos_x = vectorized_vec_dot(inv_rot_00, inv_rot_01, inv_rot_02, t_x, t_y, t_z);
+        __m256 pos_y = vectorized_vec_dot(inv_rot_10, inv_rot_11, inv_rot_12, t_x, t_y, t_z);
+        __m256 pos_z = vectorized_vec_dot(inv_rot_20, inv_rot_21, inv_rot_22, t_x, t_y, t_z);
+
+        // vec pos_abs = vec_abs(pos);
+        // can compute absolute value by setting the sign bits to 0
+        __m256 abs_mask = _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF));
+        __m256 pos_abs_x = _mm256_and_ps(abs_mask, pos_x);
+        __m256 pos_abs_y = _mm256_and_ps(abs_mask, pos_y);
+        __m256 pos_abs_z = _mm256_and_ps(abs_mask, pos_z);
+
+        // vec q = vec_sub(pos_abs, b.extents);
+        __m256 q_x = _mm256_sub_ps(pos_abs_x, ext_x);
+        __m256 q_y = _mm256_sub_ps(pos_abs_y, ext_y);
+        __m256 q_z = _mm256_sub_ps(pos_abs_z, ext_z);
+
+        // vec max_q_0 = vec_max(q, 0);
+        __m256 zero = _mm256_setzero_ps();
+        __m256 max_q_0_x = _mm256_max_ps(q_x, zero);
+        __m256 max_q_0_y = _mm256_max_ps(q_y, zero);
+        __m256 max_q_0_z = _mm256_max_ps(q_z, zero);
+
+        // float left = vec_length(max_q_0);
+        __m256 left_square = vectorized_vec_dot(max_q_0_x, max_q_0_y, max_q_0_z, max_q_0_x, max_q_0_y, max_q_0_z);
+
+        // float max_qx_qy = max(q.x, q.y);
+        __m256 max_qx_qy = _mm256_max_ps(q_x, q_y);
+
+        // float max_qx_qy_qz = max(max_qx_qy, q.z);
+        __m256 max_qx_qy_qz = _mm256_max_ps(max_qx_qy, q_z);
+
+        // float right = min(0.0f, max_qx_qy_qz);
+        __m256 right = _mm256_min_ps(zero, max_qx_qy_qz);
+
+        // short circuit termination mask
+        __m256 upper_bound = _mm256_add_ps(curr_min, right);
+        __m256 upper_bound_square = _mm256_mul_ps(upper_bound, upper_bound);
+        __m256 mask = _mm256_cmp_ps(left_square, upper_bound_square, _CMP_LT_OQ);
+        int mask_int = _mm256_movemask_ps(mask);
+
+        _mm256_storeu_ps(res1, left_square);
+        _mm256_storeu_ps(res2, right);
+        return mask_int;
+    }
+
+    /**
+     * Computes the remaining part of the box distance function if early termination is not possible.
+     *
+     * Note that the intermediate results computed by box_distance_short_vectorized() need to be passed
+     * as parameters tmp1 and tmp2.
+     */
+    static inline void box_distance_rest_vectorized(float* tmp1, float* tmp2, float* res) {
+
+        __m256 left_square = _mm256_loadu_ps(tmp1);
+        __m256 right = _mm256_loadu_ps(tmp2);
+
+        __m256 left = _mm256_sqrt_ps(left_square);
+
+        // return left + right;
+        __m256 dist = _mm256_add_ps(left, right);
+
+        _mm256_store_ps(res, dist);
     }
 
     // Plane
