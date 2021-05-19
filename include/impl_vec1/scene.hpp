@@ -172,11 +172,8 @@ namespace impl::vec1 {
         __m256 t_z = _mm256_sub_ps(c_z, from_z);
 
         // float t_len = vec_len(t);
-        __m256 tsquare_x = _mm256_mul_ps(t_x, t_x);
-        __m256 tsquare_xy = _mm256_fmadd_ps(t_y, t_y, tsquare_x);
-        __m256 tsquare_xyz = _mm256_fmadd_ps(t_z, t_z, tsquare_xy);
-
-        __m256 t_len = _mm256_sqrt_ps(tsquare_xyz);
+        __m256 t_dot = vectorized_vec_dot(t_x, t_y, t_z, t_x, t_y, t_z);
+        __m256 t_len = _mm256_sqrt_ps(t_dot);
 
         // float res = t_len - sp.radius;
         __m256 dist = _mm256_sub_ps(t_len, r);
@@ -222,17 +219,15 @@ namespace impl::vec1 {
         __m256 t_z = _mm256_sub_ps(c_z, from_z);
 
         // float t_len = vec_len(t);
-        __m256 tsquare_x = _mm256_mul_ps(t_x, t_x);
-        __m256 tsquare_xy = _mm256_fmadd_ps(t_y, t_y, tsquare_x);
-        __m256 tsquare_xyz = _mm256_fmadd_ps(t_z, t_z, tsquare_xy);
+        __m256 t_dot = vectorized_vec_dot(t_x, t_y, t_z, t_x, t_y, t_z);
 
         // short circuit termination mask
         __m256 upper_bound = _mm256_add_ps(curr_min, r);
         __m256 upper_bound_square = _mm256_mul_ps(upper_bound, upper_bound);
-        __m256 mask = _mm256_cmp_ps(tsquare_xyz, upper_bound_square, _CMP_LT_OQ);
+        __m256 mask = _mm256_cmp_ps(t_dot, upper_bound_square, _CMP_LT_OQ);
         int mask_int = _mm256_movemask_ps(mask);
 
-        _mm256_store_ps(res, tsquare_xyz);
+        _mm256_store_ps(res, t_dot);
         return mask_int;
     }
 
@@ -276,6 +271,9 @@ namespace impl::vec1 {
         return left + right;
     }
 
+    /**
+     * Vectorized box distance function (without early termination).
+     */
     static inline void box_distance_vectorized(int idx, float* res, float* bottom_left_x, float* bottom_left_y, float* bottom_left_z, float* extents_x, float* extents_y, float* extents_z, float* inv_rot[3][3], const vec from) {
 
         // load everything
@@ -307,20 +305,11 @@ namespace impl::vec1 {
         __m256 t_z = _mm256_sub_ps(bl_z, from_z);
 
         // vec pos = m33_mul_vec(b.inv_rot, t);
-        __m256 pos_x1 = _mm256_mul_ps(inv_rot_00, t_x);
-        __m256 pos_x2 = _mm256_fmadd_ps(inv_rot_01, t_y, pos_x1);
-        __m256 pos_x = _mm256_fmadd_ps(inv_rot_02, t_z, pos_x2);
-
-        __m256 pos_y1 = _mm256_mul_ps(inv_rot_10, t_x);
-        __m256 pos_y2 = _mm256_fmadd_ps(inv_rot_11, t_y, pos_y1);
-        __m256 pos_y = _mm256_fmadd_ps(inv_rot_12, t_z, pos_y2);
-
-        __m256 pos_z1 = _mm256_mul_ps(inv_rot_20, t_x);
-        __m256 pos_z2 = _mm256_fmadd_ps(inv_rot_21, t_y, pos_z1);
-        __m256 pos_z = _mm256_fmadd_ps(inv_rot_22, t_z, pos_z2);
+        __m256 pos_x = vectorized_vec_dot(inv_rot_00, inv_rot_01, inv_rot_02, t_x, t_y, t_z);
+        __m256 pos_y = vectorized_vec_dot(inv_rot_10, inv_rot_11, inv_rot_12, t_x, t_y, t_z);
+        __m256 pos_z = vectorized_vec_dot(inv_rot_20, inv_rot_21, inv_rot_22, t_x, t_y, t_z);
 
         // vec pos_abs = vec_abs(pos);
-
         // can compute absolute value by setting the sign bits to 0
         __m256 abs_mask = _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF));
         __m256 pos_abs_x = _mm256_and_ps(abs_mask, pos_x);
@@ -339,11 +328,9 @@ namespace impl::vec1 {
         __m256 max_q_0_z = _mm256_max_ps(q_z, zero);
 
         // float left = vec_length(max_q_0);
-        __m256 lsquare_x = _mm256_mul_ps(max_q_0_x, max_q_0_x);
-        __m256 lsquare_xy = _mm256_fmadd_ps(max_q_0_y, max_q_0_y, lsquare_x);
-        __m256 lsquare_xyz = _mm256_fmadd_ps(max_q_0_z, max_q_0_z, lsquare_xy);
+        __m256 left_square = vectorized_vec_dot(max_q_0_x, max_q_0_y, max_q_0_z, max_q_0_x, max_q_0_y, max_q_0_z);
 
-        __m256 left = _mm256_sqrt_ps(lsquare_xyz);
+        __m256 left = _mm256_sqrt_ps(left_square);
 
         // float max_qx_qy = max(q.x, q.y);
         __m256 max_qx_qy = _mm256_max_ps(q_x, q_y);
