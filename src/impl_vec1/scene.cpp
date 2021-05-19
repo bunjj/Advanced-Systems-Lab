@@ -309,6 +309,12 @@ namespace impl::vec1 {
         scene.cones = (cone*)malloc(sizeof(cone) * scene.num_cones);
         scene.octahedra = (octa*)malloc(sizeof(octa) * scene.num_octahedra);
 
+        // allocate memory for the vectorized data layout
+        scene.sphere_vecs.center_x = (float*)malloc(sizeof(float) * scene.num_spheres);
+        scene.sphere_vecs.center_y = (float*)malloc(sizeof(float) * scene.num_spheres);
+        scene.sphere_vecs.center_z = (float*)malloc(sizeof(float) * scene.num_spheres);
+        scene.sphere_vecs.radius = (float*)malloc(sizeof(float) * scene.num_spheres);
+
         // second pass to actually load the shapes
         int sphere_idx = 0;
         int plane_idx = 0;
@@ -322,6 +328,13 @@ namespace impl::vec1 {
             std::string current = current_shape["kind"].get<std::string>();
             if (current == "sphere") {
                 scene.spheres[sphere_idx++] = load_sphere(current_shape);
+
+                // vectorized data layout
+                scene.sphere_vecs.center_x[sphere_idx-1] = scene.spheres[sphere_idx-1].center.x;
+                scene.sphere_vecs.center_y[sphere_idx-1] = scene.spheres[sphere_idx-1].center.y;
+                scene.sphere_vecs.center_z[sphere_idx-1] = scene.spheres[sphere_idx-1].center.z;
+                scene.sphere_vecs.radius[sphere_idx-1] = scene.spheres[sphere_idx-1].radius;
+
             } else if (current == "plane") {
                 scene.planes[plane_idx++] = load_plane(current_shape);
             } else if (current == "box") {

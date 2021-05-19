@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <nlohmann/json.hpp>
+#include <immintrin.h>
 
 #include "impl_vec1/geometry.h"
 
@@ -94,6 +95,14 @@ namespace impl::vec1 {
         m33 inv_rot;
     };
 
+    // vectorized data layout
+    struct sphere_vectors {
+        float* center_x;
+        float* center_y;
+        float* center_z;
+        float* radius;
+    };
+
     struct scene {
         light* lights;
         int num_lights;
@@ -112,6 +121,8 @@ namespace impl::vec1 {
         torus* tori;
         cone* cones;
         octa* octahedra;
+
+        sphere_vectors sphere_vecs;
     };
 
     extern struct scene scene;
@@ -128,6 +139,37 @@ namespace impl::vec1 {
         return vec_length(vec_sub(sp.center, from)) - sp.radius;
     }
 
+    /**
+     * Vectorized sphere distance function (without early termination).
+     */
+    static inline void sphere_distance_vectorized(int idx, float* res, float* center_x, float* center_y, float* center_z, float* radius, const vec from) {
+
+        __m256 c_x = _mm256_loadu_ps(center_x + idx);
+        __m256 c_y = _mm256_loadu_ps(center_y + idx);
+        __m256 c_z = _mm256_loadu_ps(center_z + idx);
+        __m256 r = _mm256_loadu_ps(radius + idx);
+
+        __m256 from_x = _mm256_set1_ps(from.x);
+        __m256 from_y = _mm256_set1_ps(from.y);
+        __m256 from_z = _mm256_set1_ps(from.z);
+
+        // vec t = vec_sub(sp.center, from);
+        __m256 t_x = _mm256_sub_ps(c_x, from_x);
+        __m256 t_y = _mm256_sub_ps(c_y, from_y);
+        __m256 t_z = _mm256_sub_ps(c_z, from_z);
+
+        // float t_len = vec_len(t);
+        __m256 tsquare_x = _mm256_mul_ps(t_x, t_x);
+        __m256 tsquare_xy = _mm256_fmadd_ps(t_y, t_y, tsquare_x);
+        __m256 tsquare_xyz = _mm256_fmadd_ps(t_z, t_z, tsquare_xy);
+
+        __m256 t_len = _mm256_sqrt_ps(tsquare_xyz);
+
+        // float res = t_len - sp.radius;
+        __m256 dist = _mm256_sub_ps(t_len, r);
+        _mm256_store_ps(res, dist);
+    }
+
     static inline float sphere_distance_short(const sphere sp, const vec from, const float current_min) {
         INS_INC(sphere);
         INS_ADD;
@@ -140,6 +182,63 @@ namespace impl::vec1 {
         }
         INS_ADD;
         return FSQRT(squared_distance) - sp.radius;
+    }
+
+    /**
+     * Computes the first part of the sphere distance function and stores the intermediate result in res.
+     * Returns zero if early termination is possible, and a nonzero value otherwise.
+     *
+     * If early termination is not possible, the distance function computation can be completed by calling
+     * sphere_distance_rest_vectorized() with the intermediate result in res.
+     */
+    static inline int sphere_distance_short_vectorized(int idx, float* res, float* center_x, float* center_y, float* center_z, float* radius, const vec from, const float current_min) {
+
+        __m256 c_x = _mm256_loadu_ps(center_x + idx);
+        __m256 c_y = _mm256_loadu_ps(center_y + idx);
+        __m256 c_z = _mm256_loadu_ps(center_z + idx);
+        __m256 r = _mm256_loadu_ps(radius + idx);
+
+        __m256 from_x = _mm256_set1_ps(from.x);
+        __m256 from_y = _mm256_set1_ps(from.y);
+        __m256 from_z = _mm256_set1_ps(from.z);
+        __m256 curr_min = _mm256_set1_ps(current_min);
+
+        // vec t = vec_sub(sp.center, from);
+        __m256 t_x = _mm256_sub_ps(c_x, from_x);
+        __m256 t_y = _mm256_sub_ps(c_y, from_y);
+        __m256 t_z = _mm256_sub_ps(c_z, from_z);
+
+        // float t_len = vec_len(t);
+        __m256 tsquare_x = _mm256_mul_ps(t_x, t_x);
+        __m256 tsquare_xy = _mm256_fmadd_ps(t_y, t_y, tsquare_x);
+        __m256 tsquare_xyz = _mm256_fmadd_ps(t_z, t_z, tsquare_xy);
+
+        // short circuit termination mask
+        __m256 upper_bound = _mm256_add_ps(curr_min, r);
+        __m256 upper_bound_square = _mm256_mul_ps(upper_bound, upper_bound);
+        __m256 mask = _mm256_cmp_ps(tsquare_xyz, upper_bound_square, _CMP_LT_OQ);
+        int mask_int = _mm256_movemask_ps(mask);
+
+        _mm256_store_ps(res, tsquare_xyz);
+        return mask_int;
+    }
+
+    /**
+     * Computes the remaining part of the sphere distance function if early termination is not possible.
+     *
+     * Note that the intermediate results computed by sphere_distance_short_vectorized() need to be passed
+     * as parameter squared_lens.
+     */
+    static inline void sphere_distance_rest_vectorized(int idx, float* squared_lens, float* res, float* radius) {
+
+        __m256 tsquare_xyz = _mm256_loadu_ps(squared_lens);
+        __m256 r = _mm256_loadu_ps(radius + idx);
+
+        __m256 t_len = _mm256_sqrt_ps(tsquare_xyz);
+
+        // float res = t_len - sp.radius;
+        __m256 dist = _mm256_sub_ps(t_len, r);
+        _mm256_store_ps(res, dist);
     }
 
     // Box

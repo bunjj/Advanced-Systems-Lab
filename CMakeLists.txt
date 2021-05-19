@@ -45,6 +45,6 @@ set(files
 add_executable(${name} ${files})
 target_include_directories(${name} PUBLIC include)
 target_include_directories(${name} SYSTEM PRIVATE ${CMAKE_SOURCE_DIR}/ext)
-target_compile_options(${name} PUBLIC -Wall -Wextra -Wpedantic $<$<CONFIG:Debug>:-g -O0 -DDEBUG> $<$<BOOL:${SANITIZE}>:-fsanitize=undefined,address>)
+target_compile_options(${name} PUBLIC -Wall -Wextra -Wpedantic -mavx2 -mfma $<$<CONFIG:Debug>:-g -O0 -DDEBUG> $<$<BOOL:${SANITIZE}>:-fsanitize=undefined,address>)
 target_link_options(${name} PUBLIC $<$<BOOL:${SANITIZE}>:-fsanitize=undefined,address>)
 add_compile_definitions($<$<BOOL:${INSTRUMENT}>:DO_INSTRUMENT> $<$<CONFIG:Release>:DBG_MACRO_DISABLE> DBG_MACRO_NO_WARNING)

@@ -25,8 +25,38 @@ namespace impl::vec1 {
 
             float min_distance = INFINITY;
 
+            int k;
+
             // spheres
-            for (int k = 0; k < scene.num_spheres; k++) {
+            for (k = 0; k < scene.num_spheres - 7; k += 8) {
+
+                float dists[8];
+
+                // store square distances between sphere center and point in dists (for early termination)
+                int not_terminate_early = sphere_distance_short_vectorized(k, dists, scene.sphere_vecs.center_x, scene.sphere_vecs.center_y, scene.sphere_vecs.center_z, scene.sphere_vecs.radius, pos, min_distance);
+
+                if (not_terminate_early) {
+                    // compute rest of distance function
+                    sphere_distance_rest_vectorized(k, dists, dists, scene.sphere_vecs.radius);
+
+                    for (int i = 0; i < 8; i++) {
+                        INS_CMP;
+                        if (dists[i] < min_distance) {
+                            min_distance = dists[i];
+
+                            INS_CMP;
+                            INS_MUL;
+                            if (min_distance <= EPS * t) {
+                                return 0.0f;
+                            }
+                        }
+                    }
+                }
+
+            }
+
+            // remaining sphere iterations
+            for (; k < scene.num_spheres; k++) {
                 float distance = sphere_distance_short(scene.spheres[k], pos, min_distance);
 
                 INS_CMP;
@@ -205,8 +235,41 @@ namespace impl::vec1 {
 
             float min_distance = INFINITY;
 
+            int k;
+
             // spheres
-            for (int k = 0; k < scene.num_spheres; k++) {
+            for (k = 0; k < scene.num_spheres - 7; k += 8) {
+
+                float dists[8];
+
+                // store square distances between sphere center and point in dists (for early termination)
+                int not_terminate_early = sphere_distance_short_vectorized(k, dists, scene.sphere_vecs.center_x, scene.sphere_vecs.center_y, scene.sphere_vecs.center_z, scene.sphere_vecs.radius, pos, min_distance);
+
+                if (not_terminate_early) {
+                    // compute rest of distance function
+                    sphere_distance_rest_vectorized(k, dists, dists, scene.sphere_vecs.radius);
+
+                    for (int i = 0; i < 8; i++) {
+                        INS_CMP;
+                        if (dists[i] < min_distance) {
+                            min_distance = dists[i];
+
+                            INS_CMP;
+                            INS_MUL;
+                            if (min_distance <= EPS * t) {
+                                sphere s = scene.spheres[k+i];
+                                vec normal = sphere_normal(s, pos);
+                                color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
+                                return {true, t, steps, color};
+                            }
+                        }
+                    }
+                }
+
+            }
+
+            // remaining sphere iterations
+            for (; k < scene.num_spheres; k++) {
                 float distance = sphere_distance_short(scene.spheres[k], pos, min_distance);
 
                 INS_CMP;
