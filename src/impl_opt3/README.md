@@ -11,6 +11,7 @@ for complex shapes
 
 ## Timing
 
+Timings not accurate anymore!! 
 | Benchmark  | opt1 [s] | opt3 [s] | Improvement |
 |------------|------:|------:|---------------:|
 |`scene0`    |  3.64 |  3.39 | -0.25  (+6.8%) |
