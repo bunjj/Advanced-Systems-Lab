@@ -56,12 +56,14 @@ namespace impl::opt3 {
         float reflection;
         float shininess;
         m33 inv_rot;
+        float r;
     };
 
     struct torus {
         vec center;
         float r1;
         float r2;
+        float r;
         m33 rot;
         m44 inv_matrix;
         vec color;
@@ -81,6 +83,7 @@ namespace impl::opt3 {
         float reflection;
         float shininess;
         m33 inv_rot;
+        float r;
     };
 
     struct octa {
@@ -153,10 +156,18 @@ namespace impl::opt3 {
     static inline float box_distance_short(const box b, const vec from, const float current_min) {
         INS_INC(box);
         vec pos = m33_mul_vec(b.inv_rot, vec_sub(from, b.bottom_left));
+
+        //computation of DUF
+        INS_ADD;
+        INS_MUL;
+        INS_CMP;
+        float pos_squared = vec_dot2(pos);
+        float duf_bound = b.r + current_min;
+        if( pos_squared >= duf_bound * duf_bound) return current_min;
+
         vec q = vec_sub(vec_abs(pos), b.extents);
         float extent_values = min(0.0f, max(max(q.x, q.y), q.z));
         float intermediate_squared_dist = vec_dot2(vec_max(q, 0));
-
         INS_ADD;
         float upper_bound = extent_values + current_min;
         INS_MUL;
@@ -188,6 +199,14 @@ namespace impl::opt3 {
     static inline float torus_distance_short(const torus t, const vec from, const float current_min) {
         INS_INC(torus);
         vec pos = m33_mul_vec(t.inv_rot, vec_sub(from, t.center));
+
+        //computation of DUF
+        INS_ADD;
+        INS_MUL;
+        INS_CMP;
+        float pos_squared = vec_dot2(pos);
+        float duf_bound = t.r + current_min;
+        if( pos_squared >= duf_bound * duf_bound) return current_min;
         vec2 posxz = {pos.x, pos.z};
         INS_ADD;
         vec2 q = {vec2_length(posxz) - t.r1, pos.y};
@@ -237,6 +256,14 @@ namespace impl::opt3 {
     static inline float cone_distance_short(const cone c, const vec from, const float current_min) {
         INS_INC(cone);
         vec pos = m33_mul_vec(c.inv_rot, vec_sub(from, c.center));
+
+        //computation of DUF
+        INS_ADD;
+        INS_MUL;
+        INS_CMP;
+        float pos_squared = vec_dot2(pos);
+        float duf_bound = c.r + current_min;
+        if( pos_squared >= duf_bound * duf_bound) return current_min;
 
         float r1 = c.r1;
         float r2 = c.r2;
@@ -310,6 +337,18 @@ namespace impl::opt3 {
     static inline float octahedron_distance_short(const octa o, const vec from, const float current_min) {
         INS_INC(octa);
         vec pos = m33_mul_vec(o.inv_rot, vec_sub(from, o.center));
+
+        //computation of DUF
+        INS_ADD;
+        INS_MUL;
+        INS_CMP;
+        float pos_squared = vec_dot2(pos);
+        float duf_bound = o.s + current_min;
+        if( pos_squared >= duf_bound * duf_bound) return current_min;
+
+
+
+
         pos = vec_abs(pos);
 
         float s = o.s;

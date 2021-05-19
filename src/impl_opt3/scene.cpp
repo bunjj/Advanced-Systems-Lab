@@ -69,6 +69,7 @@ namespace impl::opt3 {
         s.shininess = shininess;
         s.rot = rot;
         s.inv_rot = rot_matrix;
+        s.r = vec_length(extents);
         return s;
     }
 
@@ -120,6 +121,7 @@ namespace impl::opt3 {
         s.center = center;
         s.r1 = r1;
         s.r2 = r2;
+        s.r = r1 + r2;
         s.inv_matrix = inv_matrix;
         s.color = color;
         s.reflection = reflection;
@@ -165,6 +167,7 @@ namespace impl::opt3 {
         s.shininess = shininess;
         s.rot = rot;
         s.inv_rot = inv_rot;
+        s.r = vec2_length({height, max(r1,r2)});
         return s;
     }
 
