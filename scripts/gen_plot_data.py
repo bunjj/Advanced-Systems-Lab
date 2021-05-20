@@ -61,10 +61,10 @@ def gen_data_file(path : Path, filtered, bench_type):
 
     if bench_type == "size":
         x_field = "width"
-        x_name = f"width"
+        x_name = f"Width [pixels]"
     else:
         x_field = "num_shapes"
-        x_name = f"number of shapes ({bench_type})"
+        x_name = f"Number of shapes ({bench_type})"
 
     flops = {v[x_field]: v["Flops"] for v in filtered if v["has_flops"]}
 
@@ -74,7 +74,7 @@ def gen_data_file(path : Path, filtered, bench_type):
     filtered = [v for v in filtered if not v["has_flops"]]
     filtered = sorted(filtered, key=lambda v: (v[x_field], v["flags"]))
 
-    header = [x_name, "flops"]
+    header = [x_name, "GFlops"]
     lines = []
 
     for flag in flags:
@@ -94,7 +94,7 @@ def gen_data_file(path : Path, filtered, bench_type):
         if x_val != x_val_old:
             i = 0
             lines.append([])
-            lines[-1].extend([str(x_val), str(flop)])
+            lines[-1].extend([str(x_val), str(flop / 1e9)])
 
         flag = flags[i]
         seconds = float(dp["Microseconds"]) / 1e6
