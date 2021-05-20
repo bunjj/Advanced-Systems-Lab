@@ -177,23 +177,30 @@ namespace impl::vec1 {
             // cones
             for (k = 0; k < scene.num_cones - 7; k += 8) {
 
-                float dists[8];
+                float dists[8]; // also used as tmp1
+                float tmp2[8];
 
-                cone_distance_vectorized(k, dists, scene.cone_vecs.center_x, scene.cone_vecs.center_y, scene.cone_vecs.center_z, scene.cone_vecs.r1, scene.cone_vecs.r2, scene.cone_vecs.height, scene.cone_vecs.inv_rot, pos);
+                // cone_distance_vectorized(k, dists, scene.cone_vecs.center_x, scene.cone_vecs.center_y, scene.cone_vecs.center_z, scene.cone_vecs.r1, scene.cone_vecs.r2, scene.cone_vecs.height, scene.cone_vecs.inv_rot, pos);
 
-                for (int i = 0; i < 8; i++) {
-                    INS_CMP;
-                    if (dists[i] < min_distance) {
-                        min_distance = dists[i];
+                int not_terminate_early = cone_distance_short_vectorized(k, dists, tmp2, scene.cone_vecs.center_x, scene.cone_vecs.center_y, scene.cone_vecs.center_z, scene.cone_vecs.r1, scene.cone_vecs.r2, scene.cone_vecs.height, scene.cone_vecs.inv_rot, pos, min_distance);
 
+                if (not_terminate_early) {
+                    // compute rest of distance function
+                    cone_distance_rest_vectorized(dists, tmp2, dists);
+
+                    for (int i = 0; i < 8; i++) {
                         INS_CMP;
-                        INS_MUL;
-                        if (min_distance <= EPS * t) {
-                            return 0.0f;
+                        if (dists[i] < min_distance) {
+                            min_distance = dists[i];
+
+                            INS_CMP;
+                            INS_MUL;
+                            if (min_distance <= EPS * t) {
+                                return 0.0f;
+                            }
                         }
                     }
                 }
-
             }
 
             // remaining cone iterations
@@ -485,26 +492,33 @@ namespace impl::vec1 {
             // cones
             for (k = 0; k < scene.num_cones - 7; k += 8) {
 
-                float dists[8];
+                float dists[8]; // also used as tmp1
+                float tmp2[8];
 
-                cone_distance_vectorized(k, dists, scene.cone_vecs.center_x, scene.cone_vecs.center_y, scene.cone_vecs.center_z, scene.cone_vecs.r1, scene.cone_vecs.r2, scene.cone_vecs.height, scene.cone_vecs.inv_rot, pos);
+                // cone_distance_vectorized(k, dists, scene.cone_vecs.center_x, scene.cone_vecs.center_y, scene.cone_vecs.center_z, scene.cone_vecs.r1, scene.cone_vecs.r2, scene.cone_vecs.height, scene.cone_vecs.inv_rot, pos);
 
-                for (int i = 0; i < 8; i++) {
-                    INS_CMP;
-                    if (dists[i] < min_distance) {
-                        min_distance = dists[i];
+                int not_terminate_early = cone_distance_short_vectorized(k, dists, tmp2, scene.cone_vecs.center_x, scene.cone_vecs.center_y, scene.cone_vecs.center_z, scene.cone_vecs.r1, scene.cone_vecs.r2, scene.cone_vecs.height, scene.cone_vecs.inv_rot, pos, min_distance);
 
+                if (not_terminate_early) {
+                    // compute rest of distance function
+                    cone_distance_rest_vectorized(dists, tmp2, dists);
+
+                    for (int i = 0; i < 8; i++) {
                         INS_CMP;
-                        INS_MUL;
-                        if (min_distance <= EPS * t) {
-                            cone s = scene.cones[k+i];
-                            vec normal = cone_normal(s, pos);
-                            color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
-                            return {true, t, steps, color};
+                        if (dists[i] < min_distance) {
+                            min_distance = dists[i];
+
+                            INS_CMP;
+                            INS_MUL;
+                            if (min_distance <= EPS * t) {
+                                cone s = scene.cones[k+i];
+                                vec normal = cone_normal(s, pos);
+                                color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
+                                return {true, t, steps, color};
+                            }
                         }
                     }
                 }
-
             }
 
             // remaining cone iterations
