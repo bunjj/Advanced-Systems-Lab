@@ -126,6 +126,18 @@ namespace impl::vec1 {
         float* inv_rot[3][3];
     };
 
+    struct cone_vectors {
+        float* center_x;
+        float* center_y;
+        float* center_z;
+        float* r1;
+        float* r2;
+        float* height;
+
+        // arrays for each entry of the matrix
+        float* inv_rot[3][3];
+    };
+
     struct scene {
         light* lights;
         int num_lights;
@@ -148,6 +160,7 @@ namespace impl::vec1 {
         sphere_vectors sphere_vecs;
         box_vectors box_vecs;
         torus_vectors torus_vecs;
+        cone_vectors cone_vecs;
     };
 
     extern struct scene scene;
@@ -704,6 +717,182 @@ namespace impl::vec1 {
         INS_MUL;
         INS_SQRT;
         return s * sqrtf(min(vec2_dot2(ca), vec2_dot2(cb)));
+    }
+
+    /**
+     * This is a more explicit version of the cone_distance() above.
+     * This makes it easier to vectorize.
+     */
+    static inline float cone_distance_elaborate(const cone c, const vec from) {
+        vec t = vec_sub(from, c.center);
+        vec pos = m33_mul_vec(c.inv_rot, t);
+
+        float r1 = c.r1;
+        float r2 = c.r2;
+        float h = c.height;
+
+        float xz_len = vec2_length({pos.x, pos.z});
+        vec2 q = {xz_len, pos.y};
+        vec2 k1 = {r2, h};
+        vec2 k2 = {r2 - r1, 2 * h};
+
+        float r1_or_r2 = q.y < 0 ? r1 : r2;
+        float min_qx_r1_or_r2 = min(q.x, r1_or_r2);
+        float ca1 = q.x - min_qx_r1_or_r2;
+        float qy_abs = fabsf(q.y);
+        float ca2 = qy_abs - h;
+        vec2 ca = {ca1, ca2};
+
+        vec2 left = vec2_sub(q, k1);
+
+        float k2_dot2 = vec2_dot2(k2);
+        vec2 k1_minus_q = vec2_sub(k1, q);
+        float k1_minus_q_dot_k2 = vec2_dot(k1_minus_q, k2);
+        float to_clamp = k1_minus_q_dot_k2 / k2_dot2;
+        float clamped = clamp(to_clamp, 0.0f, 1.0f);
+        vec2 right = vec2_scale(k2, clamped);
+
+        vec2 cb = vec2_add(left, right);
+        float s = (cb.x < 0 && ca.y < 0) ? -1 : 1;
+
+        float ca_dot2 = vec2_dot2(ca);
+        float cb_dot2 = vec2_dot2(cb);
+        float min_square = min(ca_dot2, cb_dot2);
+        float min = sqrtf(min_square);
+
+        return s * min;
+    }
+
+    /**
+     * Vectorized cone distance function (without early termination).
+     */
+    static inline void cone_distance_vectorized(int idx, float* res, float* center_x, float* center_y, float* center_z, float* rad1, float* rad2, float* height, float* inv_rot[3][3], const vec from) {
+
+        // float r1 = c.r1;
+        // float r2 = c.r2;
+        // float h = c.height;
+
+        __m256 c_x = _mm256_loadu_ps(center_x + idx);
+        __m256 c_y = _mm256_loadu_ps(center_y + idx);
+        __m256 c_z = _mm256_loadu_ps(center_z + idx);
+        __m256 r1 = _mm256_loadu_ps(rad1 + idx);
+        __m256 r2 = _mm256_loadu_ps(rad2 + idx);
+        __m256 h = _mm256_loadu_ps(height + idx);
+
+        __m256 inv_rot_00 = _mm256_loadu_ps(inv_rot[0][0] + idx);
+        __m256 inv_rot_01 = _mm256_loadu_ps(inv_rot[0][1] + idx);
+        __m256 inv_rot_02 = _mm256_loadu_ps(inv_rot[0][2] + idx);
+        __m256 inv_rot_10 = _mm256_loadu_ps(inv_rot[1][0] + idx);
+        __m256 inv_rot_11 = _mm256_loadu_ps(inv_rot[1][1] + idx);
+        __m256 inv_rot_12 = _mm256_loadu_ps(inv_rot[1][2] + idx);
+        __m256 inv_rot_20 = _mm256_loadu_ps(inv_rot[2][0] + idx);
+        __m256 inv_rot_21 = _mm256_loadu_ps(inv_rot[2][1] + idx);
+        __m256 inv_rot_22 = _mm256_loadu_ps(inv_rot[2][2] + idx);
+
+        __m256 from_x = _mm256_set1_ps(from.x);
+        __m256 from_y = _mm256_set1_ps(from.y);
+        __m256 from_z = _mm256_set1_ps(from.z);
+
+        // vec t = vec_sub(from, c.center);
+        __m256 t_x = _mm256_sub_ps(from_x, c_x);
+        __m256 t_y = _mm256_sub_ps(from_y, c_y);
+        __m256 t_z = _mm256_sub_ps(from_z, c_z);
+
+        // vec pos = m33_mul_vec(c.inv_rot, t);
+        __m256 pos_x = vectorized_vec_dot(inv_rot_00, inv_rot_01, inv_rot_02, t_x, t_y, t_z);
+        __m256 pos_y = vectorized_vec_dot(inv_rot_10, inv_rot_11, inv_rot_12, t_x, t_y, t_z);
+        __m256 pos_z = vectorized_vec_dot(inv_rot_20, inv_rot_21, inv_rot_22, t_x, t_y, t_z);
+
+        // float xz_len = vec2_length({pos.x, pos.z});
+        __m256 pos_x_square = _mm256_mul_ps(pos_x, pos_x);
+        __m256 pos_xz_square = _mm256_fmadd_ps(pos_z, pos_z, pos_x_square);
+        __m256 xz_len = _mm256_sqrt_ps(pos_xz_square);
+
+        // vec2 q = {xz_len, pos.y};
+        // vec2 k1 = {r2, h};
+
+        // float r1_or_r2 = q.y < 0 ? r1 : r2;
+        __m256 zero = _mm256_setzero_ps();
+        __m256 qy_lt_0_mask = _mm256_cmp_ps(pos_y, zero, _CMP_LT_OQ);
+        __m256 r1_or_r2 = _mm256_blendv_ps(r2, r1, qy_lt_0_mask);
+
+        // float min_qx_r1_or_r2 = min(q.x, r1_or_r2);
+        __m256 min_qx_r1_or_r2 = _mm256_min_ps(xz_len, r1_or_r2);
+
+        // float ca1 = q.x - min_qx_r1_or_r2;
+        __m256 ca1 = _mm256_sub_ps(xz_len, min_qx_r1_or_r2);
+
+        // float qy_abs = fabsf(q.y);
+        __m256 abs_mask = _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF));
+        __m256 qy_abs = _mm256_and_ps(abs_mask, pos_y);
+
+        // float ca2 = qy_abs - h;
+        __m256 ca2 = _mm256_sub_ps(qy_abs, h);
+
+        // vec2 ca = {ca1, ca2};
+
+        // vec2 left = vec2_sub(q, k1);
+        __m256 left1 = _mm256_sub_ps(xz_len, r2);
+        __m256 left2 = _mm256_sub_ps(pos_y, h);
+
+        // vec2 k2 = {r2 - r1, 2 * h};
+        __m256 r2_minus_r1 = _mm256_sub_ps(r2, r1);
+        __m256 two = _mm256_set1_ps(2.f);
+        __m256 h_twice = _mm256_mul_ps(h, two);
+
+        // float k2_dot2 = vec2_dot2(k2);
+        __m256 r2_minus_r1_square = _mm256_mul_ps(r2_minus_r1, r2_minus_r1);
+        __m256 k2_dot2 = _mm256_fmadd_ps(h_twice, h_twice, r2_minus_r1_square);
+
+        // vec2 k1_minus_q = vec2_sub(k1, q);
+        __m256 k1_minus_q_1 = _mm256_sub_ps(r2, xz_len);
+        __m256 k1_minus_q_2 = _mm256_sub_ps(h, pos_y);
+
+        // float k1_minus_q_dot_k2 = vec2_dot(k1_minus_q, k2);
+        __m256 k1_minus_q_dot_k2_1 = _mm256_mul_ps(k1_minus_q_1, r2_minus_r1);
+        __m256 k1_minus_q_dot_k2 = _mm256_fmadd_ps(k1_minus_q_2, h_twice, k1_minus_q_dot_k2_1);
+
+        // float to_clamp = k1_minus_q_dot_k2 / k2_dot2;
+        __m256 to_clamp = _mm256_div_ps(k1_minus_q_dot_k2, k2_dot2);
+
+        // float clamped = clamp(to_clamp, 0.0f, 1.0f);
+        __m256 one = _mm256_set1_ps(1.f);
+        __m256 clamped_upper = _mm256_min_ps(to_clamp, one);
+        __m256 clamped = _mm256_max_ps(clamped_upper, zero);
+
+        // vec2 right = vec2_scale(k2, clamped);
+        __m256 right1 = _mm256_mul_ps(r2_minus_r1, clamped);
+        __m256 right2 = _mm256_mul_ps(h_twice, clamped);
+
+        // vec2 cb = vec2_add(left, right);
+        __m256 cb1 = _mm256_add_ps(left1, right1);
+        __m256 cb2 = _mm256_add_ps(left2, right2);
+
+        // float s = (cb.x < 0 && ca.y < 0) ? -1 : 1;
+        __m256 cb1_lt_0_mask = _mm256_cmp_ps(cb1, zero, _CMP_LT_OQ);
+        __m256 ca2_lt_0_mask = _mm256_cmp_ps(ca2, zero, _CMP_LT_OQ);
+        __m256 cond_mask = _mm256_and_ps(cb1_lt_0_mask, ca2_lt_0_mask);
+        __m256 minusone = _mm256_set1_ps(-1.f);
+        __m256 s = _mm256_blendv_ps(one, minusone, cond_mask);
+
+        // float ca_dot2 = vec2_dot2(ca);
+        __m256 ca1_square = _mm256_mul_ps(ca1, ca1);
+        __m256 ca_dot2 = _mm256_fmadd_ps(ca2, ca2, ca1_square);
+
+        // float cb_dot2 = vec2_dot2(cb);
+        __m256 cb1_square = _mm256_mul_ps(cb1, cb1);
+        __m256 cb_dot2 = _mm256_fmadd_ps(cb2, cb2, cb1_square);
+
+        // float min_square = min(ca_dot2, cb_dot2);
+        __m256 min_square = _mm256_min_ps(ca_dot2, cb_dot2);
+
+        // float min = sqrtf(min_square);
+        __m256 min = _mm256_sqrt_ps(min_square);
+
+        // return s * min;
+        __m256 dist = _mm256_mul_ps(s, min);
+
+        _mm256_storeu_ps(res, dist);
     }
 
     static inline float cone_distance_short(const cone c, const vec from, const float current_min) {

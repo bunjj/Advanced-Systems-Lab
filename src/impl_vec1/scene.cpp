@@ -351,6 +351,24 @@ namespace impl::vec1 {
         scene.torus_vecs.inv_rot[2][1] = (float*)malloc(sizeof(float) * scene.num_tori);
         scene.torus_vecs.inv_rot[2][2] = (float*)malloc(sizeof(float) * scene.num_tori);
 
+        // cones
+        scene.cone_vecs.center_x = (float*)malloc(sizeof(float) * scene.num_cones);
+        scene.cone_vecs.center_y = (float*)malloc(sizeof(float) * scene.num_cones);
+        scene.cone_vecs.center_z = (float*)malloc(sizeof(float) * scene.num_cones);
+        scene.cone_vecs.r1 = (float*)malloc(sizeof(float) * scene.num_cones);
+        scene.cone_vecs.r2 = (float*)malloc(sizeof(float) * scene.num_cones);
+        scene.cone_vecs.height = (float*)malloc(sizeof(float) * scene.num_cones);
+
+        scene.cone_vecs.inv_rot[0][0] = (float*)malloc(sizeof(float) * scene.num_cones);
+        scene.cone_vecs.inv_rot[0][1] = (float*)malloc(sizeof(float) * scene.num_cones);
+        scene.cone_vecs.inv_rot[0][2] = (float*)malloc(sizeof(float) * scene.num_cones);
+        scene.cone_vecs.inv_rot[1][0] = (float*)malloc(sizeof(float) * scene.num_cones);
+        scene.cone_vecs.inv_rot[1][1] = (float*)malloc(sizeof(float) * scene.num_cones);
+        scene.cone_vecs.inv_rot[1][2] = (float*)malloc(sizeof(float) * scene.num_cones);
+        scene.cone_vecs.inv_rot[2][0] = (float*)malloc(sizeof(float) * scene.num_cones);
+        scene.cone_vecs.inv_rot[2][1] = (float*)malloc(sizeof(float) * scene.num_cones);
+        scene.cone_vecs.inv_rot[2][2] = (float*)malloc(sizeof(float) * scene.num_cones);
+
         // second pass to actually load the shapes
         int sphere_idx = 0;
         int plane_idx = 0;
@@ -422,7 +440,28 @@ namespace impl::vec1 {
                 torus_idx++;
 
             } else if (current == "cone") {
-                scene.cones[cone_idx++] = load_cone(current_shape);
+                scene.cones[cone_idx] = load_cone(current_shape);
+
+                // vectorized data layout
+                scene.cone_vecs.center_x[cone_idx] = scene.cones[cone_idx].center.x;
+                scene.cone_vecs.center_y[cone_idx] = scene.cones[cone_idx].center.y;
+                scene.cone_vecs.center_z[cone_idx] = scene.cones[cone_idx].center.z;
+                scene.cone_vecs.r1[cone_idx] = scene.cones[cone_idx].r1;
+                scene.cone_vecs.r2[cone_idx] = scene.cones[cone_idx].r2;
+                scene.cone_vecs.height[cone_idx] = scene.cones[cone_idx].height;
+
+                scene.cone_vecs.inv_rot[0][0][cone_idx] = scene.cones[cone_idx].inv_rot.val[0][0];
+                scene.cone_vecs.inv_rot[0][1][cone_idx] = scene.cones[cone_idx].inv_rot.val[0][1];
+                scene.cone_vecs.inv_rot[0][2][cone_idx] = scene.cones[cone_idx].inv_rot.val[0][2];
+                scene.cone_vecs.inv_rot[1][0][cone_idx] = scene.cones[cone_idx].inv_rot.val[1][0];
+                scene.cone_vecs.inv_rot[1][1][cone_idx] = scene.cones[cone_idx].inv_rot.val[1][1];
+                scene.cone_vecs.inv_rot[1][2][cone_idx] = scene.cones[cone_idx].inv_rot.val[1][2];
+                scene.cone_vecs.inv_rot[2][0][cone_idx] = scene.cones[cone_idx].inv_rot.val[2][0];
+                scene.cone_vecs.inv_rot[2][1][cone_idx] = scene.cones[cone_idx].inv_rot.val[2][1];
+                scene.cone_vecs.inv_rot[2][2][cone_idx] = scene.cones[cone_idx].inv_rot.val[2][2];
+
+                cone_idx++;
+
             } else if (current == "octahedron") {
                 scene.octahedra[octa_idx++] = load_octa(current_shape);
             } else {
