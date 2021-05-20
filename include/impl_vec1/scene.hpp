@@ -204,15 +204,18 @@ namespace impl::vec1 {
         __m256 from_z = _mm256_set1_ps(from.z);
 
         // vec t = vec_sub(sp.center, from);
+        INS_INC1(add, 24);
         __m256 t_x = _mm256_sub_ps(c_x, from_x);
         __m256 t_y = _mm256_sub_ps(c_y, from_y);
         __m256 t_z = _mm256_sub_ps(c_z, from_z);
 
         // float t_len = vec_len(t);
         __m256 t_dot = vectorized_vec_dot(t_x, t_y, t_z, t_x, t_y, t_z);
+        INS_INC1(sqrt, 8);
         __m256 t_len = _mm256_sqrt_ps(t_dot);
 
         // float res = t_len - sp.radius;
+        INS_INC1(add, 8);
         __m256 dist = _mm256_sub_ps(t_len, r);
         _mm256_storeu_ps(res, dist);
     }
@@ -252,6 +255,7 @@ namespace impl::vec1 {
         __m256 curr_min = _mm256_set1_ps(current_min);
 
         // vec t = vec_sub(sp.center, from);
+        INS_INC1(add, 24);
         __m256 t_x = _mm256_sub_ps(c_x, from_x);
         __m256 t_y = _mm256_sub_ps(c_y, from_y);
         __m256 t_z = _mm256_sub_ps(c_z, from_z);
@@ -260,8 +264,11 @@ namespace impl::vec1 {
         __m256 t_dot = vectorized_vec_dot(t_x, t_y, t_z, t_x, t_y, t_z);
 
         // short circuit termination mask
+        INS_INC1(add, 8);
         __m256 upper_bound = _mm256_add_ps(curr_min, r);
+        INS_INC1(mul, 8);
         __m256 upper_bound_square = _mm256_mul_ps(upper_bound, upper_bound);
+        INS_INC1(cmp, 8);
         __m256 mask = _mm256_cmp_ps(t_dot, upper_bound_square, _CMP_LT_OQ);
         int mask_int = _mm256_movemask_ps(mask);
 
@@ -281,9 +288,11 @@ namespace impl::vec1 {
         __m256 tsquare_xyz = _mm256_loadu_ps(tmp);
         __m256 r = _mm256_loadu_ps(radius + idx);
 
+        INS_INC1(sqrt, 8);
         __m256 t_len = _mm256_sqrt_ps(tsquare_xyz);
 
         // float res = t_len - sp.radius;
+        INS_INC1(add, 8);
         __m256 dist = _mm256_sub_ps(t_len, r);
         _mm256_storeu_ps(res, dist);
     }
@@ -343,6 +352,7 @@ namespace impl::vec1 {
         __m256 from_z = _mm256_set1_ps(from.z);
 
         // vec t = vec_sub(from, b.bottom_left);
+        INS_INC1(add, 24);
         __m256 t_x = _mm256_sub_ps(bl_x, from_x);
         __m256 t_y = _mm256_sub_ps(bl_y, from_y);
         __m256 t_z = _mm256_sub_ps(bl_z, from_z);
@@ -354,18 +364,21 @@ namespace impl::vec1 {
 
         // vec pos_abs = vec_abs(pos);
         // can compute absolute value by setting the sign bits to 0
+        INS_INC1(abs, 24);
         __m256 abs_mask = _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF));
         __m256 pos_abs_x = _mm256_and_ps(abs_mask, pos_x);
         __m256 pos_abs_y = _mm256_and_ps(abs_mask, pos_y);
         __m256 pos_abs_z = _mm256_and_ps(abs_mask, pos_z);
 
         // vec q = vec_sub(pos_abs, b.extents);
+        INS_INC1(add, 24);
         __m256 q_x = _mm256_sub_ps(pos_abs_x, ext_x);
         __m256 q_y = _mm256_sub_ps(pos_abs_y, ext_y);
         __m256 q_z = _mm256_sub_ps(pos_abs_z, ext_z);
 
         // vec max_q_0 = vec_max(q, 0);
         __m256 zero = _mm256_setzero_ps();
+        INS_INC1(cmp, 24);
         __m256 max_q_0_x = _mm256_max_ps(q_x, zero);
         __m256 max_q_0_y = _mm256_max_ps(q_y, zero);
         __m256 max_q_0_z = _mm256_max_ps(q_z, zero);
@@ -373,18 +386,23 @@ namespace impl::vec1 {
         // float left = vec_length(max_q_0);
         __m256 left_square = vectorized_vec_dot(max_q_0_x, max_q_0_y, max_q_0_z, max_q_0_x, max_q_0_y, max_q_0_z);
 
+        INS_INC1(sqrt, 8);
         __m256 left = _mm256_sqrt_ps(left_square);
 
         // float max_qx_qy = max(q.x, q.y);
+        INS_INC1(cmp, 8);
         __m256 max_qx_qy = _mm256_max_ps(q_x, q_y);
 
         // float max_qx_qy_qz = max(max_qx_qy, q.z);
+        INS_INC1(cmp, 8);
         __m256 max_qx_qy_qz = _mm256_max_ps(max_qx_qy, q_z);
 
         // float right = min(0.0f, max_qx_qy_qz);
+        INS_INC1(cmp, 8);
         __m256 right = _mm256_min_ps(zero, max_qx_qy_qz);
 
         // return left + right;
+        INS_INC1(add, 8);
         __m256 dist = _mm256_add_ps(left, right);
 
         _mm256_storeu_ps(res, dist);
@@ -442,6 +460,7 @@ namespace impl::vec1 {
         __m256 curr_min = _mm256_set1_ps(current_min);
 
         // vec t = vec_sub(from, b.bottom_left);
+        INS_INC1(add, 24);
         __m256 t_x = _mm256_sub_ps(bl_x, from_x);
         __m256 t_y = _mm256_sub_ps(bl_y, from_y);
         __m256 t_z = _mm256_sub_ps(bl_z, from_z);
@@ -453,18 +472,21 @@ namespace impl::vec1 {
 
         // vec pos_abs = vec_abs(pos);
         // can compute absolute value by setting the sign bits to 0
+        INS_INC1(abs, 24);
         __m256 abs_mask = _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF));
         __m256 pos_abs_x = _mm256_and_ps(abs_mask, pos_x);
         __m256 pos_abs_y = _mm256_and_ps(abs_mask, pos_y);
         __m256 pos_abs_z = _mm256_and_ps(abs_mask, pos_z);
 
         // vec q = vec_sub(pos_abs, b.extents);
+        INS_INC1(add, 24);
         __m256 q_x = _mm256_sub_ps(pos_abs_x, ext_x);
         __m256 q_y = _mm256_sub_ps(pos_abs_y, ext_y);
         __m256 q_z = _mm256_sub_ps(pos_abs_z, ext_z);
 
         // vec max_q_0 = vec_max(q, 0);
         __m256 zero = _mm256_setzero_ps();
+        INS_INC1(cmp, 24);
         __m256 max_q_0_x = _mm256_max_ps(q_x, zero);
         __m256 max_q_0_y = _mm256_max_ps(q_y, zero);
         __m256 max_q_0_z = _mm256_max_ps(q_z, zero);
@@ -473,17 +495,23 @@ namespace impl::vec1 {
         __m256 left_square = vectorized_vec_dot(max_q_0_x, max_q_0_y, max_q_0_z, max_q_0_x, max_q_0_y, max_q_0_z);
 
         // float max_qx_qy = max(q.x, q.y);
+        INS_INC1(cmp, 8);
         __m256 max_qx_qy = _mm256_max_ps(q_x, q_y);
 
         // float max_qx_qy_qz = max(max_qx_qy, q.z);
+        INS_INC1(cmp, 8);
         __m256 max_qx_qy_qz = _mm256_max_ps(max_qx_qy, q_z);
 
         // float right = min(0.0f, max_qx_qy_qz);
+        INS_INC1(cmp, 8);
         __m256 right = _mm256_min_ps(zero, max_qx_qy_qz);
 
         // short circuit termination mask
+        INS_INC1(add, 8);
         __m256 upper_bound = _mm256_add_ps(curr_min, right);
+        INS_INC1(mul, 8);
         __m256 upper_bound_square = _mm256_mul_ps(upper_bound, upper_bound);
+        INS_INC1(cmp, 8);
         __m256 mask = _mm256_cmp_ps(left_square, upper_bound_square, _CMP_LT_OQ);
         int mask_int = _mm256_movemask_ps(mask);
 
@@ -504,9 +532,11 @@ namespace impl::vec1 {
         __m256 left_square = _mm256_loadu_ps(tmp1);
         __m256 right = _mm256_loadu_ps(tmp2);
 
+        INS_INC1(sqrt, 8);
         __m256 left = _mm256_sqrt_ps(left_square);
 
         // return left + right;
+        INS_INC1(add, 8);
         __m256 dist = _mm256_add_ps(left, right);
 
         _mm256_store_ps(res, dist);
@@ -572,6 +602,7 @@ namespace impl::vec1 {
         __m256 from_z = _mm256_set1_ps(from.z);
 
         // vec t = vec_sub(from, to.center);
+        INS_INC1(add, 24);
         __m256 t_x = _mm256_sub_ps(from_x, c_x);
         __m256 t_y = _mm256_sub_ps(from_y, c_y);
         __m256 t_z = _mm256_sub_ps(from_z, c_z);
@@ -583,22 +614,30 @@ namespace impl::vec1 {
 
         // vec2 posxz = {pos.x, pos.z};
         // float posxz_len = vec2_length(posxz);
+        INS_INC1(mul, 8);
         __m256 pos_x_square = _mm256_mul_ps(pos_x, pos_x);
+        INS_INC1(fma, 8);
         __m256 pos_xz_square = _mm256_fmadd_ps(pos_z, pos_z, pos_x_square);
 
+        INS_INC1(sqrt, 8);
         __m256 pos_xz_len = _mm256_sqrt_ps(pos_xz_square);
 
         // float q1 = posxz_len - to.r1;
+        INS_INC1(add, 8);
         __m256 q1 = _mm256_sub_ps(pos_xz_len, r1);
 
         // vec2 q = {q1, pos.y};
         // float q_len = vec2_length(q);
+        INS_INC1(mul, 8);
         __m256 q1_square = _mm256_mul_ps(q1, q1);
+        INS_INC1(fma, 8);
         __m256 q_square = _mm256_fmadd_ps(pos_y, pos_y, q1_square);
 
+        INS_INC1(sqrt, 8);
         __m256 q_len = _mm256_sqrt_ps(q_square);
 
         // return q_len - to.r2;
+        INS_INC1(add, 8);
         __m256 dist = _mm256_sub_ps(q_len, r2);
 
         _mm256_storeu_ps(res, dist);
@@ -656,6 +695,7 @@ namespace impl::vec1 {
         __m256 curr_min = _mm256_set1_ps(current_min);
 
         // vec t = vec_sub(from, to.center);
+        INS_INC1(add, 24);
         __m256 t_x = _mm256_sub_ps(from_x, c_x);
         __m256 t_y = _mm256_sub_ps(from_y, c_y);
         __m256 t_z = _mm256_sub_ps(from_z, c_z);
@@ -667,22 +707,31 @@ namespace impl::vec1 {
 
         // vec2 posxz = {pos.x, pos.z};
         // float posxz_len = vec2_length(posxz);
+        INS_INC1(mul, 8);
         __m256 pos_x_square = _mm256_mul_ps(pos_x, pos_x);
+        INS_INC1(fma, 8);
         __m256 pos_xz_square = _mm256_fmadd_ps(pos_z, pos_z, pos_x_square);
 
+        INS_INC1(sqrt, 8);
         __m256 pos_xz_len = _mm256_sqrt_ps(pos_xz_square);
 
         // float q1 = posxz_len - to.r1;
+        INS_INC1(add, 8);
         __m256 q1 = _mm256_sub_ps(pos_xz_len, r1);
 
         // vec2 q = {q1, pos.y};
         // float q_len = vec2_length(q);
+        INS_INC1(mul, 8);
         __m256 q1_square = _mm256_mul_ps(q1, q1);
+        INS_INC1(fma, 8);
         __m256 q_square = _mm256_fmadd_ps(pos_y, pos_y, q1_square);
 
         // short circuit termination mask
+        INS_INC1(add, 8);
         __m256 upper_bound = _mm256_add_ps(curr_min, r2);
+        INS_INC1(mul, 8);
         __m256 upper_bound_square = _mm256_mul_ps(upper_bound, upper_bound);
+        INS_INC1(cmp, 8);
         __m256 mask = _mm256_cmp_ps(q_square, upper_bound_square, _CMP_LT_OQ);
         int mask_int = _mm256_movemask_ps(mask);
 
@@ -702,9 +751,11 @@ namespace impl::vec1 {
         __m256 q_square = _mm256_loadu_ps(tmp);
         __m256 r2 = _mm256_loadu_ps(rad2 + idx);
 
+        INS_INC1(sqrt, 8);
         __m256 q_len = _mm256_sqrt_ps(q_square);
 
         // return q_len - to.r2;
+        INS_INC1(add, 8);
         __m256 dist = _mm256_sub_ps(q_len, r2);
 
         _mm256_store_ps(res, dist);
@@ -815,6 +866,7 @@ namespace impl::vec1 {
         __m256 from_z = _mm256_set1_ps(from.z);
 
         // vec t = vec_sub(from, c.center);
+        INS_INC1(add, 24);
         __m256 t_x = _mm256_sub_ps(from_x, c_x);
         __m256 t_y = _mm256_sub_ps(from_y, c_y);
         __m256 t_z = _mm256_sub_ps(from_z, c_z);
@@ -825,8 +877,11 @@ namespace impl::vec1 {
         __m256 pos_z = vectorized_vec_dot(inv_rot_20, inv_rot_21, inv_rot_22, t_x, t_y, t_z);
 
         // float xz_len = vec2_length({pos.x, pos.z});
+        INS_INC1(mul, 8);
         __m256 pos_x_square = _mm256_mul_ps(pos_x, pos_x);
+        INS_INC1(fma, 8);
         __m256 pos_xz_square = _mm256_fmadd_ps(pos_z, pos_z, pos_x_square);
+        INS_INC1(sqrt, 8);
         __m256 xz_len = _mm256_sqrt_ps(pos_xz_square);
 
         // vec2 q = {xz_len, pos.y};
@@ -834,62 +889,80 @@ namespace impl::vec1 {
 
         // float r1_or_r2 = q.y < 0 ? r1 : r2;
         __m256 zero = _mm256_setzero_ps();
+        INS_INC1(cmp, 8);
         __m256 qy_lt_0_mask = _mm256_cmp_ps(pos_y, zero, _CMP_LT_OQ);
         __m256 r1_or_r2 = _mm256_blendv_ps(r2, r1, qy_lt_0_mask);
 
         // float min_qx_r1_or_r2 = min(q.x, r1_or_r2);
+        INS_INC1(cmp, 8);
         __m256 min_qx_r1_or_r2 = _mm256_min_ps(xz_len, r1_or_r2);
 
         // float ca1 = q.x - min_qx_r1_or_r2;
+        INS_INC1(add, 8);
         __m256 ca1 = _mm256_sub_ps(xz_len, min_qx_r1_or_r2);
 
         // float qy_abs = fabsf(q.y);
+        INS_INC1(abs, 8);
         __m256 abs_mask = _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF));
         __m256 qy_abs = _mm256_and_ps(abs_mask, pos_y);
 
         // float ca2 = qy_abs - h;
+        INS_INC1(add, 8);
         __m256 ca2 = _mm256_sub_ps(qy_abs, h);
 
         // vec2 ca = {ca1, ca2};
 
         // vec2 left = vec2_sub(q, k1);
+        INS_INC1(add, 16);
         __m256 left1 = _mm256_sub_ps(xz_len, r2);
         __m256 left2 = _mm256_sub_ps(pos_y, h);
 
         // vec2 k2 = {r2 - r1, 2 * h};
+        INS_INC1(add, 8);
         __m256 r2_minus_r1 = _mm256_sub_ps(r2, r1);
         __m256 two = _mm256_set1_ps(2.f);
+        INS_INC1(mul, 8);
         __m256 h_twice = _mm256_mul_ps(h, two);
 
         // float k2_dot2 = vec2_dot2(k2);
+        INS_INC1(mul, 8);
         __m256 r2_minus_r1_square = _mm256_mul_ps(r2_minus_r1, r2_minus_r1);
+        INS_INC1(fma, 8);
         __m256 k2_dot2 = _mm256_fmadd_ps(h_twice, h_twice, r2_minus_r1_square);
 
         // vec2 k1_minus_q = vec2_sub(k1, q);
+        INS_INC1(add, 16);
         __m256 k1_minus_q_1 = _mm256_sub_ps(r2, xz_len);
         __m256 k1_minus_q_2 = _mm256_sub_ps(h, pos_y);
 
         // float k1_minus_q_dot_k2 = vec2_dot(k1_minus_q, k2);
+        INS_INC1(mul, 8);
         __m256 k1_minus_q_dot_k2_1 = _mm256_mul_ps(k1_minus_q_1, r2_minus_r1);
+        INS_INC1(fma, 8);
         __m256 k1_minus_q_dot_k2 = _mm256_fmadd_ps(k1_minus_q_2, h_twice, k1_minus_q_dot_k2_1);
 
         // float to_clamp = k1_minus_q_dot_k2 / k2_dot2;
+        INS_INC1(div, 8);
         __m256 to_clamp = _mm256_div_ps(k1_minus_q_dot_k2, k2_dot2);
 
         // float clamped = clamp(to_clamp, 0.0f, 1.0f);
         __m256 one = _mm256_set1_ps(1.f);
+        INS_INC1(cmp, 16);
         __m256 clamped_upper = _mm256_min_ps(to_clamp, one);
         __m256 clamped = _mm256_max_ps(clamped_upper, zero);
 
         // vec2 right = vec2_scale(k2, clamped);
+        INS_INC1(mul, 16);
         __m256 right1 = _mm256_mul_ps(r2_minus_r1, clamped);
         __m256 right2 = _mm256_mul_ps(h_twice, clamped);
 
         // vec2 cb = vec2_add(left, right);
+        INS_INC1(add, 16);
         __m256 cb1 = _mm256_add_ps(left1, right1);
         __m256 cb2 = _mm256_add_ps(left2, right2);
 
         // float s = (cb.x < 0 && ca.y < 0) ? -1 : 1;
+        INS_INC1(cmp, 16);
         __m256 cb1_lt_0_mask = _mm256_cmp_ps(cb1, zero, _CMP_LT_OQ);
         __m256 ca2_lt_0_mask = _mm256_cmp_ps(ca2, zero, _CMP_LT_OQ);
         __m256 cond_mask = _mm256_and_ps(cb1_lt_0_mask, ca2_lt_0_mask);
@@ -897,20 +970,27 @@ namespace impl::vec1 {
         __m256 s = _mm256_blendv_ps(one, minusone, cond_mask);
 
         // float ca_dot2 = vec2_dot2(ca);
+        INS_INC1(mul, 8);
         __m256 ca1_square = _mm256_mul_ps(ca1, ca1);
+        INS_INC1(fma, 8);
         __m256 ca_dot2 = _mm256_fmadd_ps(ca2, ca2, ca1_square);
 
         // float cb_dot2 = vec2_dot2(cb);
+        INS_INC1(mul, 8);
         __m256 cb1_square = _mm256_mul_ps(cb1, cb1);
+        INS_INC1(fma, 8);
         __m256 cb_dot2 = _mm256_fmadd_ps(cb2, cb2, cb1_square);
 
         // float min_square = min(ca_dot2, cb_dot2);
+        INS_INC1(cmp, 8);
         __m256 min_square = _mm256_min_ps(ca_dot2, cb_dot2);
 
         // float min = sqrtf(min_square);
+        INS_INC1(sqrt, 8);
         __m256 min = _mm256_sqrt_ps(min_square);
 
         // return s * min;
+        INS_INC1(mul, 8);
         __m256 dist = _mm256_mul_ps(s, min);
 
         _mm256_storeu_ps(res, dist);
@@ -988,6 +1068,7 @@ namespace impl::vec1 {
         __m256 curr_min = _mm256_set1_ps(current_min);
 
         // vec t = vec_sub(from, c.center);
+        INS_INC1(add, 24);
         __m256 t_x = _mm256_sub_ps(from_x, c_x);
         __m256 t_y = _mm256_sub_ps(from_y, c_y);
         __m256 t_z = _mm256_sub_ps(from_z, c_z);
@@ -998,8 +1079,11 @@ namespace impl::vec1 {
         __m256 pos_z = vectorized_vec_dot(inv_rot_20, inv_rot_21, inv_rot_22, t_x, t_y, t_z);
 
         // float xz_len = vec2_length({pos.x, pos.z});
+        INS_INC1(mul, 8);
         __m256 pos_x_square = _mm256_mul_ps(pos_x, pos_x);
+        INS_INC1(fma, 8);
         __m256 pos_xz_square = _mm256_fmadd_ps(pos_z, pos_z, pos_x_square);
+        INS_INC1(sqrt, 8);
         __m256 xz_len = _mm256_sqrt_ps(pos_xz_square);
 
         // vec2 q = {xz_len, pos.y};
@@ -1007,62 +1091,80 @@ namespace impl::vec1 {
 
         // float r1_or_r2 = q.y < 0 ? r1 : r2;
         __m256 zero = _mm256_setzero_ps();
+        INS_INC1(cmp, 8);
         __m256 qy_lt_0_mask = _mm256_cmp_ps(pos_y, zero, _CMP_LT_OQ);
         __m256 r1_or_r2 = _mm256_blendv_ps(r2, r1, qy_lt_0_mask);
 
         // float min_qx_r1_or_r2 = min(q.x, r1_or_r2);
+        INS_INC1(cmp, 8);
         __m256 min_qx_r1_or_r2 = _mm256_min_ps(xz_len, r1_or_r2);
 
         // float ca1 = q.x - min_qx_r1_or_r2;
+        INS_INC1(add, 8);
         __m256 ca1 = _mm256_sub_ps(xz_len, min_qx_r1_or_r2);
 
         // float qy_abs = fabsf(q.y);
+        INS_INC1(abs, 8);
         __m256 abs_mask = _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF));
         __m256 qy_abs = _mm256_and_ps(abs_mask, pos_y);
 
         // float ca2 = qy_abs - h;
+        INS_INC1(add, 8);
         __m256 ca2 = _mm256_sub_ps(qy_abs, h);
 
         // vec2 ca = {ca1, ca2};
 
         // vec2 left = vec2_sub(q, k1);
+        INS_INC1(add, 16);
         __m256 left1 = _mm256_sub_ps(xz_len, r2);
         __m256 left2 = _mm256_sub_ps(pos_y, h);
 
         // vec2 k2 = {r2 - r1, 2 * h};
+        INS_INC1(add, 8);
         __m256 r2_minus_r1 = _mm256_sub_ps(r2, r1);
         __m256 two = _mm256_set1_ps(2.f);
+        INS_INC1(mul, 8);
         __m256 h_twice = _mm256_mul_ps(h, two);
 
         // float k2_dot2 = vec2_dot2(k2);
+        INS_INC1(mul, 8);
         __m256 r2_minus_r1_square = _mm256_mul_ps(r2_minus_r1, r2_minus_r1);
+        INS_INC1(fma, 8);
         __m256 k2_dot2 = _mm256_fmadd_ps(h_twice, h_twice, r2_minus_r1_square);
 
         // vec2 k1_minus_q = vec2_sub(k1, q);
+        INS_INC1(add, 16);
         __m256 k1_minus_q_1 = _mm256_sub_ps(r2, xz_len);
         __m256 k1_minus_q_2 = _mm256_sub_ps(h, pos_y);
 
         // float k1_minus_q_dot_k2 = vec2_dot(k1_minus_q, k2);
+        INS_INC1(mul, 8);
         __m256 k1_minus_q_dot_k2_1 = _mm256_mul_ps(k1_minus_q_1, r2_minus_r1);
+        INS_INC1(fma, 8);
         __m256 k1_minus_q_dot_k2 = _mm256_fmadd_ps(k1_minus_q_2, h_twice, k1_minus_q_dot_k2_1);
 
         // float to_clamp = k1_minus_q_dot_k2 / k2_dot2;
+        INS_INC1(div, 8);
         __m256 to_clamp = _mm256_div_ps(k1_minus_q_dot_k2, k2_dot2);
 
         // float clamped = clamp(to_clamp, 0.0f, 1.0f);
         __m256 one = _mm256_set1_ps(1.f);
+        INS_INC1(cmp, 16);
         __m256 clamped_upper = _mm256_min_ps(to_clamp, one);
         __m256 clamped = _mm256_max_ps(clamped_upper, zero);
 
         // vec2 right = vec2_scale(k2, clamped);
+        INS_INC1(mul, 16);
         __m256 right1 = _mm256_mul_ps(r2_minus_r1, clamped);
         __m256 right2 = _mm256_mul_ps(h_twice, clamped);
 
         // vec2 cb = vec2_add(left, right);
+        INS_INC1(add, 16);
         __m256 cb1 = _mm256_add_ps(left1, right1);
         __m256 cb2 = _mm256_add_ps(left2, right2);
 
         // float s = (cb.x < 0 && ca.y < 0) ? -1 : 1;
+        INS_INC1(cmp, 16);
         __m256 cb1_lt_0_mask = _mm256_cmp_ps(cb1, zero, _CMP_LT_OQ);
         __m256 ca2_lt_0_mask = _mm256_cmp_ps(ca2, zero, _CMP_LT_OQ);
         __m256 cond_mask = _mm256_and_ps(cb1_lt_0_mask, ca2_lt_0_mask);
@@ -1070,18 +1172,25 @@ namespace impl::vec1 {
         __m256 s = _mm256_blendv_ps(one, minusone, cond_mask);
 
         // float ca_dot2 = vec2_dot2(ca);
+        INS_INC1(mul, 8);
         __m256 ca1_square = _mm256_mul_ps(ca1, ca1);
+        INS_INC1(fma, 8);
         __m256 ca_dot2 = _mm256_fmadd_ps(ca2, ca2, ca1_square);
 
         // float cb_dot2 = vec2_dot2(cb);
+        INS_INC1(mul, 8);
         __m256 cb1_square = _mm256_mul_ps(cb1, cb1);
+        INS_INC1(fma, 8);
         __m256 cb_dot2 = _mm256_fmadd_ps(cb2, cb2, cb1_square);
 
         // float min_square = min(ca_dot2, cb_dot2);
+        INS_INC1(cmp, 8);
         __m256 min_square = _mm256_min_ps(ca_dot2, cb_dot2);
 
         // short circuit termination mask
+        INS_INC1(mul, 8);
         __m256 upper_bound_square = _mm256_mul_ps(curr_min, curr_min);
+        INS_INC1(cmp, 8);
         __m256 mask = _mm256_cmp_ps(min_square, upper_bound_square, _CMP_LT_OQ);
         int mask_int = _mm256_movemask_ps(mask);
 
@@ -1103,9 +1212,11 @@ namespace impl::vec1 {
         __m256 s = _mm256_loadu_ps(tmp2);
 
         // float min = sqrtf(min_square);
+        INS_INC1(sqrt, 8);
         __m256 min = _mm256_sqrt_ps(min_square);
 
         // return s * min;
+        INS_INC1(mul, 8);
         __m256 dist = _mm256_mul_ps(s, min);
 
         _mm256_storeu_ps(res, dist);
@@ -1214,6 +1325,7 @@ namespace impl::vec1 {
         __m256 from_z = _mm256_set1_ps(from.z);
 
         // vec t = vec_sub(from, o.center);
+        INS_INC1(add, 24);
         __m256 t_x = _mm256_sub_ps(from_x, c_x);
         __m256 t_y = _mm256_sub_ps(from_y, c_y);
         __m256 t_z = _mm256_sub_ps(from_z, c_z);
@@ -1224,6 +1336,7 @@ namespace impl::vec1 {
         __m256 pos_z = vectorized_vec_dot(inv_rot_20, inv_rot_21, inv_rot_22, t_x, t_y, t_z);
 
         // vec pos_abs = vec_abs(pos);
+        INS_INC1(abs, 24);
         __m256 abs_mask = _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF));
         __m256 pos_abs_x = _mm256_and_ps(abs_mask, pos_x);
         __m256 pos_abs_y = _mm256_and_ps(abs_mask, pos_y);
@@ -1232,6 +1345,7 @@ namespace impl::vec1 {
         // float s = o.s;
 
         // float m = pos_abs.x + pos_abs.y + pos_abs.z - s;
+        INS_INC1(add, 24);
         __m256 pos_abs_xy = _mm256_add_ps(pos_abs_x, pos_abs_y);
         __m256 pos_abs_xyz = _mm256_add_ps(pos_abs_xy, pos_abs_z);
         __m256 m = _mm256_sub_ps(pos_abs_xyz, s);
@@ -1242,6 +1356,7 @@ namespace impl::vec1 {
         // float pos_abs_y_times3 = 3 * pos_abs.y;
         // float pos_abs_z_times3 = 3 * pos_abs.z;
         __m256 three = _mm256_set1_ps(3.f);
+        INS_INC1(mul, 24);
         __m256 pos_abs_x_times3 = _mm256_mul_ps(three, pos_abs_x);
         __m256 pos_abs_y_times3 = _mm256_mul_ps(three, pos_abs_y);
         __m256 pos_abs_z_times3 = _mm256_mul_ps(three, pos_abs_z);
@@ -1249,6 +1364,7 @@ namespace impl::vec1 {
         // int cond1 = pos_abs_x_times3 < m;
         // int cond2 = pos_abs_y_times3 < m;
         // int cond3 = pos_abs_z_times3 < m;
+        INS_INC1(cmp, 24);
         __m256 cond1 = _mm256_cmp_ps(pos_abs_x_times3, m, _CMP_LT_OQ);
         __m256 cond2 = _mm256_cmp_ps(pos_abs_y_times3, m, _CMP_LT_OQ);
         __m256 cond3 = _mm256_cmp_ps(pos_abs_z_times3, m, _CMP_LT_OQ);
@@ -1270,32 +1386,40 @@ namespace impl::vec1 {
         __m256 q_z = _mm256_blendv_ps(q_branch_23_z, pos_abs_z, cond1);
 
         // float qz_minus_qy = q.z - q.y;
+        INS_INC1(add, 8);
         __m256 qz_minus_qy = _mm256_sub_ps(q_z, q_y);
 
         // float qz_minus_qy_plus_s = qz_minus_qy + s;
+        INS_INC1(add, 8);
         __m256 qz_minus_qy_plus_s = _mm256_add_ps(qz_minus_qy, s);
 
         // float to_clamp = 0.5f * qz_minus_qy_plus_s;
         __m256 pointfive = _mm256_set1_ps(0.5f);
+        INS_INC1(mul, 8);
         __m256 to_clamp = _mm256_mul_ps(pointfive, qz_minus_qy_plus_s);
 
         // float k = clamp(to_clamp, 0.0f, s);
+        INS_INC1(cmp, 8);
         __m256 clamped_upper = _mm256_min_ps(to_clamp, s);
         __m256 zero = _mm256_setzero_ps();
+        INS_INC1(cmp, 8);
         __m256 k = _mm256_max_ps(zero, clamped_upper);
 
         // vec dist_vec = {q.x, q.y - s + k, q.z - k};
         __m256 dist_vec_x = q_x;
+        INS_INC1(add, 24);
         __m256 qy_minus_s = _mm256_sub_ps(q_y, s);
         __m256 dist_vec_y = _mm256_add_ps(qy_minus_s, k);
         __m256 dist_vec_z = _mm256_sub_ps(q_z, k);
 
         // float dist_vec_len = vec_length(dist_vec);
         __m256 dist_vec_dot2 = vectorized_vec_dot(dist_vec_x, dist_vec_y, dist_vec_z, dist_vec_x, dist_vec_y, dist_vec_z);
+        INS_INC1(sqrt, 8);
         __m256 dist_vec_len = _mm256_sqrt_ps(dist_vec_dot2);
 
         // float m_scaled = m * 0.57735027;
         __m256 constant = _mm256_set1_ps(0.57735027f);
+        INS_INC1(mul, 8);
         __m256 m_scaled = _mm256_mul_ps(m, constant);
 
         // return (!cond1 && !cond2 && !cond3) ? m_scaled : dist_vec_len;
@@ -1381,6 +1505,7 @@ namespace impl::vec1 {
         __m256 curr_min = _mm256_set1_ps(current_min);
 
         // vec t = vec_sub(from, o.center);
+        INS_INC1(add, 24);
         __m256 t_x = _mm256_sub_ps(from_x, c_x);
         __m256 t_y = _mm256_sub_ps(from_y, c_y);
         __m256 t_z = _mm256_sub_ps(from_z, c_z);
@@ -1391,6 +1516,7 @@ namespace impl::vec1 {
         __m256 pos_z = vectorized_vec_dot(inv_rot_20, inv_rot_21, inv_rot_22, t_x, t_y, t_z);
 
         // vec pos_abs = vec_abs(pos);
+        INS_INC1(abs, 24);
         __m256 abs_mask = _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF));
         __m256 pos_abs_x = _mm256_and_ps(abs_mask, pos_x);
         __m256 pos_abs_y = _mm256_and_ps(abs_mask, pos_y);
@@ -1399,6 +1525,7 @@ namespace impl::vec1 {
         // float s = o.s;
 
         // float m = pos_abs.x + pos_abs.y + pos_abs.z - s;
+        INS_INC1(add, 24);
         __m256 pos_abs_xy = _mm256_add_ps(pos_abs_x, pos_abs_y);
         __m256 pos_abs_xyz = _mm256_add_ps(pos_abs_xy, pos_abs_z);
         __m256 m = _mm256_sub_ps(pos_abs_xyz, s);
@@ -1409,6 +1536,7 @@ namespace impl::vec1 {
         // float pos_abs_y_times3 = 3 * pos_abs.y;
         // float pos_abs_z_times3 = 3 * pos_abs.z;
         __m256 three = _mm256_set1_ps(3.f);
+        INS_INC1(mul, 24);
         __m256 pos_abs_x_times3 = _mm256_mul_ps(three, pos_abs_x);
         __m256 pos_abs_y_times3 = _mm256_mul_ps(three, pos_abs_y);
         __m256 pos_abs_z_times3 = _mm256_mul_ps(three, pos_abs_z);
@@ -1416,6 +1544,7 @@ namespace impl::vec1 {
         // int cond1 = pos_abs_x_times3 < m;
         // int cond2 = pos_abs_y_times3 < m;
         // int cond3 = pos_abs_z_times3 < m;
+        INS_INC1(cmp, 24);
         __m256 cond1 = _mm256_cmp_ps(pos_abs_x_times3, m, _CMP_LT_OQ);
         __m256 cond2 = _mm256_cmp_ps(pos_abs_y_times3, m, _CMP_LT_OQ);
         __m256 cond3 = _mm256_cmp_ps(pos_abs_z_times3, m, _CMP_LT_OQ);
@@ -1437,22 +1566,28 @@ namespace impl::vec1 {
         __m256 q_z = _mm256_blendv_ps(q_branch_23_z, pos_abs_z, cond1);
 
         // float qz_minus_qy = q.z - q.y;
+        INS_INC1(add, 8);
         __m256 qz_minus_qy = _mm256_sub_ps(q_z, q_y);
 
         // float qz_minus_qy_plus_s = qz_minus_qy + s;
+        INS_INC1(add, 8);
         __m256 qz_minus_qy_plus_s = _mm256_add_ps(qz_minus_qy, s);
 
         // float to_clamp = 0.5f * qz_minus_qy_plus_s;
         __m256 pointfive = _mm256_set1_ps(0.5f);
+        INS_INC1(mul, 8);
         __m256 to_clamp = _mm256_mul_ps(pointfive, qz_minus_qy_plus_s);
 
         // float k = clamp(to_clamp, 0.0f, s);
+        INS_INC1(cmp, 8);
         __m256 clamped_upper = _mm256_min_ps(to_clamp, s);
         __m256 zero = _mm256_setzero_ps();
+        INS_INC1(cmp, 8);
         __m256 k = _mm256_max_ps(zero, clamped_upper);
 
         // vec dist_vec = {q.x, q.y - s + k, q.z - k};
         __m256 dist_vec_x = q_x;
+        INS_INC1(add, 24);
         __m256 qy_minus_s = _mm256_sub_ps(q_y, s);
         __m256 dist_vec_y = _mm256_add_ps(qy_minus_s, k);
         __m256 dist_vec_z = _mm256_sub_ps(q_z, k);
@@ -1462,9 +1597,11 @@ namespace impl::vec1 {
 
         // float m_scaled = m * 0.57735027;
         __m256 constant = _mm256_set1_ps(0.57735027f);
+        INS_INC1(mul, 8);
         __m256 m_scaled = _mm256_mul_ps(m, constant);
 
         // for early termination, we want all intermediate results to be the square of the final result
+        INS_INC1(mul, 8);
         __m256 m_scaled_square = _mm256_mul_ps(m_scaled, m_scaled);
 
         // return (!cond1 && !cond2 && !cond3) ? m_scaled : dist_vec_len;
@@ -1473,7 +1610,9 @@ namespace impl::vec1 {
         __m256 dist_square = _mm256_blendv_ps(m_scaled_square, dist_vec_dot2, cond1_or_cond2_or_cond3);
 
         // short circuit termination mask
+        INS_INC1(mul, 8);
         __m256 upper_bound_square = _mm256_mul_ps(curr_min, curr_min);
+        INS_INC1(cmp, 8);
         __m256 mask = _mm256_cmp_ps(dist_square, upper_bound_square, _CMP_LT_OQ);
         int mask_int = _mm256_movemask_ps(mask);
 
@@ -1492,6 +1631,7 @@ namespace impl::vec1 {
 
         __m256 dist_square = _mm256_loadu_ps(tmp);
 
+        INS_INC1(sqrt, 8);
         __m256 dist = _mm256_sqrt_ps(dist_square);
 
         _mm256_storeu_ps(res, dist);

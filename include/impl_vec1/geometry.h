@@ -313,7 +313,9 @@ namespace impl::vec1 {
     // Vectorized operations {{{
 
     static inline __m256 vectorized_vec_dot(__m256 a_x, __m256 a_y, __m256 a_z, __m256 b_x, __m256 b_y, __m256 b_z) {
+        INS_INC1(mul, 8);
         __m256 x = _mm256_mul_ps(a_x, b_x);
+        INS_INC1(fma, 16);
         __m256 xy = _mm256_fmadd_ps(a_y, b_y, x);
         __m256 xyz = _mm256_fmadd_ps(a_z, b_z, xy);
         return xyz;
