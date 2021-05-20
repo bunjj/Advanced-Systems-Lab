@@ -138,6 +138,16 @@ namespace impl::vec1 {
         float* inv_rot[3][3];
     };
 
+    struct octa_vectors {
+        float* center_x;
+        float* center_y;
+        float* center_z;
+        float* s;
+
+        // arrays for each entry of the matrix
+        float* inv_rot[3][3];
+    };
+
     struct scene {
         light* lights;
         int num_lights;
@@ -161,6 +171,7 @@ namespace impl::vec1 {
         box_vectors box_vecs;
         torus_vectors torus_vecs;
         cone_vectors cone_vecs;
+        octa_vectors octa_vecs;
     };
 
     extern struct scene scene;
@@ -1124,6 +1135,162 @@ namespace impl::vec1 {
 
         INS_INC1(add, 3);
         return vec_length({q.x, q.y - s + k, q.z - k});
+    }
+
+    /**
+     * This is a more explicit version of the octahedron_distance() above.
+     * This makes it easier to vectorize.
+     */
+    static inline float octahedron_distance_elaborate(const octa o, const vec from) {
+        vec t = vec_sub(from, o.center);
+        vec pos = m33_mul_vec(o.inv_rot, t);
+        vec pos_abs = vec_abs(pos);
+
+        float s = o.s;
+
+        float m = pos_abs.x + pos_abs.y + pos_abs.z - s;
+        vec q;
+
+        float pos_abs_x_times3 = 3 * pos_abs.x;
+        float pos_abs_y_times3 = 3 * pos_abs.y;
+        float pos_abs_z_times3 = 3 * pos_abs.z;
+
+        int cond1 = pos_abs_x_times3 < m;
+        int cond2 = pos_abs_y_times3 < m;
+        int cond3 = pos_abs_z_times3 < m;
+
+        if (cond1) {
+            q = pos_abs;
+        } else if (cond2) {
+            q = {pos_abs.y, pos_abs.x, pos_abs.z};
+        } else {
+            q = {pos_abs.z, pos_abs.x, pos_abs.y};
+        }
+
+        float qz_minus_qy = q.z - q.y;
+        float qz_minus_qy_plus_s = qz_minus_qy + s;
+        float to_clamp = 0.5f * qz_minus_qy_plus_s;
+        float k = clamp(to_clamp, 0.0f, s);
+
+        vec dist_vec = {q.x, q.y - s + k, q.z - k};
+        float dist_vec_len = vec_length(dist_vec);
+
+        float m_scaled = m * 0.57735027;
+        return (!cond1 && !cond2 && !cond3) ? m_scaled : dist_vec_len;
+    }
+
+    static inline void octahedron_distance_vectorized(int idx, float* res, float* center_x, float* center_y, float* center_z, float* s_, float* inv_rot[3][3], const vec from) {
+
+        __m256 c_x = _mm256_loadu_ps(center_x + idx);
+        __m256 c_y = _mm256_loadu_ps(center_y + idx);
+        __m256 c_z = _mm256_loadu_ps(center_z + idx);
+        __m256 s = _mm256_loadu_ps(s_ + idx);
+
+        __m256 inv_rot_00 = _mm256_loadu_ps(inv_rot[0][0] + idx);
+        __m256 inv_rot_01 = _mm256_loadu_ps(inv_rot[0][1] + idx);
+        __m256 inv_rot_02 = _mm256_loadu_ps(inv_rot[0][2] + idx);
+        __m256 inv_rot_10 = _mm256_loadu_ps(inv_rot[1][0] + idx);
+        __m256 inv_rot_11 = _mm256_loadu_ps(inv_rot[1][1] + idx);
+        __m256 inv_rot_12 = _mm256_loadu_ps(inv_rot[1][2] + idx);
+        __m256 inv_rot_20 = _mm256_loadu_ps(inv_rot[2][0] + idx);
+        __m256 inv_rot_21 = _mm256_loadu_ps(inv_rot[2][1] + idx);
+        __m256 inv_rot_22 = _mm256_loadu_ps(inv_rot[2][2] + idx);
+
+        __m256 from_x = _mm256_set1_ps(from.x);
+        __m256 from_y = _mm256_set1_ps(from.y);
+        __m256 from_z = _mm256_set1_ps(from.z);
+
+        // vec t = vec_sub(from, o.center);
+        __m256 t_x = _mm256_sub_ps(from_x, c_x);
+        __m256 t_y = _mm256_sub_ps(from_y, c_y);
+        __m256 t_z = _mm256_sub_ps(from_z, c_z);
+
+        // vec pos = m33_mul_vec(o.inv_rot, t);
+        __m256 pos_x = vectorized_vec_dot(inv_rot_00, inv_rot_01, inv_rot_02, t_x, t_y, t_z);
+        __m256 pos_y = vectorized_vec_dot(inv_rot_10, inv_rot_11, inv_rot_12, t_x, t_y, t_z);
+        __m256 pos_z = vectorized_vec_dot(inv_rot_20, inv_rot_21, inv_rot_22, t_x, t_y, t_z);
+
+        // vec pos_abs = vec_abs(pos);
+        __m256 abs_mask = _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF));
+        __m256 pos_abs_x = _mm256_and_ps(abs_mask, pos_x);
+        __m256 pos_abs_y = _mm256_and_ps(abs_mask, pos_y);
+        __m256 pos_abs_z = _mm256_and_ps(abs_mask, pos_z);
+
+        // float s = o.s;
+
+        // float m = pos_abs.x + pos_abs.y + pos_abs.z - s;
+        __m256 pos_abs_xy = _mm256_add_ps(pos_abs_x, pos_abs_y);
+        __m256 pos_abs_xyz = _mm256_add_ps(pos_abs_xy, pos_abs_z);
+        __m256 m = _mm256_sub_ps(pos_abs_xyz, s);
+
+        // vec q;
+
+        // float pos_abs_x_times3 = 3 * pos_abs.x;
+        // float pos_abs_y_times3 = 3 * pos_abs.y;
+        // float pos_abs_z_times3 = 3 * pos_abs.z;
+        __m256 three = _mm256_set1_ps(3.f);
+        __m256 pos_abs_x_times3 = _mm256_mul_ps(three, pos_abs_x);
+        __m256 pos_abs_y_times3 = _mm256_mul_ps(three, pos_abs_y);
+        __m256 pos_abs_z_times3 = _mm256_mul_ps(three, pos_abs_z);
+
+        // int cond1 = pos_abs_x_times3 < m;
+        // int cond2 = pos_abs_y_times3 < m;
+        // int cond3 = pos_abs_z_times3 < m;
+        __m256 cond1 = _mm256_cmp_ps(pos_abs_x_times3, m, _CMP_LT_OQ);
+        __m256 cond2 = _mm256_cmp_ps(pos_abs_y_times3, m, _CMP_LT_OQ);
+        __m256 cond3 = _mm256_cmp_ps(pos_abs_z_times3, m, _CMP_LT_OQ);
+
+        // if (cond1) {
+        //     q = pos_abs;
+        // } else if (cond2) {
+        //     q = {pos_abs.y, pos_abs.x, pos_abs.z};
+        // } else {
+        //     q = {pos_abs.z, pos_abs.x, pos_abs.y};
+        // }
+
+        __m256 q_branch_23_x = _mm256_blendv_ps(pos_abs_z, pos_abs_y, cond2);
+        __m256 q_branch_23_y = pos_abs_x;
+        __m256 q_branch_23_z = _mm256_blendv_ps(pos_abs_y, pos_abs_z, cond2);
+
+        __m256 q_x = _mm256_blendv_ps(q_branch_23_x, pos_abs_x, cond1);
+        __m256 q_y = _mm256_blendv_ps(q_branch_23_y, pos_abs_y, cond1);
+        __m256 q_z = _mm256_blendv_ps(q_branch_23_z, pos_abs_z, cond1);
+
+        // float qz_minus_qy = q.z - q.y;
+        __m256 qz_minus_qy = _mm256_sub_ps(q_z, q_y);
+
+        // float qz_minus_qy_plus_s = qz_minus_qy + s;
+        __m256 qz_minus_qy_plus_s = _mm256_add_ps(qz_minus_qy, s);
+
+        // float to_clamp = 0.5f * qz_minus_qy_plus_s;
+        __m256 pointfive = _mm256_set1_ps(0.5f);
+        __m256 to_clamp = _mm256_mul_ps(pointfive, qz_minus_qy_plus_s);
+
+        // float k = clamp(to_clamp, 0.0f, s);
+        __m256 clamped_upper = _mm256_min_ps(to_clamp, s);
+        __m256 zero = _mm256_setzero_ps();
+        __m256 k = _mm256_max_ps(zero, clamped_upper);
+
+        // vec dist_vec = {q.x, q.y - s + k, q.z - k};
+        __m256 dist_vec_x = q_x;
+        __m256 qy_minus_s = _mm256_sub_ps(q_y, s);
+        __m256 dist_vec_y = _mm256_add_ps(qy_minus_s, k);
+        __m256 dist_vec_z = _mm256_sub_ps(q_z, k);
+
+        // float dist_vec_len = vec_length(dist_vec);
+        __m256 dist_vec_dot2 = vectorized_vec_dot(dist_vec_x, dist_vec_y, dist_vec_z, dist_vec_x, dist_vec_y, dist_vec_z);
+        __m256 dist_vec_len = _mm256_sqrt_ps(dist_vec_dot2);
+
+        // float m_scaled = m * 0.57735027;
+        __m256 constant = _mm256_set1_ps(0.57735027f);
+        __m256 m_scaled = _mm256_mul_ps(m, constant);
+
+        // return (!cond1 && !cond2 && !cond3) ? m_scaled : dist_vec_len;
+        __m256 cond1_or_cond2 = _mm256_or_ps(cond1, cond2);
+        __m256 cond1_or_cond2_or_cond3 = _mm256_or_ps(cond1_or_cond2, cond3);
+        __m256 dist = _mm256_blendv_ps(m_scaled, dist_vec_len, cond1_or_cond2_or_cond3);
+
+        _mm256_store_ps(res, dist);
     }
 
     static inline float octahedron_distance_short(const octa o, const vec from, const float current_min) {

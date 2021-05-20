@@ -369,6 +369,22 @@ namespace impl::vec1 {
         scene.cone_vecs.inv_rot[2][1] = (float*)malloc(sizeof(float) * scene.num_cones);
         scene.cone_vecs.inv_rot[2][2] = (float*)malloc(sizeof(float) * scene.num_cones);
 
+        // octahedra
+        scene.octa_vecs.center_x = (float*)malloc(sizeof(float) * scene.num_octahedra);
+        scene.octa_vecs.center_y = (float*)malloc(sizeof(float) * scene.num_octahedra);
+        scene.octa_vecs.center_z = (float*)malloc(sizeof(float) * scene.num_octahedra);
+        scene.octa_vecs.s = (float*)malloc(sizeof(float) * scene.num_octahedra);
+
+        scene.octa_vecs.inv_rot[0][0] = (float*)malloc(sizeof(float) * scene.num_octahedra);
+        scene.octa_vecs.inv_rot[0][1] = (float*)malloc(sizeof(float) * scene.num_octahedra);
+        scene.octa_vecs.inv_rot[0][2] = (float*)malloc(sizeof(float) * scene.num_octahedra);
+        scene.octa_vecs.inv_rot[1][0] = (float*)malloc(sizeof(float) * scene.num_octahedra);
+        scene.octa_vecs.inv_rot[1][1] = (float*)malloc(sizeof(float) * scene.num_octahedra);
+        scene.octa_vecs.inv_rot[1][2] = (float*)malloc(sizeof(float) * scene.num_octahedra);
+        scene.octa_vecs.inv_rot[2][0] = (float*)malloc(sizeof(float) * scene.num_octahedra);
+        scene.octa_vecs.inv_rot[2][1] = (float*)malloc(sizeof(float) * scene.num_octahedra);
+        scene.octa_vecs.inv_rot[2][2] = (float*)malloc(sizeof(float) * scene.num_octahedra);
+
         // second pass to actually load the shapes
         int sphere_idx = 0;
         int plane_idx = 0;
@@ -463,7 +479,25 @@ namespace impl::vec1 {
                 cone_idx++;
 
             } else if (current == "octahedron") {
-                scene.octahedra[octa_idx++] = load_octa(current_shape);
+                scene.octahedra[octa_idx] = load_octa(current_shape);
+
+                // vectorized data layout
+                scene.octa_vecs.center_x[octa_idx] = scene.octahedra[octa_idx].center.x;
+                scene.octa_vecs.center_y[octa_idx] = scene.octahedra[octa_idx].center.y;
+                scene.octa_vecs.center_z[octa_idx] = scene.octahedra[octa_idx].center.z;
+                scene.octa_vecs.s[octa_idx] = scene.octahedra[octa_idx].s;
+
+                scene.octa_vecs.inv_rot[0][0][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[0][0];
+                scene.octa_vecs.inv_rot[0][1][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[0][1];
+                scene.octa_vecs.inv_rot[0][2][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[0][2];
+                scene.octa_vecs.inv_rot[1][0][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[1][0];
+                scene.octa_vecs.inv_rot[1][1][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[1][1];
+                scene.octa_vecs.inv_rot[1][2][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[1][2];
+                scene.octa_vecs.inv_rot[2][0][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[2][0];
+                scene.octa_vecs.inv_rot[2][1][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[2][1];
+                scene.octa_vecs.inv_rot[2][2][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[2][2];
+
+                octa_idx++;
             } else {
                 throw std::runtime_error("Unknown shape " + current);
             }

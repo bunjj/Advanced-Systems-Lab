@@ -220,7 +220,28 @@ namespace impl::vec1 {
             }
 
             // octahedra
-            for (int k = 0; k < scene.num_octahedra; k++) {
+            for (k = 0; k < scene.num_octahedra - 7; k += 8) {
+
+                float dists[8];
+
+                octahedron_distance_vectorized(k, dists, scene.octa_vecs.center_x, scene.octa_vecs.center_y, scene.octa_vecs.center_z, scene.octa_vecs.s, scene.octa_vecs.inv_rot, pos);
+
+                for (int i = 0; i < 8; i++) {
+                    INS_CMP;
+                    if (dists[i] < min_distance) {
+                        min_distance = dists[i];
+
+                        INS_CMP;
+                        INS_MUL;
+                        if (min_distance <= EPS * t) {
+                            return 0.0f;
+                        }
+                    }
+                }
+            }
+
+            // remaining octahedra iterations
+            for (; k < scene.num_octahedra; k++) {
                 float distance = octahedron_distance_short(scene.octahedra[k], pos, min_distance);
 
                 INS_CMP;
@@ -541,7 +562,32 @@ namespace impl::vec1 {
             }
 
             // octahedra
-            for (int k = 0; k < scene.num_octahedra; k++) {
+            for (k = 0; k < scene.num_octahedra - 7; k += 8) {
+
+                float dists[8];
+
+                octahedron_distance_vectorized(k, dists, scene.octa_vecs.center_x, scene.octa_vecs.center_y, scene.octa_vecs.center_z, scene.octa_vecs.s, scene.octa_vecs.inv_rot, pos);
+
+
+                for (int i = 0; i < 8; i++) {
+                    INS_CMP;
+                    if (dists[i] < min_distance) {
+                        min_distance = dists[i];
+
+                        INS_CMP;
+                        INS_MUL;
+                        if (min_distance <= EPS * t) {
+                            octa s = scene.octahedra[k+i];
+                            vec normal = octahedron_normal(s, pos);
+                            color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
+                            return {true, t, steps, color};
+                        }
+                    }
+                }
+            }
+
+            // remaining octahedron iterations
+            for (; k < scene.num_octahedra; k++) {
                 float distance = octahedron_distance_short(scene.octahedra[k], pos, min_distance);
 
                 INS_CMP;
