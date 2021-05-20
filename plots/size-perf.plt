@@ -1,4 +1,3 @@
-# This is the width of the text in my latex file
 set terminal post enhanced color 
 set output "size-perf.ps"
 
