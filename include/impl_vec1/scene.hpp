@@ -192,6 +192,7 @@ namespace impl::vec1 {
      * Vectorized sphere distance function (without early termination).
      */
     static inline void sphere_distance_vectorized(int idx, float* res, float* center_x, float* center_y, float* center_z, float* radius, const vec from) {
+        INS_INC1(sphere, 8);
 
         __m256 c_x = _mm256_loadu_ps(center_x + idx);
         __m256 c_y = _mm256_loadu_ps(center_y + idx);
@@ -238,6 +239,7 @@ namespace impl::vec1 {
      * sphere_distance_rest_vectorized() with the intermediate result in res.
      */
     static inline int sphere_distance_short_vectorized(int idx, float* res, float* center_x, float* center_y, float* center_z, float* radius, const vec from, const float current_min) {
+        INS_INC1(sphere, 8);
 
         __m256 c_x = _mm256_loadu_ps(center_x + idx);
         __m256 c_y = _mm256_loadu_ps(center_y + idx);
@@ -274,6 +276,7 @@ namespace impl::vec1 {
      * as parameter tmp.
      */
     static inline void sphere_distance_rest_vectorized(int idx, float* tmp, float* res, float* radius) {
+        INS_INC1(sphere_r, 8);
 
         __m256 tsquare_xyz = _mm256_loadu_ps(tmp);
         __m256 r = _mm256_loadu_ps(radius + idx);
@@ -314,6 +317,7 @@ namespace impl::vec1 {
      * Vectorized box distance function (without early termination).
      */
     static inline void box_distance_vectorized(int idx, float* res, float* bottom_left_x, float* bottom_left_y, float* bottom_left_z, float* extents_x, float* extents_y, float* extents_z, float* inv_rot[3][3], const vec from) {
+        INS_INC1(box, 8);
 
         // load everything
         __m256 bl_x = _mm256_loadu_ps(bottom_left_x + idx);
@@ -411,6 +415,7 @@ namespace impl::vec1 {
      * box_distance_rest_vectorized() with the intermediate results in res1 and res2.
      */
     static inline int box_distance_short_vectorized(int idx, float* res1, float* res2, float* bottom_left_x, float* bottom_left_y, float* bottom_left_z, float* extents_x, float* extents_y, float* extents_z, float* inv_rot[3][3], const vec from, float current_min) {
+        INS_INC1(box, 8);
 
         // load everything
         __m256 bl_x = _mm256_loadu_ps(bottom_left_x + idx);
@@ -494,6 +499,7 @@ namespace impl::vec1 {
      * as parameters tmp1 and tmp2.
      */
     static inline void box_distance_rest_vectorized(float* tmp1, float* tmp2, float* res) {
+        INS_INC1(box_r, 8);
 
         __m256 left_square = _mm256_loadu_ps(tmp1);
         __m256 right = _mm256_loadu_ps(tmp2);
@@ -543,6 +549,7 @@ namespace impl::vec1 {
      * Vectorized torus distance function (without early termination).
      */
     static inline void torus_distance_vectorized(int idx, float* res, float* center_x, float* center_y, float* center_z, float* rad1, float* rad2, float* inv_rot[3][3], const vec from) {
+        INS_INC1(torus, 8);
 
         __m256 c_x = _mm256_loadu_ps(center_x + idx);
         __m256 c_y = _mm256_loadu_ps(center_y + idx);
@@ -625,6 +632,7 @@ namespace impl::vec1 {
      * torus_distance_rest_vectorized() with the intermediate results in res.
      */
     static inline int torus_distance_short_vectorized(int idx, float* res, float* center_x, float* center_y, float* center_z, float* rad1, float* rad2, float* inv_rot[3][3], const vec from, float current_min) {
+        INS_INC1(torus, 8);
 
         __m256 c_x = _mm256_loadu_ps(center_x + idx);
         __m256 c_y = _mm256_loadu_ps(center_y + idx);
@@ -689,6 +697,7 @@ namespace impl::vec1 {
      * as parameter tmp.
      */
     static inline void torus_distance_rest_vectorized(int idx, float* tmp, float* res, float* rad2) {
+        INS_INC1(torus_r, 8);
 
         __m256 q_square = _mm256_loadu_ps(tmp);
         __m256 r2 = _mm256_loadu_ps(rad2 + idx);
@@ -778,6 +787,7 @@ namespace impl::vec1 {
      * Vectorized cone distance function (without early termination).
      */
     static inline void cone_distance_vectorized(int idx, float* res, float* center_x, float* center_y, float* center_z, float* rad1, float* rad2, float* height, float* inv_rot[3][3], const vec from) {
+        INS_INC1(cone, 8);
 
         // float r1 = c.r1;
         // float r2 = c.r2;
@@ -949,6 +959,7 @@ namespace impl::vec1 {
      * cone_distance_rest_vectorized() with the intermediate results in res1 and res2.
      */
     static inline int cone_distance_short_vectorized(int idx, float* res1, float* res2, float* center_x, float* center_y, float* center_z, float* rad1, float* rad2, float* height, float* inv_rot[3][3], const vec from, float current_min) {
+        INS_INC1(cone, 8);
 
         // float r1 = c.r1;
         // float r2 = c.r2;
@@ -1086,6 +1097,7 @@ namespace impl::vec1 {
      * as parameters tmp1 and tmp2.
      */
     static inline void cone_distance_rest_vectorized(float* tmp1, float* tmp2, float* res) {
+        INS_INC1(cone_r, 8);
 
         __m256 min_square = _mm256_loadu_ps(tmp1);
         __m256 s = _mm256_loadu_ps(tmp2);
@@ -1180,6 +1192,7 @@ namespace impl::vec1 {
     }
 
     static inline void octahedron_distance_vectorized(int idx, float* res, float* center_x, float* center_y, float* center_z, float* s_, float* inv_rot[3][3], const vec from) {
+        INS_INC1(octa, 8);
 
         __m256 c_x = _mm256_loadu_ps(center_x + idx);
         __m256 c_y = _mm256_loadu_ps(center_y + idx);
@@ -1345,6 +1358,7 @@ namespace impl::vec1 {
      * octahedron_distance_rest_vectorized() with the intermediate results in res.
      */
     static inline int octahedron_distance_short_vectorized(int idx, float* res, float* center_x, float* center_y, float* center_z, float* s_, float* inv_rot[3][3], const vec from, float current_min) {
+        INS_INC1(octa, 8);
 
         __m256 c_x = _mm256_loadu_ps(center_x + idx);
         __m256 c_y = _mm256_loadu_ps(center_y + idx);
@@ -1474,6 +1488,7 @@ namespace impl::vec1 {
      * as parameter tmp.
      */
     static inline void octahedron_distance_rest_vectorized(float* tmp, float* res) {
+        INS_INC1(octa_r, 8);
 
         __m256 dist_square = _mm256_loadu_ps(tmp);
 
