@@ -4,6 +4,9 @@ compile_commands.json
 *.ppm
 *.pfm
 *.ps
+*.data
+*.perf
+*.folded
 
 .vscode/
 __pycache__/
@@ -11,3 +14,5 @@ __pycache__/
 .Rhistory
 /benchmark/*.json
 .DS_Store
+.root
+.fuse_hidden*
