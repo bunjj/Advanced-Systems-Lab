@@ -3,7 +3,7 @@
  *
  * All other implementations will use this to construct their scenes.
  */
-#include "impl_opt3/scene.hpp"
+#include "impl_opt4/scene.hpp"
 
 #include <fstream>
 #include <iostream>
@@ -13,7 +13,7 @@
 
 using json = nlohmann::json;
 
-namespace impl::opt3 {
+namespace impl::opt4 {
 
     static vec load_vec(json& j) {
         return {j["x"], j["y"], j["z"]};
@@ -364,4 +364,4 @@ namespace impl::opt3 {
         load_shapes(j);
     }
 
-} // namespace impl::opt3
+} // namespace impl::opt4

@@ -7,7 +7,7 @@
 
 #include "instrument.h"
 
-namespace impl::opt3 {
+namespace impl::opt4 {
 
     extern float M_PI_F;
 #define TO_RAD(angle) ((angle) / 180.0f * M_PI_F)
@@ -309,4 +309,4 @@ namespace impl::opt3 {
 
     // }}}
 
-} // namespace impl::opt3
+} // namespace impl::opt4

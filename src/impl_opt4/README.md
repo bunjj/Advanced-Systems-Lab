@@ -1,13 +1,7 @@
-# Opt3
+# opt4
 
 ## Changes (w.r.t. opt1)
 
-Added short circuit termination in the distance functions for all shapes to avoid unneccessary sqrts.
-Further replaced 4x4 matrices by 3x3 matrices.
-
-Short circuit termination extended. Precompute a radius r for each shape type and compute distance function similar to spheres to determine
-if the object is too far away. Makes computation of exact distance functions in many cases obsolete. Bajor improvement to previous adjustments
-for complex shapes
 
 ## Timing
 

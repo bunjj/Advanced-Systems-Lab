@@ -1,6 +1,6 @@
-#include "impl_opt3/geometry.h"
+#include "impl_opt4/geometry.h"
 
-namespace impl::opt3 {
+namespace impl::opt4 {
     float M_PI_F = M_PI;
 
     std::ostream& operator<<(std::ostream& out, const vec& v) {
@@ -209,4 +209,4 @@ namespace impl::opt3 {
         return camera_matrix;
     }
 
-} // namespace impl::opt3
+} // namespace impl::opt4

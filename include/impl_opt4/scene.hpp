@@ -3,11 +3,11 @@
 #include <algorithm>
 #include <nlohmann/json.hpp>
 
-#include "impl_opt3/geometry.h"
+#include "impl_opt4/geometry.h"
 
 using json = nlohmann::json;
 
-namespace impl::opt3 {
+namespace impl::opt4 {
 
     struct camera {
         float fov;
@@ -502,4 +502,4 @@ namespace impl::opt3 {
         return m33_mul_vec(o.rot, n_obj);
     }
 
-} // namespace impl::opt3
+} // namespace impl::opt4

@@ -1,8 +1,8 @@
-#include "impl_opt3/impl.hpp"
+#include "impl_opt4/impl.hpp"
 
-#include "impl_opt3/scene.hpp"
+#include "impl_opt4/scene.hpp"
 
-namespace impl::opt3 {
+namespace impl::opt4 {
     // max distance
     static const float D = 100;
     static const float EPS = 0.001;
@@ -378,4 +378,4 @@ namespace impl::opt3 {
         }
     }
 
-} // namespace impl::opt3
+} // namespace impl::opt4
