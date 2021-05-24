@@ -307,6 +307,15 @@ namespace impl::opt4 {
         return {x, y, z};
     }
 
+
+    static inline vec transform_point(const m33 R, const vec t, const vec p) {
+        return vec_add(m33_mul_vec(R, p), t);
+    }
+
+    static inline vec invtransform_point(const m33 Rt, vec t, const vec p) {
+        return m33_mul_vec(Rt, vec_sub(p, t));
+    }
+
     // }}}
 
 } // namespace impl::opt4

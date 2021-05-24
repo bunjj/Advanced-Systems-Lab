@@ -60,7 +60,7 @@ namespace impl::opt4 {
             // boxes
             for (int k = 0; k < scene.num_boxes; k++) {
                 box s = scene.boxes[k];
-                vec p_obj = m33_mul_vec(s.inv_rot, vec_sub(p_world, s.bottom_left));
+                vec p_obj = invtransform_point(s.inv_rot, s.bottom_left, p_world);
                 float distance = box_distance_short(scene.boxes[k], p_obj, min_distance);
 
                 INS_CMP;
@@ -78,7 +78,7 @@ namespace impl::opt4 {
             // tori
             for (int k = 0; k < scene.num_tori; k++) {
                 torus s = scene.tori[k];
-                vec p_obj = m33_mul_vec(s.inv_rot, vec_sub(p_world, s.center));  
+                vec p_obj = invtransform_point(s.inv_rot, s.center, p_world);  
                 float distance = torus_distance_short(scene.tori[k], p_obj, min_distance);
 
                 INS_CMP;
@@ -96,7 +96,7 @@ namespace impl::opt4 {
             // cones
             for (int k = 0; k < scene.num_cones; k++) {
                 cone s = scene.cones[k];
-                vec p_obj = m33_mul_vec(s.inv_rot, vec_sub(p_world, s.center));
+                vec p_obj = invtransform_point(s.inv_rot, s.center, p_world);
                 float distance = cone_distance_short(scene.cones[k], p_obj, min_distance);
 
                 INS_CMP;
@@ -114,7 +114,7 @@ namespace impl::opt4 {
             // octahedra
             for (int k = 0; k < scene.num_octahedra; k++) {
                 octa s = scene.octahedra[k];
-                vec p_obj = m33_mul_vec(s.inv_rot, vec_sub(p_world, s.center));
+                vec p_obj = invtransform_point(s.inv_rot, s.center, p_world);
                 float distance = octahedron_distance_short(scene.octahedra[k], p_obj, min_distance);
 
                 INS_CMP;
@@ -254,7 +254,7 @@ namespace impl::opt4 {
             // boxes
             for (int k = 0; k < scene.num_boxes; k++) {
                 box s = scene.boxes[k];
-                vec p_obj = m33_mul_vec(s.inv_rot, vec_sub(p_world, s.bottom_left));
+                vec p_obj = invtransform_point(s.inv_rot, s.bottom_left, p_world);
                 float distance = box_distance_short(scene.boxes[k], p_obj, min_distance);
 
                 INS_CMP;
@@ -275,7 +275,7 @@ namespace impl::opt4 {
             // tori
             for (int k = 0; k < scene.num_tori; k++) {
                 torus s = scene.tori[k];
-                vec p_obj = m33_mul_vec(s.inv_rot, vec_sub(p_world, s.center));  
+                vec p_obj = invtransform_point(s.inv_rot, s.center, p_world);  
                 float distance = torus_distance_short(scene.tori[k], p_obj, min_distance);
 
                 INS_CMP;
@@ -295,7 +295,7 @@ namespace impl::opt4 {
             // cones
             for (int k = 0; k < scene.num_cones; k++) {
                 cone s = scene.cones[k];
-                vec p_obj = m33_mul_vec(s.inv_rot, vec_sub(p_world, s.center));
+                vec p_obj = invtransform_point(s.inv_rot, s.center, p_world);
                 float distance = cone_distance_short(scene.cones[k], p_obj, min_distance);
 
                 INS_CMP;
@@ -316,7 +316,7 @@ namespace impl::opt4 {
             // octahedra
             for (int k = 0; k < scene.num_octahedra; k++) {
                 octa s = scene.octahedra[k];
-                vec p_obj = m33_mul_vec(s.inv_rot, vec_sub(p_world, s.center));
+                vec p_obj = invtransform_point(s.inv_rot, s.center, p_world);
                 float distance = octahedron_distance_short(scene.octahedra[k], p_obj, min_distance);
 
                 INS_CMP;
