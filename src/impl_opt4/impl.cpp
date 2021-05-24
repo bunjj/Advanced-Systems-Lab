@@ -15,13 +15,13 @@ namespace impl::opt4 {
     };
 
     // https://www.iquilezles.org/www/articles/rmshadows/rmshadows.htm
-    static float sphere_trace_softshadow(vec point, vec light_dir, float max_distance) {
+    static float sphere_trace_softshadow(Ray r_world, float max_distance) {
         float t = EPS;
 
         float sharpness = 3.f; // sharpness of shadows
         float res = 1.f;
         while (t < max_distance) {
-            vec p_world = vec_add(point, vec_scale(light_dir, t));
+            vec p_world = trace_ray(r_world, t);
 
             float min_distance = INFINITY;
 
@@ -171,7 +171,8 @@ namespace impl::opt4 {
 
             INS_CMP;
             if (vec_dot(wn, wi) > 0) {
-                float shadow = sphere_trace_softshadow(pos, wi, dist);
+                Ray shadowray = {pos, wi};
+                float shadow = sphere_trace_softshadow(shadowray, dist);
                 INS_CMP;
                 if (shadow > EPS) {
                     Li = vec_scale(Li, shadow);
@@ -203,13 +204,13 @@ namespace impl::opt4 {
         return Lo;
     }
 
-    static hit sphere_trace(vec origin, vec dir) {
+    static hit sphere_trace(Ray r_world) {
         float t = 0;
         int steps = 0;
         vec color;
 
         while (t < D) {
-            vec p_world = vec_add(origin, vec_scale(dir, t));
+            vec p_world = trace_ray(r_world, t);
 
             float min_distance = INFINITY;
 
@@ -226,7 +227,7 @@ namespace impl::opt4 {
                     if (min_distance <= EPS * t) {
                         sphere s = scene.spheres[k];
                         vec normal = sphere_normal(s, p_world);
-                        color = shade(normal, s.shininess, s.reflection, s.color, p_world, dir, t);
+                        color = shade(normal, s.shininess, s.reflection, s.color, p_world, r_world.d, t);
                         return {true, t, steps, color};
                     }
                 }
@@ -245,7 +246,7 @@ namespace impl::opt4 {
                     if (min_distance <= EPS * t) {
                         plane s = scene.planes[k];
                         vec normal = plane_normal(s, p_world);
-                        color = shade(normal, s.shininess, s.reflection, s.color, p_world, dir, t);
+                        color = shade(normal, s.shininess, s.reflection, s.color, p_world, r_world.d, t);
                         return {true, t, steps, color};
                     }
                 }
@@ -266,7 +267,7 @@ namespace impl::opt4 {
                     if (min_distance <= EPS * t) {
                         box s = scene.boxes[k];
                         vec normal = box_normal(s, p_obj);
-                        color = shade(normal, s.shininess, s.reflection, s.color, p_world, dir, t);
+                        color = shade(normal, s.shininess, s.reflection, s.color, p_world, r_world.d, t);
                         return {true, t, steps, color};
                     }
                 }
@@ -286,7 +287,7 @@ namespace impl::opt4 {
                     INS_MUL;
                     if (min_distance <= EPS * t) {
                         vec normal = torus_normal(s, p_obj);
-                        color = shade(normal, s.shininess, s.reflection, s.color, p_world, dir, t);
+                        color = shade(normal, s.shininess, s.reflection, s.color, p_world, r_world.d, t);
                         return {true, t, steps, color};
                     }
                 }
@@ -307,7 +308,7 @@ namespace impl::opt4 {
                     if (min_distance <= EPS * t) {
                         cone s = scene.cones[k];
                         vec normal = cone_normal(s, p_obj);
-                        color = shade(normal, s.shininess, s.reflection, s.color, p_world, dir, t);
+                        color = shade(normal, s.shininess, s.reflection, s.color, p_world, r_world.d, t);
                         return {true, t, steps, color};
                     }
                 }
@@ -328,7 +329,7 @@ namespace impl::opt4 {
                     if (min_distance <= EPS * t) {
                         octa s = scene.octahedra[k];
                         vec normal = octahedron_normal(s, p_obj);
-                        color = shade(normal, s.shininess, s.reflection, s.color, p_world, dir, t);
+                        color = shade(normal, s.shininess, s.reflection, s.color, p_world, r_world.d, t);
                         return {true, t, steps, color};
                     }
                 }
@@ -352,7 +353,7 @@ namespace impl::opt4 {
     }
 
     void render(int width, int height, float* pixels) {
-        m44 camera_matrix = get_transf_matrix(scene.cam.pos, scene.cam.rotation);
+        m33 camera_rotation = get_rot_matrix_33(scene.cam.rotation);
         INS_DIV;
         INS_DIV;
         INS_MUL;
@@ -378,11 +379,10 @@ namespace impl::opt4 {
                 float z = 1;
 
                 // Direction in camera space.
-                vec dir = vec_normalize({x, y, z});
+                Ray r_cam = {{0.f,0.f,0.f}, vec_normalize({x, y, z})};
+                Ray r_world = transform_ray(camera_rotation, scene.cam.pos, r_cam);
 
-                vec4 world_dir = m44_mul_vec(camera_matrix, vec4_from_dir(dir));
-
-                auto h = sphere_trace(scene.cam.pos, vec4_to_vec(world_dir));
+                auto h = sphere_trace(r_world);
 
                 vec color = h.is_hit ? h.color : vec{0, 0, 0};
 

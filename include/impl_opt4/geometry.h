@@ -318,4 +318,31 @@ namespace impl::opt4 {
 
     // }}}
 
+    // {{{
+
+    struct Ray {
+        vec o; // origin
+        vec d; // direction
+    };
+
+    static inline vec trace_ray(const Ray r, const float t) {
+        return vec_add(r.o, vec_scale(r.d, t));
+    }
+
+    static inline Ray transform_ray(const m33 R, const vec t, const Ray r) {
+        Ray res;
+        res.o = transform_point(R, t, r.o);
+        res.d = m33_mul_vec(R, r.d);
+        return res;
+    }
+
+    static inline Ray invtransform_ray(const m33 Rt, const vec t, const Ray r) {
+        Ray res;
+        res.o = invtransform_point(Rt, t, r.o);
+        res.d = m33_mul_vec(Rt, r.d);
+        return res;
+    }
+
+    /// }}}
+
 } // namespace impl::opt4
