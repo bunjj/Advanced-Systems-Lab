@@ -21,13 +21,13 @@ namespace impl::opt4 {
         float sharpness = 3.f; // sharpness of shadows
         float res = 1.f;
         while (t < max_distance) {
-            vec pos = vec_add(point, vec_scale(light_dir, t));
+            vec p_world = vec_add(point, vec_scale(light_dir, t));
 
             float min_distance = INFINITY;
 
             // spheres
             for (int k = 0; k < scene.num_spheres; k++) {
-                float distance = sphere_distance_short(scene.spheres[k], pos, min_distance);
+                float distance = sphere_distance_short(scene.spheres[k], p_world, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -43,7 +43,7 @@ namespace impl::opt4 {
 
             // planes
             for (int k = 0; k < scene.num_planes; k++) {
-                float distance = plane_distance(scene.planes[k], pos);
+                float distance = plane_distance(scene.planes[k], p_world);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -59,7 +59,9 @@ namespace impl::opt4 {
 
             // boxes
             for (int k = 0; k < scene.num_boxes; k++) {
-                float distance = box_distance_short(scene.boxes[k], pos, min_distance);
+                box s = scene.boxes[k];
+                vec p_obj = m33_mul_vec(s.inv_rot, vec_sub(p_world, s.bottom_left));
+                float distance = box_distance_short(scene.boxes[k], p_obj, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -75,7 +77,9 @@ namespace impl::opt4 {
 
             // tori
             for (int k = 0; k < scene.num_tori; k++) {
-                float distance = torus_distance_short(scene.tori[k], pos, min_distance);
+                torus s = scene.tori[k];
+                vec p_obj = m33_mul_vec(s.inv_rot, vec_sub(p_world, s.center));  
+                float distance = torus_distance_short(scene.tori[k], p_obj, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -91,7 +95,9 @@ namespace impl::opt4 {
 
             // cones
             for (int k = 0; k < scene.num_cones; k++) {
-                float distance = cone_distance_short(scene.cones[k], pos, min_distance);
+                cone s = scene.cones[k];
+                vec p_obj = m33_mul_vec(s.inv_rot, vec_sub(p_world, s.center));
+                float distance = cone_distance_short(scene.cones[k], p_obj, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -107,7 +113,9 @@ namespace impl::opt4 {
 
             // octahedra
             for (int k = 0; k < scene.num_octahedra; k++) {
-                float distance = octahedron_distance_short(scene.octahedra[k], pos, min_distance);
+                octa s = scene.octahedra[k];
+                vec p_obj = m33_mul_vec(s.inv_rot, vec_sub(p_world, s.center));
+                float distance = octahedron_distance_short(scene.octahedra[k], p_obj, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -201,13 +209,13 @@ namespace impl::opt4 {
         vec color;
 
         while (t < D) {
-            vec pos = vec_add(origin, vec_scale(dir, t));
+            vec p_world = vec_add(origin, vec_scale(dir, t));
 
             float min_distance = INFINITY;
 
             // spheres
             for (int k = 0; k < scene.num_spheres; k++) {
-                float distance = sphere_distance_short(scene.spheres[k], pos, min_distance);
+                float distance = sphere_distance_short(scene.spheres[k], p_world, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -217,8 +225,8 @@ namespace impl::opt4 {
                     INS_MUL;
                     if (min_distance <= EPS * t) {
                         sphere s = scene.spheres[k];
-                        vec normal = sphere_normal(s, pos);
-                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
+                        vec normal = sphere_normal(s, p_world);
+                        color = shade(normal, s.shininess, s.reflection, s.color, p_world, dir, t);
                         return {true, t, steps, color};
                     }
                 }
@@ -226,7 +234,7 @@ namespace impl::opt4 {
 
             // planes
             for (int k = 0; k < scene.num_planes; k++) {
-                float distance = plane_distance(scene.planes[k], pos);
+                float distance = plane_distance(scene.planes[k], p_world);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -236,8 +244,8 @@ namespace impl::opt4 {
                     INS_MUL;
                     if (min_distance <= EPS * t) {
                         plane s = scene.planes[k];
-                        vec normal = plane_normal(s, pos);
-                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
+                        vec normal = plane_normal(s, p_world);
+                        color = shade(normal, s.shininess, s.reflection, s.color, p_world, dir, t);
                         return {true, t, steps, color};
                     }
                 }
@@ -245,7 +253,9 @@ namespace impl::opt4 {
 
             // boxes
             for (int k = 0; k < scene.num_boxes; k++) {
-                float distance = box_distance_short(scene.boxes[k], pos, min_distance);
+                box s = scene.boxes[k];
+                vec p_obj = m33_mul_vec(s.inv_rot, vec_sub(p_world, s.bottom_left));
+                float distance = box_distance_short(scene.boxes[k], p_obj, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -255,8 +265,8 @@ namespace impl::opt4 {
                     INS_MUL;
                     if (min_distance <= EPS * t) {
                         box s = scene.boxes[k];
-                        vec normal = box_normal(s, pos);
-                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
+                        vec normal = box_normal(s, p_obj);
+                        color = shade(normal, s.shininess, s.reflection, s.color, p_world, dir, t);
                         return {true, t, steps, color};
                     }
                 }
@@ -264,7 +274,9 @@ namespace impl::opt4 {
 
             // tori
             for (int k = 0; k < scene.num_tori; k++) {
-                float distance = torus_distance_short(scene.tori[k], pos, min_distance);
+                torus s = scene.tori[k];
+                vec p_obj = m33_mul_vec(s.inv_rot, vec_sub(p_world, s.center));  
+                float distance = torus_distance_short(scene.tori[k], p_obj, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -273,9 +285,8 @@ namespace impl::opt4 {
                     INS_CMP;
                     INS_MUL;
                     if (min_distance <= EPS * t) {
-                        torus s = scene.tori[k];
-                        vec normal = torus_normal(s, pos);
-                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
+                        vec normal = torus_normal(s, p_obj);
+                        color = shade(normal, s.shininess, s.reflection, s.color, p_world, dir, t);
                         return {true, t, steps, color};
                     }
                 }
@@ -283,7 +294,9 @@ namespace impl::opt4 {
 
             // cones
             for (int k = 0; k < scene.num_cones; k++) {
-                float distance = cone_distance_short(scene.cones[k], pos, min_distance);
+                cone s = scene.cones[k];
+                vec p_obj = m33_mul_vec(s.inv_rot, vec_sub(p_world, s.center));
+                float distance = cone_distance_short(scene.cones[k], p_obj, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -293,8 +306,8 @@ namespace impl::opt4 {
                     INS_MUL;
                     if (min_distance <= EPS * t) {
                         cone s = scene.cones[k];
-                        vec normal = cone_normal(s, pos);
-                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
+                        vec normal = cone_normal(s, p_obj);
+                        color = shade(normal, s.shininess, s.reflection, s.color, p_world, dir, t);
                         return {true, t, steps, color};
                     }
                 }
@@ -302,7 +315,9 @@ namespace impl::opt4 {
 
             // octahedra
             for (int k = 0; k < scene.num_octahedra; k++) {
-                float distance = octahedron_distance_short(scene.octahedra[k], pos, min_distance);
+                octa s = scene.octahedra[k];
+                vec p_obj = m33_mul_vec(s.inv_rot, vec_sub(p_world, s.center));
+                float distance = octahedron_distance_short(scene.octahedra[k], p_obj, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -312,8 +327,8 @@ namespace impl::opt4 {
                     INS_MUL;
                     if (min_distance <= EPS * t) {
                         octa s = scene.octahedra[k];
-                        vec normal = octahedron_normal(s, pos);
-                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
+                        vec normal = octahedron_normal(s, p_obj);
+                        color = shade(normal, s.shininess, s.reflection, s.color, p_world, dir, t);
                         return {true, t, steps, color};
                     }
                 }
