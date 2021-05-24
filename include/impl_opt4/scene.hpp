@@ -293,26 +293,26 @@ namespace impl::opt4 {
     // Octahedron
     static inline float octahedron_distance(const octa o, const vec pos) {
         INS_INC(octa);
-        pos = vec_abs(pos);
+        vec abs = vec_abs(pos);
 
         float s = o.s;
 
         INS_INC1(add, 3);
-        float m = pos.x + pos.y + pos.z - s;
+        float m = abs.x + abs.y + abs.z - s;
         vec q;
 
-        if (3 * pos.x < m) {
+        if (3 * abs.x < m) {
             INS_INC1(mul, 1);
             INS_INC1(cmp, 1);
-            q = pos;
-        } else if (3 * pos.y < m) {
+            q = abs;
+        } else if (3 * abs.y < m) {
             INS_INC1(mul, 2);
             INS_INC1(cmp, 2);
-            q = {pos.y, pos.x, pos.z};
-        } else if (3 * pos.z < m) {
+            q = {abs.y, abs.x, abs.z};
+        } else if (3 * abs.z < m) {
             INS_INC1(mul, 3);
             INS_INC1(cmp, 3);
-            q = {pos.z, pos.x, pos.y};
+            q = {abs.z, abs.x, abs.y};
         } else {
             INS_INC1(mul, 4);
             INS_INC1(cmp, 3);
@@ -341,26 +341,26 @@ namespace impl::opt4 {
 
 
 
-        pos = vec_abs(pos);
+        vec abs = vec_abs(pos);
 
         float s = o.s;
 
         INS_INC1(add, 3);
-        float m = pos.x + pos.y + pos.z - s;
+        float m = abs.x + abs.y + abs.z - s;
         vec q;
 
-        if (3 * pos.x < m) {
+        if (3 * abs.x < m) {
             INS_INC1(mul, 1);
             INS_INC1(cmp, 1);
-            q = pos;
-        } else if (3 * pos.y < m) {
+            q = abs;
+        } else if (3 * abs.y < m) {
             INS_INC1(mul, 2);
             INS_INC1(cmp, 2);
-            q = {pos.y, pos.x, pos.z};
-        } else if (3 * pos.z < m) {
+            q = {abs.y, abs.x, abs.z};
+        } else if (3 * abs.z < m) {
             INS_INC1(mul, 3);
             INS_INC1(cmp, 3);
-            q = {pos.z, pos.x, pos.y};
+            q = {abs.z, abs.x, abs.y};
         } else {
             INS_INC1(mul, 4);
             INS_INC1(cmp, 3);
