@@ -168,6 +168,8 @@ namespace impl::opt5 {
         s.rot = rot;
         s.inv_rot = inv_rot;
         s.r = vec2_length({height, max(r1,r2)});
+        vec2 k2 = {r2 - r1, 2 * height};
+        s.k2d2inv = 1.f / vec2_dot2(k2);
         return s;
     }
 

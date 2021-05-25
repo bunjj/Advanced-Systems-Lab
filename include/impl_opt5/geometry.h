@@ -12,6 +12,9 @@ namespace impl::opt5 {
     extern float M_PI_F;
 #define TO_RAD(angle) ((angle) / 180.0f * M_PI_F)
 
+    // 1 / sqrt(3)
+#define SQRT3_INV .57735026918962576451f
+
     static inline float max(float x, float y) {
         INS_CMP;
         return x > y ? x : y;

@@ -84,6 +84,7 @@ namespace impl::opt5 {
         float shininess;
         m33 inv_rot;
         float r;
+        float k2d2inv; // 1 / vec_dot2(k2)
     };
 
     struct octa {
@@ -217,6 +218,8 @@ namespace impl::opt5 {
 
         vec2 q = {vec2_length({pos.x, pos.z}), pos.y};
         vec2 k1 = {r2, h};
+        // Computing k2 again instead of storing it in the shape seems to perform better. Maybe because the compiler can
+        // optimize better?
         INS_ADD;
         INS_MUL;
         vec2 k2 = {r2 - r1, 2 * h};
@@ -224,11 +227,8 @@ namespace impl::opt5 {
         INS_ABS;
         INS_CMP;
         vec2 ca = {q.x - min(q.x, (q.y < 0 ? r1 : r2)), fabsf(q.y) - h};
-        INS_DIV;
-        vec2 cb =
-            vec2_add(vec2_sub(q, k1), vec2_scale(k2, clamp(vec2_dot(vec2_sub(k1, q), k2) / vec2_dot2(k2), 0.0f, 1.0f)));
-        INS_INC1(cmp, 2);
-        float s = (cb.x < 0 && ca.y < 0) ? -1 : 1;
+        INS_MUL;
+        vec2 cb = vec2_add(vec2_sub(q, k1), vec2_scale(k2, clamp(vec2_dot(vec2_sub(k1, q), k2) * c.k2d2inv, 0.0f, 1.0f)));
 
         float squared_min = min(vec2_dot2(ca), vec2_dot2(cb));
         INS_MUL;
@@ -236,6 +236,9 @@ namespace impl::opt5 {
         if (squared_min >= current_min * current_min) {
             return current_min;
         }
+
+        INS_INC1(cmp, 2);
+        float s = (cb.x < 0 && ca.y < 0) ? -1 : 1;
 
         INS_MUL;
         INS_SQRT;
@@ -254,41 +257,44 @@ namespace impl::opt5 {
         float duf_bound = o.s + current_min;
         if( pos_squared >= duf_bound * duf_bound) return current_min;
 
-
-
-
         vec abs = vec_abs(pos);
 
-        float s = o.s;
-
         INS_INC1(add, 3);
-        float m = abs.x + abs.y + abs.z - s;
-        vec q;
+        float m = abs.x + abs.y + abs.z - o.s;
+        float qx;
+        float qy;
+        float qz;
 
         if (3 * abs.x < m) {
             INS_INC1(mul, 1);
             INS_INC1(cmp, 1);
-            q = abs;
+            qx = abs.x;
+            qy = abs.y;
+            qz = abs.z;
         } else if (3 * abs.y < m) {
             INS_INC1(mul, 2);
             INS_INC1(cmp, 2);
-            q = {abs.y, abs.x, abs.z};
+            qx = abs.y;
+            qy = abs.x;
+            qz = abs.z;
         } else if (3 * abs.z < m) {
             INS_INC1(mul, 3);
             INS_INC1(cmp, 3);
-            q = {abs.z, abs.x, abs.y};
+            qx = abs.z;
+            qy = abs.x;
+            qz = abs.y;
         } else {
             INS_INC1(mul, 4);
             INS_INC1(cmp, 3);
-            return m * 0.57735027;
+            return m * SQRT3_INV;
         }
 
         INS_MUL;
         INS_INC1(add, 2);
-        float k = clamp(0.5f * (q.z - q.y + s), 0.0f, s);
+        float k = clamp(0.5f * (qz - qy + o.s), 0.0f, o.s);
 
         INS_INC1(add, 3);
-        float squared_distance = vec_dot2({q.x, q.y - s + k, q.z - k});
+        float squared_distance = vec_dot2({qx, qy - o.s + k, qz - k});
 
         INS_INC1(mul, 1);
         INS_CMP;
@@ -308,26 +314,23 @@ namespace impl::opt5 {
 
         // transform into upper right quadrant
         vec abs = vec_abs(pos);
-        vec sign = vec_div(pos, abs);
         vec q = vec_sub(abs, b.extents);
 
-        // argmax(q.x, q.y, q.z)
-        vec n_obj = {0, 0, 0};
+        vec n_obj = {0.f , 0.f, 0.f};
+
+        // We only need to find the normal of the side we touched
         if (q.x > q.y && q.x > q.z && q.x > 0) {
-            INS_INC1(cmp, 3);
-            n_obj = {1, 0, 0};
+            INS_INC1(cmp, 4);
+            n_obj = {pos.x >= 0.f ? 1.f : -1.f, 0.f, 0.f};
         } else if (q.y > q.z && q.y > 0) {
-            INS_INC1(cmp, 5);
-            n_obj = {0, 1, 0};
-        } else if (q.z > 0) {
             INS_INC1(cmp, 6);
-            n_obj = {0, 0, 1};
+            n_obj = {0.f, pos.y >= 0.f ? 1.f : -1.f, 0.f};
+        } else if (q.z > 0) {
+            INS_INC1(cmp, 7);
+            n_obj = {0.f, 0.f, pos.z >= 0.f ? 1.f : -1.f};
         } else {
             INS_INC1(cmp, 6);
         }
-
-        // invert transform from upper right quadrant, before abs()
-        n_obj = vec_mul(sign, n_obj);
 
         return m33_mul_vec(b.rot, n_obj);
     }
@@ -369,9 +372,8 @@ namespace impl::opt5 {
         INS_ABS;
         INS_CMP;
         vec2 ca = {q.x - min(q.x, (q.y < 0 ? r1 : r2)), fabsf(q.y) - h};
-        INS_DIV;
-        vec2 cb =
-            vec2_add(vec2_sub(q, k1), vec2_scale(k2, clamp(vec2_dot(vec2_sub(k1, q), k2) / vec2_dot2(k2), 0.0f, 1.0f)));
+        INS_MUL;
+        vec2 cb = vec2_add(vec2_sub(q, k1), vec2_scale(k2, clamp(vec2_dot(vec2_sub(k1, q), k2) * c.k2d2inv, 0.0f, 1.0f)));
 
         // invert transform from rotation invariant subspace
         vec n_obj = {0, 0, 0};
@@ -393,17 +395,11 @@ namespace impl::opt5 {
     static inline vec octahedron_normal(const octa o, const vec pos) {
         INS_INC(octa_n);
 
-        // transform into upper right quadrant
-        vec abs = vec_abs(pos);
-        vec sign = vec_div(pos, abs);
-
-        vec n_obj = {1, 1, 1};
-        n_obj = vec_normalize(n_obj);
-
-        // invert transform from upper right quadrant, before abs()
-        n_obj = vec_mul(sign, n_obj);
-
-        return m33_mul_vec(o.rot, n_obj);
+        INS_INC1(cmp, 3);
+        float x = pos.x >= 0.f ? SQRT3_INV : -SQRT3_INV;
+        float y = pos.y >= 0.f ? SQRT3_INV : -SQRT3_INV;
+        float z = pos.z >= 0.f ? SQRT3_INV : -SQRT3_INV;
+        return m33_mul_vec(o.rot, {x, y, z});
     }
 
 } // namespace impl::opt5
