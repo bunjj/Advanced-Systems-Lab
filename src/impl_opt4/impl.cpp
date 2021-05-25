@@ -19,21 +19,26 @@ namespace impl::opt4 {
     static Ray* r_cones;
     static Ray* r_octahedra;
 
+    static Ray* r_boxes_shade;
+    static Ray* r_tori_shade;
+    static Ray* r_cones_shade;
+    static Ray* r_octahedra_shade;
+
     // https://www.iquilezles.org/www/articles/rmshadows/rmshadows.htm
     static float sphere_trace_softshadow(Ray r_world, float max_distance) {
         
         /* Precompute ray in all object coordinates */
         for (int k = 0; k < scene.num_boxes; k++) {
-            r_boxes[k] = invtransform_ray(scene.boxes[k].inv_rot, scene.boxes[k].bottom_left, r_world);
+            r_boxes_shade[k] = invtransform_ray(scene.boxes[k].inv_rot, scene.boxes[k].bottom_left, r_world);
         }
         for (int k = 0; k < scene.num_tori; k++) {
-            r_tori[k] = invtransform_ray(scene.tori[k].inv_rot, scene.tori[k].center, r_world);
+            r_tori_shade[k] = invtransform_ray(scene.tori[k].inv_rot, scene.tori[k].center, r_world);
         }         
         for (int k = 0; k < scene.num_cones; k++) {
-            r_cones[k] = invtransform_ray(scene.cones[k].inv_rot, scene.cones[k].center, r_world);
+            r_cones_shade[k] = invtransform_ray(scene.cones[k].inv_rot, scene.cones[k].center, r_world);
         }
         for (int k = 0; k < scene.num_octahedra; k++) {
-            r_octahedra[k] = invtransform_ray(scene.octahedra[k].inv_rot, scene.octahedra[k].center, r_world);
+            r_octahedra_shade[k] = invtransform_ray(scene.octahedra[k].inv_rot, scene.octahedra[k].center, r_world);
         }
 
         /* Actual Shadow Tracing */
@@ -80,9 +85,7 @@ namespace impl::opt4 {
 
             // boxes
             for (int k = 0; k < scene.num_boxes; k++) {
-                vec p_obj = trace_ray(r_boxes[k], t);
-                //box s = scene.boxes[k];
-                //vec p_obj = invtransform_point(s.inv_rot, s.bottom_left, p_world);
+                vec p_obj = trace_ray(r_boxes_shade[k], t);
                 float distance = box_distance_short(scene.boxes[k], p_obj, min_distance);
 
                 INS_CMP;
@@ -99,9 +102,7 @@ namespace impl::opt4 {
 
             // tori
             for (int k = 0; k < scene.num_tori; k++) {
-                vec p_obj = trace_ray(r_tori[k], t);
-                //torus s = scene.tori[k];
-                //vec p_obj = invtransform_point(s.inv_rot, s.center, p_world);  
+                vec p_obj = trace_ray(r_tori_shade[k], t);
                 float distance = torus_distance_short(scene.tori[k], p_obj, min_distance);
 
                 INS_CMP;
@@ -118,9 +119,7 @@ namespace impl::opt4 {
 
             // cones
             for (int k = 0; k < scene.num_cones; k++) {
-                vec p_obj = trace_ray(r_cones[k], t);
-                //cone s = scene.cones[k];
-                //vec p_obj = invtransform_point(s.inv_rot, s.center, p_world);
+                vec p_obj = trace_ray(r_cones_shade[k], t);
                 float distance = cone_distance_short(scene.cones[k], p_obj, min_distance);
 
                 INS_CMP;
@@ -137,9 +136,7 @@ namespace impl::opt4 {
 
             // octahedra
             for (int k = 0; k < scene.num_octahedra; k++) {
-                vec p_obj = trace_ray(r_octahedra[k], t);
-                //octa s = scene.octahedra[k];
-                //vec p_obj = invtransform_point(s.inv_rot, s.center, p_world);
+                vec p_obj = trace_ray(r_octahedra_shade[k], t);
                 float distance = octahedron_distance_short(scene.octahedra[k], p_obj, min_distance);
 
                 INS_CMP;
@@ -230,21 +227,19 @@ namespace impl::opt4 {
     }
 
     static hit sphere_trace(Ray r_world) {
-        
-        /* Precompute ray in all object coordinates */  
+        /* Precompute ray direction in all object coordinates */  
         for (int k = 0; k < scene.num_boxes; k++) {
-            r_boxes[k] = invtransform_ray(scene.boxes[k].inv_rot, scene.boxes[k].bottom_left, r_world);
+            r_boxes[k].d = m33_mul_vec(scene.boxes[k].inv_rot, r_world.d);
         }
         for (int k = 0; k < scene.num_tori; k++) {
-            r_tori[k] = invtransform_ray(scene.tori[k].inv_rot, scene.tori[k].center, r_world);
+            r_tori[k].d = m33_mul_vec(scene.tori[k].inv_rot, r_world.d);
         }         
         for (int k = 0; k < scene.num_cones; k++) {
-            r_cones[k] = invtransform_ray(scene.cones[k].inv_rot, scene.cones[k].center, r_world);
+            r_cones[k].d = m33_mul_vec(scene.cones[k].inv_rot, r_world.d);
         }
         for (int k = 0; k < scene.num_octahedra; k++) {
-            r_octahedra[k] = invtransform_ray(scene.octahedra[k].inv_rot, scene.octahedra[k].center, r_world);
+            r_octahedra[k].d = m33_mul_vec(scene.octahedra[k].inv_rot, r_world.d);
         }
-        
 
         /* Actual Sphere Tracing */
         float t = 0;
@@ -297,7 +292,6 @@ namespace impl::opt4 {
             // boxes
             for (int k = 0; k < scene.num_boxes; k++) {
                 vec p_obj = trace_ray(r_boxes[k], t);
-                //vec p_obj = invtransform_point(s.inv_rot, s.bottom_left, p_world);
                 float distance = box_distance_short(scene.boxes[k], p_obj, min_distance);
 
                 INS_CMP;
@@ -318,7 +312,6 @@ namespace impl::opt4 {
             // tori
             for (int k = 0; k < scene.num_tori; k++) {
                 vec p_obj = trace_ray(r_tori[k], t);
-                //vec p_obj = invtransform_point(s.inv_rot, s.center, p_world);  
                 float distance = torus_distance_short(scene.tori[k], p_obj, min_distance);
 
                 INS_CMP;
@@ -339,7 +332,6 @@ namespace impl::opt4 {
             // cones
             for (int k = 0; k < scene.num_cones; k++) {
                 vec p_obj = trace_ray(r_cones[k], t);
-                //vec p_obj = invtransform_point(s.inv_rot, s.center, p_world);
                 float distance = cone_distance_short(scene.cones[k], p_obj, min_distance);
 
                 INS_CMP;
@@ -360,7 +352,6 @@ namespace impl::opt4 {
             // octahedra
             for (int k = 0; k < scene.num_octahedra; k++) {
                 vec p_obj = trace_ray(r_octahedra[k], t);
-                //vec p_obj = invtransform_point(s.inv_rot, s.center, p_world);
                 float distance = octahedron_distance_short(scene.octahedra[k], p_obj, min_distance);
 
                 INS_CMP;
@@ -403,11 +394,29 @@ namespace impl::opt4 {
         INS_TAN;
         float fov_factor = tanf(TO_RAD(scene.cam.fov / 2));
 
-        INS_INC1(mul, 4);
         r_boxes = (struct Ray*) malloc(sizeof(Ray) * scene.num_boxes);
         r_tori = (struct Ray*) malloc(sizeof(Ray) * scene.num_tori);
         r_cones = (struct Ray*) malloc(sizeof(Ray) * scene.num_cones);
         r_octahedra = (struct Ray*) malloc(sizeof(Ray) * scene.num_octahedra);
+
+        r_boxes_shade = (struct Ray*) malloc(sizeof(Ray) * scene.num_boxes);
+        r_tori_shade = (struct Ray*) malloc(sizeof(Ray) * scene.num_tori);
+        r_cones_shade = (struct Ray*) malloc(sizeof(Ray) * scene.num_cones);
+        r_octahedra_shade = (struct Ray*) malloc(sizeof(Ray) * scene.num_octahedra);
+
+        /* Precompute camera ray origin in object coordinates */
+        for (int k = 0; k < scene.num_boxes; k++) {
+            r_boxes[k].o = invtransform_point(scene.boxes[k].inv_rot, scene.boxes[k].bottom_left, scene.cam.pos);
+        }
+        for (int k = 0; k < scene.num_tori; k++) {
+            r_tori[k].o = invtransform_point(scene.tori[k].inv_rot, scene.tori[k].center, scene.cam.pos);
+        }         
+        for (int k = 0; k < scene.num_cones; k++) {
+            r_cones[k].o = invtransform_point(scene.cones[k].inv_rot, scene.cones[k].center, scene.cam.pos);
+        }
+        for (int k = 0; k < scene.num_octahedra; k++) {
+            r_octahedra[k].o = invtransform_point(scene.octahedra[k].inv_rot, scene.octahedra[k].center, scene.cam.pos);
+        }
 
         INS_DIV;
         float aspect_ratio = static_cast<float>(width) / height;
