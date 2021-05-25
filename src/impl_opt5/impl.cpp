@@ -361,12 +361,6 @@ namespace impl::opt5 {
     }
 
     void render_init(std::string input) {
-        // convert scene from reference format to custom format
-        // std::cout << "Reference scene already loaded (" << input << "), converting to required format" << std::endl;
-        // from_ref_scene();
-
-        // alternatively, we can just read the scene again from the json file
-        std::cout << "Loading scene again" << std::endl;
         load_scene(input);
     }
 
@@ -402,8 +396,15 @@ namespace impl::opt5 {
             r_octahedra[k].o = invtransform_point(scene.octahedra[k].inv_rot, scene.octahedra[k].center, scene.cam.pos);
         }
 
+        float fwidth = width;
+        float fheight = height;
+
         INS_DIV;
-        float aspect_ratio = static_cast<float>(width) / static_cast<float>(height);
+        float aspect_ratio = fwidth / fheight;
+
+        INS_MUL;
+        float fov_aspect = aspect_ratio * fov_factor;
+
         for (int py = 0; py < height; py++) {
             for (int px = 0; px < width; px++) {
                 /*
@@ -413,11 +414,20 @@ namespace impl::opt5 {
                  * image plane is one unit away from the camera (z = -1 in this
                  * case).
                  */
-                INS_INC1(add, 4);
-                INS_INC1(mul, 5);
+                INS_INC1(add, 2);
+                INS_INC1(mul, 2);
                 INS_INC1(div, 2);
-                float x = (2 * (px + 0.5) / width - 1) * aspect_ratio * fov_factor;
-                float y = (1 - 2 * (py + 0.5) / height) * fov_factor;
+
+                /*
+                 * 2 * (px + 0.5) == 2 * px + 1
+                 *
+                 * Now we only use integer operations
+                 */
+                float px_1 = static_cast<float>(2 * px + 1);
+                float py_1 = static_cast<float>(2 * py + 1);
+
+                float x = (px_1 / fwidth - 1) * fov_aspect;
+                float y = (1 - py_1 / fheight) * fov_factor;
                 float z = 1;
 
                 // Direction in camera space.
