@@ -9,6 +9,8 @@ namespace impl::opt5 {
     static const float PI4 = 4 * M_PI_F;
     static const float M_E_F = M_E;
 
+    static const float sharpness = 3.f; // sharpness of shadows
+
     static Ray* r_boxes;
     static Ray* r_tori;
     static Ray* r_cones;
@@ -39,7 +41,6 @@ namespace impl::opt5 {
         /* Actual Shadow Tracing */
         float t = EPS;
 
-        float sharpness = 3.f; // sharpness of shadows
         float res = 1.f;
         while (t < max_distance) {
             vec p_world = trace_ray(r_world, t);
@@ -154,27 +155,22 @@ namespace impl::opt5 {
         return res;
     }
 
+    static const float kd = 1.f;              // diffuse parameter
+    static const float ka = 0.0075f;          // ambient parameter
+    static const float neg_sigma_a = -4e-6f;  // atmospheric absorbtion coeff
+
     static vec shade(vec normal, float shininess, float reflection, vec color, vec pos, vec dir, float t) {
         /* Prepare shading parameters */
         INS_MUL;
-        float alpha = shininess;     // shininess parameter
         float ks = reflection * 0.4; // specular parameter
 
-        float kd = 1.f;              // diffuse parameter
-        float ka = 0.0075f;          // ambient parameter
-        float neg_sigma_a = -4e-6f;  // atmospheric absorbtion coeff
-
-        vec wi;                        // incident direction
-        vec wr;                        // reflected direction
         vec wo = vec_scale(dir, -1.f); // outgoing direction
-        vec wn = normal;               // normal direction
 
-        vec Li;             // incident Light
         vec Lo = {0, 0, 0}; // outgoing Light
         vec La = {0, 0, 0}; // ambient Light
 
         for (int i = 0; i < scene.num_lights; i++) {
-            wi = vec_sub(scene.lights[i].pos, pos); // unnormalized
+            vec wi = vec_sub(scene.lights[i].pos, pos); // incident direction unnormalized
 
             INS_DIV;
             float dist2 = vec_dot2(wi);   // squared distance of light
@@ -184,28 +180,28 @@ namespace impl::opt5 {
             // incoming light
             INS_MUL;
             INS_DIV;
-            Li = vec_scale(scene.lights[i].emission, 1 / (PI4 * dist2)); // incident light
+            vec Li = vec_scale(scene.lights[i].emission, 1 / (PI4 * dist2)); // incident light
             La = vec_add(La, Li); // incident light contributes to ambient light
 
             INS_CMP;
-            if (vec_dot(wn, wi) > 0) {
-                Ray shadowray = {pos, wi};
-                float shadow = sphere_trace_softshadow(shadowray, dist);
+            if (vec_dot(normal, wi) > 0) {
+                float shadow = sphere_trace_softshadow({pos, wi}, dist);
                 INS_CMP;
                 if (shadow > EPS) {
                     Li = vec_scale(Li, shadow);
 
                     // diffuse
                     INS_MUL;
-                    vec f_diffuse = vec_scale(color, kd * vec_dot(wn, wi)); // fraction of reflected light
+                    vec f_diffuse = vec_scale(color, kd * vec_dot(normal, wi)); // fraction of reflected light
                     Lo = vec_add(Lo, vec_mul(Li, f_diffuse));               // diffuse contribution to outgoing light
 
                     // specular
                     INS_INC1(mul, 2);
                     INS_POW;
-                    wr = vec_sub(vec_scale(wn, 2 * vec_dot(wn, wi)), wi); // reflected direction
+
+                    vec wr = vec_sub(vec_scale(normal, 2 * vec_dot(normal, wi)), wi); // reflected direction
                     float f_specular =
-                        ks * pow(max(0.f, vec_dot(wr, wo)), alpha); // fraction of reflected light TODO: normalization?
+                        ks * pow(max(0.f, vec_dot(wr, wo)), shininess); // fraction of reflected light TODO: normalization?
                     Lo = vec_add(Lo, vec_scale(Li, f_specular));    // specular contribution to outgoing light
                 }
             }
