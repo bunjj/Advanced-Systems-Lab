@@ -19,7 +19,7 @@ scene_dir="${base_dir}/../scenes"
 scene0="$scene_dir/scene0.json"
 benchmark_small="$(find "${scene_dir}/benchmark_small" -name "*.json")"
 
-all_scenes="${scene0}"$'\n'"${benchmark_small}"
+all_scenes=$(echo "${scene0}"$'\n'"${benchmark_small}" | sort)
 
 echo "$all_scenes" | while read -r scene; do
     echo -e "\e[32;1m======== $(basename "$scene") ========\e[0m"
