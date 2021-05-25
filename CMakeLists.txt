@@ -39,7 +39,10 @@ set(files
     src/impl_opt4/impl.cpp
     src/impl_opt4/geometry.cpp
     src/impl_opt4/scene.cpp
- 
+
+    src/impl_opt5/impl.cpp
+    src/impl_opt5/geometry.cpp
+    src/impl_opt5/scene.cpp
     )
 
 add_executable(${name} ${files})
