@@ -403,7 +403,7 @@ namespace impl::opt5 {
         }
 
         INS_DIV;
-        float aspect_ratio = static_cast<float>(width) / height;
+        float aspect_ratio = static_cast<float>(width) / static_cast<float>(height);
         for (int py = 0; py < height; py++) {
             for (int px = 0; px < width; px++) {
                 /*
@@ -425,11 +425,8 @@ namespace impl::opt5 {
 
                 vec color = sphere_trace(d);
 
-                pixels[3 * (width * py + px)] = color.x;
-                pixels[3 * (width * py + px) + 1] = color.y;
-                pixels[3 * (width * py + px) + 2] = color.z;
+                memcpy(pixels + (3 * (width * py + px)), &color, 12);
             }
         }
     }
-
 } // namespace impl::opt5
