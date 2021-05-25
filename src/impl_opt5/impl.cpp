@@ -4,8 +4,10 @@
 
 namespace impl::opt5 {
     // max distance
-    static const float D = 100;
-    static const float EPS = 0.001;
+    static const float D = 100.f;
+    static const float EPS = 0.001f;
+    static const float PI4 = 4 * M_PI_F;
+    static const float M_E_F = M_E;
 
     static Ray* r_boxes;
     static Ray* r_tori;
@@ -157,9 +159,10 @@ namespace impl::opt5 {
         INS_MUL;
         float alpha = shininess;     // shininess parameter
         float ks = reflection * 0.4; // specular parameter
+
         float kd = 1.f;              // diffuse parameter
         float ka = 0.0075f;          // ambient parameter
-        float sigma_a = 4e-6f;       // atmospheric absorbtion coeff
+        float neg_sigma_a = -4e-6f;  // atmospheric absorbtion coeff
 
         vec wi;                        // incident direction
         vec wr;                        // reflected direction
@@ -179,9 +182,9 @@ namespace impl::opt5 {
             wi = vec_scale(wi, 1 / dist); // normalize incident direction
 
             // incoming light
-            INS_INC1(mul, 2);
+            INS_MUL;
             INS_DIV;
-            Li = vec_scale(scene.lights[i].emission, 1 / (4 * M_PI_F * dist2)); // incident light
+            Li = vec_scale(scene.lights[i].emission, 1 / (PI4 * dist2)); // incident light
             La = vec_add(La, Li); // incident light contributes to ambient light
 
             INS_CMP;
@@ -214,7 +217,7 @@ namespace impl::opt5 {
         // atmospheric effect using exponential decay
         INS_INC1(mul, 3);
         INS_POW;
-        Lo = vec_scale(Lo, powf(M_E, -sigma_a * t * t * t));
+        Lo = vec_scale(Lo, powf(M_E_F, neg_sigma_a * t * t * t));
 
         return Lo;
     }
