@@ -243,64 +243,8 @@ namespace impl::opt5 {
     static const m33 identity_33 = m33(get_base_vec(0), get_base_vec(1), get_base_vec(2));
     // }}}
 
-    // M44 {{{
-
-    /**
-     * Defines a 4x4 matrix.
-     *
-     * Used for transformations
-     */
-    struct m44 {
-        /**
-         * val[i][j] is the i-th row, j-th column
-         *
-         * This means it is stored in row-major format.
-         */
-        float val[4][4];
-
-        m44(){};
-
-        m44(vec4 e1, vec4 e2, vec4 e3, vec4 e4) {
-            val[0][0] = e1.x;
-            val[1][0] = e1.y;
-            val[2][0] = e1.z;
-            val[3][0] = e1.t;
-            val[0][1] = e2.x;
-            val[1][1] = e2.y;
-            val[2][1] = e2.z;
-            val[3][1] = e2.t;
-            val[0][2] = e3.x;
-            val[1][2] = e3.y;
-            val[2][2] = e3.z;
-            val[3][2] = e3.t;
-            val[0][3] = e4.x;
-            val[1][3] = e4.y;
-            val[2][3] = e4.z;
-            val[3][3] = e4.t;
-        };
-    };
-
-    static const m44 identity = m44(get_base_vec4(0), get_base_vec4(1), get_base_vec4(2), get_base_vec4(3));
-
-    m44 get_transf_matrix(vec pos, vec rot);
-    m44 get_rot_matrix(vec rot);
-    m44 m44_inv(m44 m);
-
     m33 m33_inv(m33 m);
     m33 get_rot_matrix_33(vec rot);
-    std::ostream& operator<<(std::ostream& out, const m44& m);
-
-    /**
-     * Calculates m * v
-     */
-    static inline vec4 m44_mul_vec(m44 m, vec4 v) {
-        float x = vec4_dot(vec4_init(m.val[0]), v);
-        float y = vec4_dot(vec4_init(m.val[1]), v);
-        float z = vec4_dot(vec4_init(m.val[2]), v);
-        float t = vec4_dot(vec4_init(m.val[3]), v);
-
-        return {x, y, z, t};
-    }
 
     static inline vec m33_mul_vec(m33 m, vec v) {
         float x = vec_dot(vec_init(m.val[0]), v);
@@ -318,10 +262,6 @@ namespace impl::opt5 {
     static inline vec invtransform_point(const m33 Rt, vec t, const vec p) {
         return m33_mul_vec(Rt, vec_sub(p, t));
     }
-
-    // }}}
-
-    // {{{
 
     struct Ray {
         vec o; // origin
@@ -345,7 +285,5 @@ namespace impl::opt5 {
         res.d = m33_mul_vec(Rt, r.d);
         return res;
     }
-
-    /// }}}
 
 } // namespace impl::opt5

@@ -51,7 +51,6 @@ namespace impl::opt5 {
         vec bottom_left;
         vec extents;
         m33 rot;
-        m44 inv_matrix;
         vec color;
         float reflection;
         float shininess;
@@ -65,7 +64,6 @@ namespace impl::opt5 {
         float r2;
         float r;
         m33 rot;
-        m44 inv_matrix;
         vec color;
         float reflection;
         float shininess;
@@ -78,7 +76,6 @@ namespace impl::opt5 {
         float r2;
         float height;
         m33 rot;
-        m44 inv_matrix;
         vec color;
         float reflection;
         float shininess;
@@ -91,7 +88,6 @@ namespace impl::opt5 {
         vec center;
         float s;
         m33 rot;
-        m44 inv_matrix;
         vec color;
         float reflection;
         float shininess;

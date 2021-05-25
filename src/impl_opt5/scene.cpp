@@ -58,12 +58,10 @@ namespace impl::opt5 {
 
     // Box {{{
 
-    box make_box(vec bottom_left, vec extents, m44 inv_matrix, vec color, float reflection, float shininess, m33 rot,
-        m33 rot_matrix) {
+    box make_box(vec bottom_left, vec extents, vec color, float reflection, float shininess, m33 rot, m33 rot_matrix) {
         box s;
         s.bottom_left = bottom_left;
         s.extents = extents;
-        s.inv_matrix = inv_matrix;
         s.color = color;
         s.reflection = reflection;
         s.shininess = shininess;
@@ -77,14 +75,12 @@ namespace impl::opt5 {
         vec pos = load_pos(j);
         vec extents = load_vec(j["params"]["extents"]);
         vec rot = load_rot(j);
-        m44 matrix = get_transf_matrix(pos, rot);
-        m44 inv_matrix = m44_inv(matrix);
         m33 rot_m = get_rot_matrix_33(rot);
         m33 inv_rot = m33_inv(rot_m);
         vec color = load_vec(j["color"]);
         float reflection = j["reflection"];
         float shininess = j["shininess"];
-        return make_box(pos, extents, inv_matrix, color, reflection, shininess, rot_m, inv_rot);
+        return make_box(pos, extents, color, reflection, shininess, rot_m, inv_rot);
     }
 
     // }}}
@@ -115,14 +111,13 @@ namespace impl::opt5 {
 
     // Torus {{{
 
-    torus make_torus(vec center, float r1, float r2, m44 inv_matrix, vec color, float reflection, float shininess,
+    torus make_torus(vec center, float r1, float r2, vec color, float reflection, float shininess,
         m33 rot, m33 inv_rot) {
         torus s;
         s.center = center;
         s.r1 = r1;
         s.r2 = r2;
         s.r = r1 + r2;
-        s.inv_matrix = inv_matrix;
         s.color = color;
         s.reflection = reflection;
         s.shininess = shininess;
@@ -139,29 +134,26 @@ namespace impl::opt5 {
         r1 = j["params"]["r1"];
         r2 = j["params"]["r2"];
 
-        m44 matrix = get_transf_matrix(pos, rot);
-        m44 inv_matrix = m44_inv(matrix);
         m33 rot_m = get_rot_matrix_33(rot);
         m33 inv_rot = m33_inv(rot_m);
         vec color = load_vec(j["color"]);
         float reflection = j["reflection"];
         float shininess = j["shininess"];
 
-        return make_torus(pos, r1, r2, inv_matrix, color, reflection, shininess, rot_m, inv_rot);
+        return make_torus(pos, r1, r2, color, reflection, shininess, rot_m, inv_rot);
     }
 
     // }}}
 
     // Cone {{{
 
-    cone make_cone(vec center, float r1, float r2, float height, m44 inv_matrix, vec color, float reflection,
+    cone make_cone(vec center, float r1, float r2, float height, vec color, float reflection,
         float shininess, m33 rot, m33 inv_rot) {
         cone s;
         s.center = center;
         s.r1 = r1;
         s.r2 = r2;
         s.height = height;
-        s.inv_matrix = inv_matrix;
         s.color = color;
         s.reflection = reflection;
         s.shininess = shininess;
@@ -183,8 +175,6 @@ namespace impl::opt5 {
         r2 = j["params"][1];
         height = j["params"][2];
 
-        m44 matrix = get_transf_matrix(pos, rot);
-        m44 inv_matrix = m44_inv(matrix);
         m33 rot_m = get_rot_matrix_33(rot);
         m33 inv_rot = m33_inv(rot_m);
 
@@ -192,7 +182,7 @@ namespace impl::opt5 {
         float reflection = j["reflection"];
         float shininess = j["shininess"];
 
-        return make_cone(pos, r1, r2, height, inv_matrix, color, reflection, shininess, rot_m, inv_rot);
+        return make_cone(pos, r1, r2, height, color, reflection, shininess, rot_m, inv_rot);
     }
 
     // }}}
@@ -200,11 +190,10 @@ namespace impl::opt5 {
     // Octahedron {{{
 
     octa make_octahedron(
-        vec center, float s_param, m44 inv_matrix, vec color, float reflection, float shininess, m33 rot, m33 inv_rot) {
+        vec center, float s_param, vec color, float reflection, float shininess, m33 rot, m33 inv_rot) {
         octa s;
         s.center = center;
         s.s = s_param;
-        s.inv_matrix = inv_matrix;
         s.color = color;
         s.reflection = reflection;
         s.shininess = shininess;
@@ -220,8 +209,6 @@ namespace impl::opt5 {
 
         s = j["params"]["s"];
 
-        m44 matrix = get_transf_matrix(pos, rot);
-        m44 inv_matrix = m44_inv(matrix);
         m33 rot_m = get_rot_matrix_33(rot);
         m33 inv_rot = m33_inv(rot_m);
 
@@ -229,7 +216,7 @@ namespace impl::opt5 {
         float reflection = j["reflection"];
         float shininess = j["shininess"];
 
-        return make_octahedron(pos, s, inv_matrix, color, reflection, shininess, rot_m, inv_rot);
+        return make_octahedron(pos, s, color, reflection, shininess, rot_m, inv_rot);
     }
 
     // }}}
