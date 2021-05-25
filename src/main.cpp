@@ -20,10 +20,9 @@
 #include "impl_opt0/impl.hpp"
 #include "impl_opt1/impl.hpp"
 #include "impl_opt3/impl.hpp"
+#include "impl_opt4/impl.hpp"
+#include "impl_opt5/impl.hpp"
 #include "impl_vec1/impl.hpp"
-
-
-
 
 flops_t flops_counter;
 
@@ -209,6 +208,12 @@ void set_render_fp(const std::string& impl) {
     } else if (impl == "opt3") {
         fun_render_init = &impl::opt3::render_init;
         fun_render = &impl::opt3::render;
+    } else if (impl == "opt4") {
+        fun_render_init = &impl::opt4::render_init;
+        fun_render = &impl::opt4::render;
+    } else if (impl == "opt5") {
+        fun_render_init = &impl::opt5::render_init;
+        fun_render = &impl::opt5::render;
     } else if (impl == "vec1") {
         fun_render_init = &impl::vec1::render_init;
         fun_render = &impl::vec1::render;

@@ -3,38 +3,72 @@
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
+import json
 
 script_dir = Path(__file__).parent
 build_exec = script_dir / "build.sh"
 run_exec = (script_dir / ".." / "build" / "main").resolve()
 input_scene = script_dir / ".." / "scenes" / "scene0.json"
+shape_scene_creator = script_dir / ".." / "benchmark" / "create_scene.py"
+all_shapes_scene_creator = script_dir / ".." / \
+    "benchmark" / "create_scene_all_shapes.py"
 
-fields = ["Width", "Height", "Flops", "Cycles", "Microseconds"]
+# Fields to collect from the program output
+fields = ["Flops", "Cycles", "Microseconds"]
+
+datapoints = []
+
+shape_scenes = {}
+
+impls = ["ref", "opt0", "opt1", "opt3"]
+shapes = ["all", "box", "sphere", "cone", "torus", "octahedron"]
+bench_types = ["size"] + shapes
+# flags = [
+#     "-O2",
+#     "-O3 -fno-tree-vectorize",
+#     "-O3",
+#     "-Ofast",
+#     "-Ofast -march=native"]
+
+flags = ["-Ofast"]
+
 
 def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 
-def run_benchmark():
-    results = []
 
-    widths = range(200, 4000, 200)
+def get_range(bench_type):
+    if bench_type == "size":
+        x_base = 200
+        x_end = 4200
+        x_step = 200
+    elif bench_type in ["all", "box", "sphere", "cone", "torus", "octahedron"]:
+        x_base = 10
+        x_end = 110
+        x_step = 10
+    else:
+        raise ValueError(bench_type)
 
-    for width in widths:
-        eprint("{}x{}".format(width, width))
-        p = subprocess.run([str(run_exec), str(input_scene), str(width), str(width)], check=True, capture_output=True)
+    return range(x_base, x_end, x_step)
 
-        values = {}
 
-        for line in p.stderr.decode().split('\n'):
-            if ': ' in line:
-                key, value = line.split(': ')
+def gen_shape_scenes(temp_dir):
 
-                if key in fields:
-                    # eprint("{}={}".format(key, value))
-                    values[key] = value
-        results.append(values)
+    for shape in shapes:
+        for num_shapes in get_range(shape):
+            fname = f"{shape}-{num_shapes}.json"
+            scene_path = temp_dir / fname
 
-    return results
+            if shape == "all":
+                subprocess.run([str(all_shapes_scene_creator), str(
+                    num_shapes // 5), str(scene_path)], check=True)
+            else:
+                subprocess.run([str(shape_scene_creator), shape, str(
+                    num_shapes), str(scene_path)], check=True)
+
+            shape_scenes.setdefault(shape, {})[num_shapes] = scene_path
+
 
 def build(flag, instrument):
     cmd = [str(build_exec), "Release", flag]
@@ -44,78 +78,105 @@ def build(flag, instrument):
     else:
         cmd.append("-DINSTRUMENT=OFF")
 
-    eprint(cmd)
+    eprint(" ".join(cmd))
 
     p = subprocess.run(cmd, capture_output=True)
 
     if p.returncode != 0:
         eprint(p.stdout.decode())
-        eprint(p.stderr.decode())
-        raise subprocess.CalledProcessError(p.returncode, p.args, p.stdout, p.stderr)
+        eprint(f"\033[31;1m{e.stderr.decode()}\033[0m")
+        raise subprocess.CalledProcessError(
+            p.returncode, p.args, p.stdout, p.stderr)
 
-def print_line(line, quotes=False):
-    for l in line:
-        if quotes:
-            print('\t"{}"'.format(l), end='')
-        else:
-            print('\t{}'.format(l), end='')
 
-    print('')
+def run_single(impl, scene, width, height, datapoint_base: dict):
+    p = subprocess.run([str(run_exec), impl, str(scene), str(
+        width), str(height)], check=True, capture_output=True)
 
-def main():
-    flags = ["-O2", "-O3 -fno-tree-vectorize", "-O3", "-Ofast", "-Ofast -march=native"]
+    datapoint = datapoint_base.copy()
+    datapoint["scene"] = str(scene)
+    datapoint["width"] = width
+    datapoint["height"] = height
 
-    eprint("Flops Counter")
+    for line in p.stderr.decode().split('\n'):
+        if ': ' in line:
+            key, value = line.split(': ')
+
+            if key in fields:
+                datapoint[key] = value
+
+    datapoints.append(datapoint)
+
+
+def run_size_benchmark(impl, datapoint_base: dict):
+    """
+    Runs the benchmark on the given implementation across multiple image sizes.
+    """
+
+    for width in get_range("size"):
+        eprint("{}x{}".format(width, width))
+        datapoint_base2 = datapoint_base.copy()
+        run_single(impl, input_scene, width, width, datapoint_base2)
+
+
+def run_shape_benchmark(impl, shape, datapoint_base: dict):
+    """
+    Runs the benchmark on the given implementation on a scene with the given shape with increasing number of shapes
+    """
+
+    # Fixed size
+    width = 1920
+    height = 1080
+
+    for num_shapes in get_range(shape):
+        eprint(f"{num_shapes} x {shape} @ {width}x{height}")
+        datapoint_base2 = datapoint_base.copy()
+        datapoint_base2["num_shapes"] = num_shapes
+
+        scene_path = shape_scenes[shape][num_shapes]
+
+        run_single(impl, scene_path, width, height, datapoint_base2)
+
+
+def run_with_flags(flag, do_instrument, datapoint_base: dict):
+    build(flag, do_instrument)
+    for impl in impls:
+        for bench_type in bench_types:
+            print_header(f"Running benchmark type '{bench_type}' for implementation '{impl}' with flags '{flag}'")
+
+            datapoint_base2 = datapoint_base.copy()
+            datapoint_base2.update({
+                "flags": flag,
+                "impl": impl,
+                "type": bench_type})
+
+            if bench_type == "size":
+                run_size_benchmark(impl, datapoint_base2)
+            else:
+                run_shape_benchmark(impl, bench_type, datapoint_base2)
+
+def print_header(name):
+    eprint(f"\033[32;1m{name}\033[0m")
+
+def main(temp_dir):
+
+    print_header("Generate Shape Scenes")
+    gen_shape_scenes(temp_dir)
+
+    print_header("Flops Counter")
     # Count flops first
-    build("", True)
-
-    flops = run_benchmark()
-
-    for v in flops:
-        assert("Width" in v)
-        assert("Height" in v)
-        assert("Flops" in v)
-
-    results = []
+    run_with_flags("", True, {"has_flops": True})
 
     for flag in flags:
-        eprint(flag)
+        run_with_flags(flag, False, {"has_flops": False})
 
-        build(flag, False)
-        values = run_benchmark()
+    print(json.dumps(datapoints, indent=4))
 
-        for v in values:
-            assert("Width" in v)
-            assert("Height" in v)
-            assert("Cycles" in v)
-            assert("Microseconds" in v)
-            assert(v["Height"] == v["Width"])
-
-        assert(len(values) == len(flops))
-
-        results.append(values)
-
-    header = ["width/height", "flops"]
-
-    for flag in flags:
-        header.extend([flag + " - seconds", flag + " - cycles", flag + " - flops/cycle"])
-
-    print_line(header, True)
-
-    for i in range(len(flops)):
-        flop_val = flops[i]
-        width = float(flop_val["Width"])
-        num_flops = float(flop_val["Flops"])
-
-        line = [width, num_flops]
-
-        for result in results:
-            r = result[i]
-            usec = float(r["Microseconds"])
-            cycles = float(r["Cycles"])
-            line.extend([usec / 1e6, cycles, num_flops / cycles])
-
-        print_line(line, False)
-
-if __name__=="__main__":
-    main()   
+if __name__ == "__main__":
+    try:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            main(Path(temp_dir))
+    except subprocess.CalledProcessError as e:
+        eprint(e.stdout.decode())
+        eprint(f"\033[31;1m{e.stderr.decode()}\033[0m")
+        raise e

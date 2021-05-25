@@ -1,4 +1,3 @@
-# This is the width of the text in my latex file
 set terminal post enhanced color 
 set output "size-perf.ps"
 
@@ -14,7 +13,7 @@ set label "{/=22:Bold Sphere Tracing on Haswell 3.30GHz}" at graph -0, graph 1.1
 set xlabel "Width/Height [Pixels]"
 set label '[flops/cycle]' at graph -0.071, graph 1.08
 
-array opts = [0, 1, 2, 3]
+array opts = [0, 1, 2, 3, 4]
 
 plot for [i=1:|opts|] c = 3 * opts[i] + 5 datafile using 1:c with linespoints linestyle i title columnhead(c)
 

@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from helper import *
 from random import random as rand
 import json

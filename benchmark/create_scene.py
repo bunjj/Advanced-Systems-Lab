@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from helper import *
 from random import random as rand
 import json
@@ -59,4 +61,3 @@ scene["objects"] =objects
 with open(path, 'w') as outfile:
     json.dump(scene, outfile, indent= 4)
 #print(json.dumps(scene, indent = 4))
-
