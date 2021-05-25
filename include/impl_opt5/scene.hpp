@@ -125,12 +125,6 @@ namespace impl::opt5 {
     // distance and normal functions
 
     // Sphere
-    static inline float sphere_distance(const sphere sp, const vec p_world) {
-        INS_INC(sphere);
-        INS_ADD;
-        return vec_length(vec_sub(sp.center, p_world)) - sp.radius;
-    }
-
     static inline float sphere_distance_short(const sphere sp, const vec p_world, const float current_min) {
         INS_INC(sphere);
         INS_ADD;
@@ -146,12 +140,6 @@ namespace impl::opt5 {
     }
 
     // Box
-    static inline float box_distance(const box b, const vec pos) {
-        INS_INC(box);
-        vec q = vec_sub(vec_abs(pos), b.extents);
-        return FADD(vec_length(vec_max(q, 0)), min(0.0f, max(max(q.x, q.y), q.z)));
-    }
-
     static inline float box_distance_short(const box b, const vec pos, const float current_min) {
         INS_INC(box);
 
@@ -173,7 +161,8 @@ namespace impl::opt5 {
         if (intermediate_squared_dist >= upper_bound * upper_bound) {
             return current_min;
         }
-        return FADD(FSQRT(intermediate_squared_dist), extent_values);
+        INS_ADD;
+        return FSQRT(intermediate_squared_dist) + extent_values;
     }
 
     // Plane
@@ -183,16 +172,6 @@ namespace impl::opt5 {
     }
 
     // Torus
-    static inline float torus_distance(const torus t, const vec pos) {
-        INS_INC(torus);
-        vec2 posxz = {pos.x, pos.z};
-        INS_ADD;
-        vec2 q = {vec2_length(posxz) - t.r1, pos.y};
-
-        INS_ADD;
-        return vec2_length(q) - t.r2;
-    }
-
     static inline float torus_distance_short(const torus t, const vec pos, const float current_min) {
         INS_INC(torus);
 
@@ -221,33 +200,6 @@ namespace impl::opt5 {
     }
 
     // Cone
-    static inline float cone_distance(const cone c, const vec pos) {
-        INS_INC(cone);
-
-        float r1 = c.r1;
-        float r2 = c.r2;
-        float h = c.height;
-
-        vec2 q = {vec2_length({pos.x, pos.z}), pos.y};
-        vec2 k1 = {r2, h};
-        INS_ADD;
-        INS_MUL;
-        vec2 k2 = {r2 - r1, 2 * h};
-        INS_INC1(add, 2);
-        INS_ABS;
-        INS_CMP;
-        vec2 ca = {q.x - min(q.x, (q.y < 0 ? r1 : r2)), fabsf(q.y) - h};
-        INS_DIV;
-        vec2 cb =
-            vec2_add(vec2_sub(q, k1), vec2_scale(k2, clamp(vec2_dot(vec2_sub(k1, q), k2) / vec2_dot2(k2), 0.0f, 1.0f)));
-        INS_INC1(cmp, 2);
-        float s = (cb.x < 0 && ca.y < 0) ? -1 : 1;
-
-        INS_MUL;
-        INS_SQRT;
-        return s * sqrtf(min(vec2_dot2(ca), vec2_dot2(cb)));
-    }
-
     static inline float cone_distance_short(const cone c, const vec pos, const float current_min) {
         INS_INC(cone);
 
@@ -291,42 +243,6 @@ namespace impl::opt5 {
     }
 
     // Octahedron
-    static inline float octahedron_distance(const octa o, const vec pos) {
-        INS_INC(octa);
-        vec abs = vec_abs(pos);
-
-        float s = o.s;
-
-        INS_INC1(add, 3);
-        float m = abs.x + abs.y + abs.z - s;
-        vec q;
-
-        if (3 * abs.x < m) {
-            INS_INC1(mul, 1);
-            INS_INC1(cmp, 1);
-            q = abs;
-        } else if (3 * abs.y < m) {
-            INS_INC1(mul, 2);
-            INS_INC1(cmp, 2);
-            q = {abs.y, abs.x, abs.z};
-        } else if (3 * abs.z < m) {
-            INS_INC1(mul, 3);
-            INS_INC1(cmp, 3);
-            q = {abs.z, abs.x, abs.y};
-        } else {
-            INS_INC1(mul, 4);
-            INS_INC1(cmp, 3);
-            return m * 0.57735027;
-        }
-
-        INS_MUL;
-        INS_INC1(add, 2);
-        float k = clamp(0.5f * (q.z - q.y + s), 0.0f, s);
-
-        INS_INC1(add, 3);
-        return vec_length({q.x, q.y - s + k, q.z - k});
-    }
-
     static inline float octahedron_distance_short(const octa o, const vec pos, const float current_min) {
         INS_INC(octa);
 
