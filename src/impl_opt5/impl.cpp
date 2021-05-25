@@ -7,13 +7,6 @@ namespace impl::opt5 {
     static const float D = 100;
     static const float EPS = 0.001;
 
-    struct hit {
-        bool is_hit;
-        float distance;
-        int steps;
-        vec color;
-    };
-    
     static Ray* r_boxes;
     static Ray* r_tori;
     static Ray* r_cones;
@@ -226,28 +219,26 @@ namespace impl::opt5 {
         return Lo;
     }
 
-    static hit sphere_trace(Ray r_world) {
+    static vec sphere_trace(vec d) {
         /* Precompute ray direction in all object coordinates */  
         for (int k = 0; k < scene.num_boxes; k++) {
-            r_boxes[k].d = m33_mul_vec(scene.boxes[k].inv_rot, r_world.d);
+            r_boxes[k].d = m33_mul_vec(scene.boxes[k].inv_rot, d);
         }
         for (int k = 0; k < scene.num_tori; k++) {
-            r_tori[k].d = m33_mul_vec(scene.tori[k].inv_rot, r_world.d);
+            r_tori[k].d = m33_mul_vec(scene.tori[k].inv_rot, d);
         }         
         for (int k = 0; k < scene.num_cones; k++) {
-            r_cones[k].d = m33_mul_vec(scene.cones[k].inv_rot, r_world.d);
+            r_cones[k].d = m33_mul_vec(scene.cones[k].inv_rot, d);
         }
         for (int k = 0; k < scene.num_octahedra; k++) {
-            r_octahedra[k].d = m33_mul_vec(scene.octahedra[k].inv_rot, r_world.d);
+            r_octahedra[k].d = m33_mul_vec(scene.octahedra[k].inv_rot, d);
         }
 
         /* Actual Sphere Tracing */
         float t = 0;
-        int steps = 0;
-        vec color;
 
         while (t < D) {
-            vec p_world = trace_ray(r_world, t);
+            vec p_world = vec_add(scene.cam.pos, vec_scale(d, t));
 
             float min_distance = INFINITY;
 
@@ -264,8 +255,7 @@ namespace impl::opt5 {
                     if (min_distance <= EPS * t) {
                         sphere s = scene.spheres[k];
                         vec normal = sphere_normal(s, p_world);
-                        color = shade(normal, s.shininess, s.reflection, s.color, p_world, r_world.d, t);
-                        return {true, t, steps, color};
+                        return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                     }
                 }
             }
@@ -283,8 +273,7 @@ namespace impl::opt5 {
                     if (min_distance <= EPS * t) {
                         plane s = scene.planes[k];
                         vec normal = plane_normal(s, p_world);
-                        color = shade(normal, s.shininess, s.reflection, s.color, p_world, r_world.d, t);
-                        return {true, t, steps, color};
+                        return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                     }
                 }
             }
@@ -303,8 +292,7 @@ namespace impl::opt5 {
                     if (min_distance <= EPS * t) {
                         box s = scene.boxes[k];
                         vec normal = box_normal(s, p_obj);
-                        color = shade(normal, s.shininess, s.reflection, s.color, p_world, r_world.d, t);
-                        return {true, t, steps, color};
+                        return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                     }
                 }
             }
@@ -323,8 +311,7 @@ namespace impl::opt5 {
                     if (min_distance <= EPS * t) {
                         torus s = scene.tori[k];
                         vec normal = torus_normal(s, p_obj);
-                        color = shade(normal, s.shininess, s.reflection, s.color, p_world, r_world.d, t);
-                        return {true, t, steps, color};
+                        return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                     }
                 }
             }
@@ -343,8 +330,7 @@ namespace impl::opt5 {
                     if (min_distance <= EPS * t) {
                         cone s = scene.cones[k];
                         vec normal = cone_normal(s, p_obj);
-                        color = shade(normal, s.shininess, s.reflection, s.color, p_world, r_world.d, t);
-                        return {true, t, steps, color};
+                        return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                     }
                 }
             }
@@ -363,17 +349,15 @@ namespace impl::opt5 {
                     if (min_distance <= EPS * t) {
                         octa s = scene.octahedra[k];
                         vec normal = octahedron_normal(s, p_obj);
-                        color = shade(normal, s.shininess, s.reflection, s.color, p_world, r_world.d, t);
-                        return {true, t, steps, color};
+                        return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                     }
                 }
             }
 
             t = FADD(t, min_distance);
-            steps++;
         }
 
-        return hit{false, t, steps, {0, 0, 0}};
+        return {0, 0, 0};
     }
 
     void render_init(std::string input) {
@@ -437,12 +421,9 @@ namespace impl::opt5 {
                 float z = 1;
 
                 // Direction in camera space.
-                Ray r_cam = {{0.f,0.f,0.f}, vec_normalize({x, y, z})};
-                Ray r_world = transform_ray(camera_rotation, scene.cam.pos, r_cam);
+                vec d = m33_mul_vec(camera_rotation, vec_normalize({x, y, z}));
 
-                auto h = sphere_trace(r_world);
-
-                vec color = h.is_hit ? h.color : vec{0, 0, 0};
+                vec color = sphere_trace(d);
 
                 pixels[3 * (width * py + px)] = color.x;
                 pixels[3 * (width * py + px) + 1] = color.y;
