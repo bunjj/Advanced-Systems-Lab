@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Runs all local benchmarks with the given implementation
-# Uses the currently built executable
+# Generate all flamegraphs for the given implementation
+# Recompiles everytime
 # $1 implementation
 
 set -euo pipefail
@@ -13,7 +13,7 @@ fi
 impl="$1"
 
 base_dir=$(realpath "$(dirname "$0")")
-build_dir="${base_dir}/../build"
+script_dir="${base_dir}/../scripts"
 scene_dir="${base_dir}/../scenes"
 
 scene0="$scene_dir/scene0.json"
@@ -23,5 +23,5 @@ all_scenes=$(echo "${scene0}"$'\n'"${benchmark_small}" | sort)
 
 echo "$all_scenes" | while read -r scene; do
     echo -e "\e[32;1m======== $(basename "$scene") ========\e[0m"
-    "${build_dir}/main" "$impl" "${scene}" 1920 1080
+    "${script_dir}/flamegraph.sh" "$impl" "${scene}" 1920 1080
 done

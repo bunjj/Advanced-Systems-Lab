@@ -4,16 +4,13 @@
 
 namespace impl::opt5 {
     // max distance
-    static const float D = 100;
-    static const float EPS = 0.001;
+    static const float D = 100.f;
+    static const float EPS = 0.001f;
+    static const float PI4 = 4 * M_PI_F;
+    static const float M_E_F = M_E;
 
-    struct hit {
-        bool is_hit;
-        float distance;
-        int steps;
-        vec color;
-    };
-    
+    static const float sharpness = 3.f; // sharpness of shadows
+
     static Ray* r_boxes;
     static Ray* r_tori;
     static Ray* r_cones;
@@ -44,7 +41,6 @@ namespace impl::opt5 {
         /* Actual Shadow Tracing */
         float t = EPS;
 
-        float sharpness = 3.f; // sharpness of shadows
         float res = 1.f;
         while (t < max_distance) {
             vec p_world = trace_ray(r_world, t);
@@ -159,26 +155,22 @@ namespace impl::opt5 {
         return res;
     }
 
+    static const float kd = 1.f;              // diffuse parameter
+    static const float ka = 0.0075f;          // ambient parameter
+    static const float neg_sigma_a = -4e-6f;  // atmospheric absorbtion coeff
+
     static vec shade(vec normal, float shininess, float reflection, vec color, vec pos, vec dir, float t) {
         /* Prepare shading parameters */
         INS_MUL;
-        float alpha = shininess;     // shininess parameter
         float ks = reflection * 0.4; // specular parameter
-        float kd = 1.f;              // diffuse parameter
-        float ka = 0.0075f;          // ambient parameter
-        float sigma_a = 4e-6f;       // atmospheric absorbtion coeff
 
-        vec wi;                        // incident direction
-        vec wr;                        // reflected direction
         vec wo = vec_scale(dir, -1.f); // outgoing direction
-        vec wn = normal;               // normal direction
 
-        vec Li;             // incident Light
         vec Lo = {0, 0, 0}; // outgoing Light
         vec La = {0, 0, 0}; // ambient Light
 
         for (int i = 0; i < scene.num_lights; i++) {
-            wi = vec_sub(scene.lights[i].pos, pos); // unnormalized
+            vec wi = vec_sub(scene.lights[i].pos, pos); // incident direction unnormalized
 
             INS_DIV;
             float dist2 = vec_dot2(wi);   // squared distance of light
@@ -186,30 +178,30 @@ namespace impl::opt5 {
             wi = vec_scale(wi, 1 / dist); // normalize incident direction
 
             // incoming light
-            INS_INC1(mul, 2);
+            INS_MUL;
             INS_DIV;
-            Li = vec_scale(scene.lights[i].emission, 1 / (4 * M_PI_F * dist2)); // incident light
+            vec Li = vec_scale(scene.lights[i].emission, 1 / (PI4 * dist2)); // incident light
             La = vec_add(La, Li); // incident light contributes to ambient light
 
             INS_CMP;
-            if (vec_dot(wn, wi) > 0) {
-                Ray shadowray = {pos, wi};
-                float shadow = sphere_trace_softshadow(shadowray, dist);
+            if (vec_dot(normal, wi) > 0) {
+                float shadow = sphere_trace_softshadow({pos, wi}, dist);
                 INS_CMP;
                 if (shadow > EPS) {
                     Li = vec_scale(Li, shadow);
 
                     // diffuse
                     INS_MUL;
-                    vec f_diffuse = vec_scale(color, kd * vec_dot(wn, wi)); // fraction of reflected light
+                    vec f_diffuse = vec_scale(color, kd * vec_dot(normal, wi)); // fraction of reflected light
                     Lo = vec_add(Lo, vec_mul(Li, f_diffuse));               // diffuse contribution to outgoing light
 
                     // specular
                     INS_INC1(mul, 2);
                     INS_POW;
-                    wr = vec_sub(vec_scale(wn, 2 * vec_dot(wn, wi)), wi); // reflected direction
+
+                    vec wr = vec_sub(vec_scale(normal, 2 * vec_dot(normal, wi)), wi); // reflected direction
                     float f_specular =
-                        ks * pow(max(0.f, vec_dot(wr, wo)), alpha); // fraction of reflected light TODO: normalization?
+                        ks * pow(max(0.f, vec_dot(wr, wo)), shininess); // fraction of reflected light TODO: normalization?
                     Lo = vec_add(Lo, vec_scale(Li, f_specular));    // specular contribution to outgoing light
                 }
             }
@@ -221,33 +213,31 @@ namespace impl::opt5 {
         // atmospheric effect using exponential decay
         INS_INC1(mul, 3);
         INS_POW;
-        Lo = vec_scale(Lo, powf(M_E, -sigma_a * t * t * t));
+        Lo = vec_scale(Lo, powf(M_E_F, neg_sigma_a * t * t * t));
 
         return Lo;
     }
 
-    static hit sphere_trace(Ray r_world) {
+    static vec sphere_trace(vec d) {
         /* Precompute ray direction in all object coordinates */  
         for (int k = 0; k < scene.num_boxes; k++) {
-            r_boxes[k].d = m33_mul_vec(scene.boxes[k].inv_rot, r_world.d);
+            r_boxes[k].d = m33_mul_vec(scene.boxes[k].inv_rot, d);
         }
         for (int k = 0; k < scene.num_tori; k++) {
-            r_tori[k].d = m33_mul_vec(scene.tori[k].inv_rot, r_world.d);
+            r_tori[k].d = m33_mul_vec(scene.tori[k].inv_rot, d);
         }         
         for (int k = 0; k < scene.num_cones; k++) {
-            r_cones[k].d = m33_mul_vec(scene.cones[k].inv_rot, r_world.d);
+            r_cones[k].d = m33_mul_vec(scene.cones[k].inv_rot, d);
         }
         for (int k = 0; k < scene.num_octahedra; k++) {
-            r_octahedra[k].d = m33_mul_vec(scene.octahedra[k].inv_rot, r_world.d);
+            r_octahedra[k].d = m33_mul_vec(scene.octahedra[k].inv_rot, d);
         }
 
         /* Actual Sphere Tracing */
         float t = 0;
-        int steps = 0;
-        vec color;
 
         while (t < D) {
-            vec p_world = trace_ray(r_world, t);
+            vec p_world = vec_add(scene.cam.pos, vec_scale(d, t));
 
             float min_distance = INFINITY;
 
@@ -264,8 +254,7 @@ namespace impl::opt5 {
                     if (min_distance <= EPS * t) {
                         sphere s = scene.spheres[k];
                         vec normal = sphere_normal(s, p_world);
-                        color = shade(normal, s.shininess, s.reflection, s.color, p_world, r_world.d, t);
-                        return {true, t, steps, color};
+                        return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                     }
                 }
             }
@@ -283,8 +272,7 @@ namespace impl::opt5 {
                     if (min_distance <= EPS * t) {
                         plane s = scene.planes[k];
                         vec normal = plane_normal(s, p_world);
-                        color = shade(normal, s.shininess, s.reflection, s.color, p_world, r_world.d, t);
-                        return {true, t, steps, color};
+                        return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                     }
                 }
             }
@@ -303,8 +291,7 @@ namespace impl::opt5 {
                     if (min_distance <= EPS * t) {
                         box s = scene.boxes[k];
                         vec normal = box_normal(s, p_obj);
-                        color = shade(normal, s.shininess, s.reflection, s.color, p_world, r_world.d, t);
-                        return {true, t, steps, color};
+                        return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                     }
                 }
             }
@@ -323,8 +310,7 @@ namespace impl::opt5 {
                     if (min_distance <= EPS * t) {
                         torus s = scene.tori[k];
                         vec normal = torus_normal(s, p_obj);
-                        color = shade(normal, s.shininess, s.reflection, s.color, p_world, r_world.d, t);
-                        return {true, t, steps, color};
+                        return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                     }
                 }
             }
@@ -343,8 +329,7 @@ namespace impl::opt5 {
                     if (min_distance <= EPS * t) {
                         cone s = scene.cones[k];
                         vec normal = cone_normal(s, p_obj);
-                        color = shade(normal, s.shininess, s.reflection, s.color, p_world, r_world.d, t);
-                        return {true, t, steps, color};
+                        return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                     }
                 }
             }
@@ -363,26 +348,18 @@ namespace impl::opt5 {
                     if (min_distance <= EPS * t) {
                         octa s = scene.octahedra[k];
                         vec normal = octahedron_normal(s, p_obj);
-                        color = shade(normal, s.shininess, s.reflection, s.color, p_world, r_world.d, t);
-                        return {true, t, steps, color};
+                        return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                     }
                 }
             }
 
             t = FADD(t, min_distance);
-            steps++;
         }
 
-        return hit{false, t, steps, {0, 0, 0}};
+        return {0, 0, 0};
     }
 
     void render_init(std::string input) {
-        // convert scene from reference format to custom format
-        // std::cout << "Reference scene already loaded (" << input << "), converting to required format" << std::endl;
-        // from_ref_scene();
-
-        // alternatively, we can just read the scene again from the json file
-        std::cout << "Loading scene again" << std::endl;
         load_scene(input);
     }
 
@@ -418,8 +395,15 @@ namespace impl::opt5 {
             r_octahedra[k].o = invtransform_point(scene.octahedra[k].inv_rot, scene.octahedra[k].center, scene.cam.pos);
         }
 
+        float fwidth = width;
+        float fheight = height;
+
         INS_DIV;
-        float aspect_ratio = static_cast<float>(width) / height;
+        float aspect_ratio = fwidth / fheight;
+
+        INS_MUL;
+        float fov_aspect = aspect_ratio * fov_factor;
+
         for (int py = 0; py < height; py++) {
             for (int px = 0; px < width; px++) {
                 /*
@@ -429,26 +413,29 @@ namespace impl::opt5 {
                  * image plane is one unit away from the camera (z = -1 in this
                  * case).
                  */
-                INS_INC1(add, 4);
-                INS_INC1(mul, 5);
+                INS_INC1(add, 2);
+                INS_INC1(mul, 2);
                 INS_INC1(div, 2);
-                float x = (2 * (px + 0.5) / width - 1) * aspect_ratio * fov_factor;
-                float y = (1 - 2 * (py + 0.5) / height) * fov_factor;
+
+                /*
+                 * 2 * (px + 0.5) == 2 * px + 1
+                 *
+                 * Now we only use integer operations
+                 */
+                float px_1 = static_cast<float>(2 * px + 1);
+                float py_1 = static_cast<float>(2 * py + 1);
+
+                float x = (px_1 / fwidth - 1) * fov_aspect;
+                float y = (1 - py_1 / fheight) * fov_factor;
                 float z = 1;
 
                 // Direction in camera space.
-                Ray r_cam = {{0.f,0.f,0.f}, vec_normalize({x, y, z})};
-                Ray r_world = transform_ray(camera_rotation, scene.cam.pos, r_cam);
+                vec d = m33_mul_vec(camera_rotation, vec_normalize({x, y, z}));
 
-                auto h = sphere_trace(r_world);
+                vec color = sphere_trace(d);
 
-                vec color = h.is_hit ? h.color : vec{0, 0, 0};
-
-                pixels[3 * (width * py + px)] = color.x;
-                pixels[3 * (width * py + px) + 1] = color.y;
-                pixels[3 * (width * py + px) + 2] = color.z;
+                memcpy(pixels + (3 * (width * py + px)), &color, 12);
             }
         }
     }
-
 } // namespace impl::opt5
