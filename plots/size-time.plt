@@ -24,6 +24,5 @@ set label "[".y_label."]" at graph -0.051, graph 1.08
 plot for [i=1:|impls|] impls[i].datafile using 1:y_index with linespoints linestyle i title impls[i]
 
 system("ps2pdf ".ps_name)
-system("rm ".ps_name)
 
 # vim:set ft=gnuplot:
