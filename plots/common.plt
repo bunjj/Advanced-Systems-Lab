@@ -19,6 +19,6 @@ set grid ytics ls 12
 
 set obj rect from graph 0, graph 0 to graph 1, graph 1 fs noborder fc rgb "#e6e6e6" behind
 
-array impls = ["ref", "opt0", "opt1", "opt3"]
+array impls = ["ref", "opt0", "opt1", "opt3", "opt4", "opt5"]
 
 # vim:set ft=gnuplot:
