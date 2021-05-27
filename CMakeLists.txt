@@ -47,6 +47,10 @@ set(files
     src/impl_vec1/impl.cpp
     src/impl_vec1/geometry.cpp
     src/impl_vec1/scene.cpp
+
+    src/impl_vec2/impl.cpp
+    src/impl_vec2/geometry.cpp
+    src/impl_vec2/scene.cpp
     )
 
 add_executable(${name} ${files})
