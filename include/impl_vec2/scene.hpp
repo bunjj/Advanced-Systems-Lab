@@ -57,12 +57,14 @@ namespace impl::vec2 {
         float reflection;
         float shininess;
         m33 inv_rot;
+        float r;
     };
 
     struct torus {
         vec center;
         float r1;
         float r2;
+        float r;
         m33 rot;
         m44 inv_matrix;
         vec color;
@@ -82,6 +84,7 @@ namespace impl::vec2 {
         float reflection;
         float shininess;
         m33 inv_rot;
+        float r;
     };
 
     struct octa {
@@ -110,6 +113,7 @@ namespace impl::vec2 {
         float* extents_x;
         float* extents_y;
         float* extents_z;
+        float* r;
 
         // arrays for each entry of the matrix
         float* inv_rot[3][3];
@@ -121,6 +125,7 @@ namespace impl::vec2 {
         float* center_z;
         float* r1;
         float* r2;
+        float* r;
 
         // arrays for each entry of the matrix
         float* inv_rot[3][3];
@@ -133,6 +138,7 @@ namespace impl::vec2 {
         float* r1;
         float* r2;
         float* height;
+        float* r;
 
         // arrays for each entry of the matrix
         float* inv_rot[3][3];
@@ -432,17 +438,15 @@ namespace impl::vec2 {
      * If early termination is not possible, the distance function computation can be completed by calling
      * box_distance_rest_vectorized() with the intermediate results in res1 and res2.
      */
-    static inline int box_distance_short_vectorized(int idx, float* res1, float* res2, float* bottom_left_x, float* bottom_left_y, float* bottom_left_z, float* extents_x, float* extents_y, float* extents_z, float* inv_rot[3][3], const vec from, float current_min) {
+    static inline int box_distance_short_vectorized(int idx, float* res1, float* res2, float* bottom_left_x, float* bottom_left_y, float* bottom_left_z, float* extents_x, float* extents_y, float* extents_z, float* rad, float* inv_rot[3][3], const vec from, float current_min) {
         INS_INC1(box, 8);
 
-        // load everything
+        // load vectors
         __m256 bl_x = _mm256_loadu_ps(bottom_left_x + idx);
         __m256 bl_y = _mm256_loadu_ps(bottom_left_y + idx);
         __m256 bl_z = _mm256_loadu_ps(bottom_left_z + idx);
 
-        __m256 ext_x = _mm256_loadu_ps(extents_x + idx);
-        __m256 ext_y = _mm256_loadu_ps(extents_y + idx);
-        __m256 ext_z = _mm256_loadu_ps(extents_z + idx);
+        __m256 r = _mm256_loadu_ps(rad + idx);
 
         __m256 inv_rot_00 = _mm256_loadu_ps(inv_rot[0][0] + idx);
         __m256 inv_rot_01 = _mm256_loadu_ps(inv_rot[0][1] + idx);
@@ -469,6 +473,24 @@ namespace impl::vec2 {
         __m256 pos_x = vectorized_vec_dot(inv_rot_00, inv_rot_01, inv_rot_02, t_x, t_y, t_z);
         __m256 pos_y = vectorized_vec_dot(inv_rot_10, inv_rot_11, inv_rot_12, t_x, t_y, t_z);
         __m256 pos_z = vectorized_vec_dot(inv_rot_20, inv_rot_21, inv_rot_22, t_x, t_y, t_z);
+
+        // enclosing sphere check
+        __m256 pos_square = vectorized_vec_dot(pos_x, pos_y, pos_z, pos_x, pos_y, pos_z);
+        INS_INC1(add, 8);
+        __m256 duf_bound = _mm256_add_ps(r, curr_min);
+        INS_INC1(mul, 8);
+        __m256 duf_bound_square = _mm256_mul_ps(duf_bound, duf_bound);
+        INS_INC1(cmp, 8);
+        __m256 duf_mask = _mm256_cmp_ps(pos_square, duf_bound_square, _CMP_LT_OQ);
+        int duf_mask_int = _mm256_movemask_ps(duf_mask);
+        if (!duf_mask_int) {
+            return 0;
+        }
+
+        // load remaining vectors
+        __m256 ext_x = _mm256_loadu_ps(extents_x + idx);
+        __m256 ext_y = _mm256_loadu_ps(extents_y + idx);
+        __m256 ext_z = _mm256_loadu_ps(extents_z + idx);
 
         // vec pos_abs = vec_abs(pos);
         // can compute absolute value by setting the sign bits to 0
@@ -670,14 +692,13 @@ namespace impl::vec2 {
      * If early termination is not possible, the distance function computation can be completed by calling
      * torus_distance_rest_vectorized() with the intermediate results in res.
      */
-    static inline int torus_distance_short_vectorized(int idx, float* res, float* center_x, float* center_y, float* center_z, float* rad1, float* rad2, float* inv_rot[3][3], const vec from, float current_min) {
+    static inline int torus_distance_short_vectorized(int idx, float* res, float* center_x, float* center_y, float* center_z, float* rad1, float* rad2, float* rad, float* inv_rot[3][3], const vec from, float current_min) {
         INS_INC1(torus, 8);
 
         __m256 c_x = _mm256_loadu_ps(center_x + idx);
         __m256 c_y = _mm256_loadu_ps(center_y + idx);
         __m256 c_z = _mm256_loadu_ps(center_z + idx);
-        __m256 r1 = _mm256_loadu_ps(rad1 + idx);
-        __m256 r2 = _mm256_loadu_ps(rad2 + idx);
+        __m256 r = _mm256_loadu_ps(rad + idx);
 
         __m256 inv_rot_00 = _mm256_loadu_ps(inv_rot[0][0] + idx);
         __m256 inv_rot_01 = _mm256_loadu_ps(inv_rot[0][1] + idx);
@@ -705,15 +726,31 @@ namespace impl::vec2 {
         __m256 pos_y = vectorized_vec_dot(inv_rot_10, inv_rot_11, inv_rot_12, t_x, t_y, t_z);
         __m256 pos_z = vectorized_vec_dot(inv_rot_20, inv_rot_21, inv_rot_22, t_x, t_y, t_z);
 
-        // vec2 posxz = {pos.x, pos.z};
-        // float posxz_len = vec2_length(posxz);
+        // enclosing sphere check
         INS_INC1(mul, 8);
         __m256 pos_x_square = _mm256_mul_ps(pos_x, pos_x);
-        INS_INC1(fma, 8);
+        INS_INC1(fma, 16);
         __m256 pos_xz_square = _mm256_fmadd_ps(pos_z, pos_z, pos_x_square);
+        __m256 pos_square = _mm256_fmadd_ps(pos_y, pos_y, pos_xz_square);
+        INS_INC1(add, 8);
+        __m256 duf_bound = _mm256_add_ps(r, curr_min);
+        INS_INC1(mul, 8);
+        __m256 duf_bound_square = _mm256_mul_ps(duf_bound, duf_bound);
+        INS_INC1(cmp, 8);
+        __m256 duf_mask = _mm256_cmp_ps(pos_square, duf_bound_square, _CMP_LT_OQ);
+        int duf_mask_int = _mm256_movemask_ps(duf_mask);
+        if (!duf_mask_int) {
+            return 0;
+        }
 
+        // vec2 posxz = {pos.x, pos.z};
+        // float posxz_len = vec2_length(posxz);
         INS_INC1(sqrt, 8);
         __m256 pos_xz_len = _mm256_sqrt_ps(pos_xz_square);
+
+        // load remaining vectors
+        __m256 r1 = _mm256_loadu_ps(rad1 + idx);
+        __m256 r2 = _mm256_loadu_ps(rad2 + idx);
 
         // float q1 = posxz_len - to.r1;
         INS_INC1(add, 8);
@@ -1038,7 +1075,7 @@ namespace impl::vec2 {
      * If early termination is not possible, the distance function computation can be completed by calling
      * cone_distance_rest_vectorized() with the intermediate results in res1 and res2.
      */
-    static inline int cone_distance_short_vectorized(int idx, float* res1, float* res2, float* center_x, float* center_y, float* center_z, float* rad1, float* rad2, float* height, float* inv_rot[3][3], const vec from, float current_min) {
+    static inline int cone_distance_short_vectorized(int idx, float* res1, float* res2, float* center_x, float* center_y, float* center_z, float* rad1, float* rad2, float* height, float* rad, float* inv_rot[3][3], const vec from, float current_min) {
         INS_INC1(cone, 8);
 
         // float r1 = c.r1;
@@ -1048,9 +1085,7 @@ namespace impl::vec2 {
         __m256 c_x = _mm256_loadu_ps(center_x + idx);
         __m256 c_y = _mm256_loadu_ps(center_y + idx);
         __m256 c_z = _mm256_loadu_ps(center_z + idx);
-        __m256 r1 = _mm256_loadu_ps(rad1 + idx);
-        __m256 r2 = _mm256_loadu_ps(rad2 + idx);
-        __m256 h = _mm256_loadu_ps(height + idx);
+        __m256 r = _mm256_loadu_ps(rad + idx);
 
         __m256 inv_rot_00 = _mm256_loadu_ps(inv_rot[0][0] + idx);
         __m256 inv_rot_01 = _mm256_loadu_ps(inv_rot[0][1] + idx);
@@ -1078,11 +1113,29 @@ namespace impl::vec2 {
         __m256 pos_y = vectorized_vec_dot(inv_rot_10, inv_rot_11, inv_rot_12, t_x, t_y, t_z);
         __m256 pos_z = vectorized_vec_dot(inv_rot_20, inv_rot_21, inv_rot_22, t_x, t_y, t_z);
 
-        // float xz_len = vec2_length({pos.x, pos.z});
+        // enclosing sphere check
         INS_INC1(mul, 8);
         __m256 pos_x_square = _mm256_mul_ps(pos_x, pos_x);
-        INS_INC1(fma, 8);
+        INS_INC1(fma, 16);
         __m256 pos_xz_square = _mm256_fmadd_ps(pos_z, pos_z, pos_x_square);
+        __m256 pos_square = _mm256_fmadd_ps(pos_y, pos_y, pos_xz_square);
+        INS_INC1(add, 8);
+        __m256 duf_bound = _mm256_add_ps(r, curr_min);
+        INS_INC1(mul, 8);
+        __m256 duf_bound_square = _mm256_mul_ps(duf_bound, duf_bound);
+        INS_INC1(cmp, 8);
+        __m256 duf_mask = _mm256_cmp_ps(pos_square, duf_bound_square, _CMP_LT_OQ);
+        int duf_mask_int = _mm256_movemask_ps(duf_mask);
+        if (!duf_mask_int) {
+            return 0;
+        }
+
+        // load remaining vectors
+        __m256 r1 = _mm256_loadu_ps(rad1 + idx);
+        __m256 r2 = _mm256_loadu_ps(rad2 + idx);
+        __m256 h = _mm256_loadu_ps(height + idx);
+
+        // float xz_len = vec2_length({pos.x, pos.z});
         INS_INC1(sqrt, 8);
         __m256 xz_len = _mm256_sqrt_ps(pos_xz_square);
 
@@ -1514,6 +1567,19 @@ namespace impl::vec2 {
         __m256 pos_x = vectorized_vec_dot(inv_rot_00, inv_rot_01, inv_rot_02, t_x, t_y, t_z);
         __m256 pos_y = vectorized_vec_dot(inv_rot_10, inv_rot_11, inv_rot_12, t_x, t_y, t_z);
         __m256 pos_z = vectorized_vec_dot(inv_rot_20, inv_rot_21, inv_rot_22, t_x, t_y, t_z);
+
+        // enclosing sphere check
+        __m256 pos_square = vectorized_vec_dot(pos_x, pos_y, pos_z, pos_x, pos_y, pos_z);
+        INS_INC1(add, 8);
+        __m256 duf_bound = _mm256_add_ps(s, curr_min);
+        INS_INC1(mul, 8);
+        __m256 duf_bound_square = _mm256_mul_ps(duf_bound, duf_bound);
+        INS_INC1(cmp, 8);
+        __m256 duf_mask = _mm256_cmp_ps(pos_square, duf_bound_square, _CMP_LT_OQ);
+        int duf_mask_int = _mm256_movemask_ps(duf_mask);
+        if (!duf_mask_int) {
+            return 0;
+        }
 
         // vec pos_abs = vec_abs(pos);
         INS_INC1(abs, 24);

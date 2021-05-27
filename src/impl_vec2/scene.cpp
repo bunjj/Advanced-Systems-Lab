@@ -69,6 +69,7 @@ namespace impl::vec2 {
         s.shininess = shininess;
         s.rot = rot;
         s.inv_rot = rot_matrix;
+        s.r = vec_length(extents);
         return s;
     }
 
@@ -120,6 +121,7 @@ namespace impl::vec2 {
         s.center = center;
         s.r1 = r1;
         s.r2 = r2;
+        s.r = r1 + r2;
         s.inv_matrix = inv_matrix;
         s.color = color;
         s.reflection = reflection;
@@ -165,6 +167,7 @@ namespace impl::vec2 {
         s.shininess = shininess;
         s.rot = rot;
         s.inv_rot = inv_rot;
+        s.r = vec2_length({height, max(r1,r2)});
         return s;
     }
 
@@ -323,6 +326,7 @@ namespace impl::vec2 {
         scene.box_vecs.extents_x = (float*)malloc(sizeof(float) * scene.num_boxes);
         scene.box_vecs.extents_y = (float*)malloc(sizeof(float) * scene.num_boxes);
         scene.box_vecs.extents_z = (float*)malloc(sizeof(float) * scene.num_boxes);
+        scene.box_vecs.r = (float*)malloc(sizeof(float) * scene.num_boxes);
 
         scene.box_vecs.inv_rot[0][0] = (float*)malloc(sizeof(float) * scene.num_boxes);
         scene.box_vecs.inv_rot[0][1] = (float*)malloc(sizeof(float) * scene.num_boxes);
@@ -340,6 +344,7 @@ namespace impl::vec2 {
         scene.torus_vecs.center_z = (float*)malloc(sizeof(float) * scene.num_tori);
         scene.torus_vecs.r1 = (float*)malloc(sizeof(float) * scene.num_tori);
         scene.torus_vecs.r2 = (float*)malloc(sizeof(float) * scene.num_tori);
+        scene.torus_vecs.r = (float*)malloc(sizeof(float) * scene.num_tori);
 
         scene.torus_vecs.inv_rot[0][0] = (float*)malloc(sizeof(float) * scene.num_tori);
         scene.torus_vecs.inv_rot[0][1] = (float*)malloc(sizeof(float) * scene.num_tori);
@@ -358,6 +363,7 @@ namespace impl::vec2 {
         scene.cone_vecs.r1 = (float*)malloc(sizeof(float) * scene.num_cones);
         scene.cone_vecs.r2 = (float*)malloc(sizeof(float) * scene.num_cones);
         scene.cone_vecs.height = (float*)malloc(sizeof(float) * scene.num_cones);
+        scene.cone_vecs.r = (float*)malloc(sizeof(float) * scene.num_cones);
 
         scene.cone_vecs.inv_rot[0][0] = (float*)malloc(sizeof(float) * scene.num_cones);
         scene.cone_vecs.inv_rot[0][1] = (float*)malloc(sizeof(float) * scene.num_cones);
@@ -420,6 +426,7 @@ namespace impl::vec2 {
                 scene.box_vecs.extents_x[box_idx] = scene.boxes[box_idx].extents.x;
                 scene.box_vecs.extents_y[box_idx] = scene.boxes[box_idx].extents.y;
                 scene.box_vecs.extents_z[box_idx] = scene.boxes[box_idx].extents.z;
+                scene.box_vecs.r[box_idx] = scene.boxes[box_idx].r;
 
                 scene.box_vecs.inv_rot[0][0][box_idx] = scene.boxes[box_idx].inv_rot.val[0][0];
                 scene.box_vecs.inv_rot[0][1][box_idx] = scene.boxes[box_idx].inv_rot.val[0][1];
@@ -442,6 +449,7 @@ namespace impl::vec2 {
                 scene.torus_vecs.center_z[torus_idx] = scene.tori[torus_idx].center.z;
                 scene.torus_vecs.r1[torus_idx] = scene.tori[torus_idx].r1;
                 scene.torus_vecs.r2[torus_idx] = scene.tori[torus_idx].r2;
+                scene.torus_vecs.r[torus_idx] = scene.tori[torus_idx].r;
 
                 scene.torus_vecs.inv_rot[0][0][torus_idx] = scene.tori[torus_idx].inv_rot.val[0][0];
                 scene.torus_vecs.inv_rot[0][1][torus_idx] = scene.tori[torus_idx].inv_rot.val[0][1];
@@ -465,6 +473,7 @@ namespace impl::vec2 {
                 scene.cone_vecs.r1[cone_idx] = scene.cones[cone_idx].r1;
                 scene.cone_vecs.r2[cone_idx] = scene.cones[cone_idx].r2;
                 scene.cone_vecs.height[cone_idx] = scene.cones[cone_idx].height;
+                scene.cone_vecs.r[cone_idx] = scene.cones[cone_idx].r;
 
                 scene.cone_vecs.inv_rot[0][0][cone_idx] = scene.cones[cone_idx].inv_rot.val[0][0];
                 scene.cone_vecs.inv_rot[0][1][cone_idx] = scene.cones[cone_idx].inv_rot.val[0][1];

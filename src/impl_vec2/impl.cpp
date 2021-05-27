@@ -94,7 +94,7 @@ namespace impl::vec2 {
                 float tmp2[8];
 
                 // compute first part of distance function and store intermediate results (for early termination)
-                int not_terminate_early = box_distance_short_vectorized(k, dists, tmp2, scene.box_vecs.bottom_left_x, scene.box_vecs.bottom_left_y, scene.box_vecs.bottom_left_z, scene.box_vecs.extents_x, scene.box_vecs.extents_y, scene.box_vecs.extents_z, scene.box_vecs.inv_rot, pos, min_distance);
+                int not_terminate_early = box_distance_short_vectorized(k, dists, tmp2, scene.box_vecs.bottom_left_x, scene.box_vecs.bottom_left_y, scene.box_vecs.bottom_left_z, scene.box_vecs.extents_x, scene.box_vecs.extents_y, scene.box_vecs.extents_z, scene.box_vecs.r, scene.box_vecs.inv_rot, pos, min_distance);
 
                 if (not_terminate_early) {
                     // compute rest of distance function
@@ -136,7 +136,7 @@ namespace impl::vec2 {
 
                 float dists[8];
 
-                int not_terminate_early = torus_distance_short_vectorized(k, dists, scene.torus_vecs.center_x, scene.torus_vecs.center_y, scene.torus_vecs.center_z, scene.torus_vecs.r1, scene.torus_vecs.r2, scene.torus_vecs.inv_rot, pos, min_distance);
+                int not_terminate_early = torus_distance_short_vectorized(k, dists, scene.torus_vecs.center_x, scene.torus_vecs.center_y, scene.torus_vecs.center_z, scene.torus_vecs.r1, scene.torus_vecs.r2, scene.torus_vecs.r, scene.torus_vecs.inv_rot, pos, min_distance);
 
                 if (not_terminate_early) {
                     // compute rest of distance function
@@ -182,7 +182,7 @@ namespace impl::vec2 {
 
                 // cone_distance_vectorized(k, dists, scene.cone_vecs.center_x, scene.cone_vecs.center_y, scene.cone_vecs.center_z, scene.cone_vecs.r1, scene.cone_vecs.r2, scene.cone_vecs.height, scene.cone_vecs.inv_rot, pos);
 
-                int not_terminate_early = cone_distance_short_vectorized(k, dists, tmp2, scene.cone_vecs.center_x, scene.cone_vecs.center_y, scene.cone_vecs.center_z, scene.cone_vecs.r1, scene.cone_vecs.r2, scene.cone_vecs.height, scene.cone_vecs.inv_rot, pos, min_distance);
+                int not_terminate_early = cone_distance_short_vectorized(k, dists, tmp2, scene.cone_vecs.center_x, scene.cone_vecs.center_y, scene.cone_vecs.center_z, scene.cone_vecs.r1, scene.cone_vecs.r2, scene.cone_vecs.height, scene.cone_vecs.r, scene.cone_vecs.inv_rot, pos, min_distance);
 
                 if (not_terminate_early) {
                     // compute rest of distance function
@@ -424,7 +424,7 @@ namespace impl::vec2 {
                 float tmp2[8];
 
                 // compute first part of distance function and store intermediate results (for early termination)
-                int not_terminate_early = box_distance_short_vectorized(k, dists, tmp2, scene.box_vecs.bottom_left_x, scene.box_vecs.bottom_left_y, scene.box_vecs.bottom_left_z, scene.box_vecs.extents_x, scene.box_vecs.extents_y, scene.box_vecs.extents_z, scene.box_vecs.inv_rot, pos, min_distance);
+                int not_terminate_early = box_distance_short_vectorized(k, dists, tmp2, scene.box_vecs.bottom_left_x, scene.box_vecs.bottom_left_y, scene.box_vecs.bottom_left_z, scene.box_vecs.extents_x, scene.box_vecs.extents_y, scene.box_vecs.extents_z, scene.box_vecs.r, scene.box_vecs.inv_rot, pos, min_distance);
 
                 if (not_terminate_early) {
                     // compute rest of distance function
@@ -472,7 +472,7 @@ namespace impl::vec2 {
 
                 float dists[8];
 
-                int not_terminate_early = torus_distance_short_vectorized(k, dists, scene.torus_vecs.center_x, scene.torus_vecs.center_y, scene.torus_vecs.center_z, scene.torus_vecs.r1, scene.torus_vecs.r2, scene.torus_vecs.inv_rot, pos, min_distance);
+                int not_terminate_early = torus_distance_short_vectorized(k, dists, scene.torus_vecs.center_x, scene.torus_vecs.center_y, scene.torus_vecs.center_z, scene.torus_vecs.r1, scene.torus_vecs.r2, scene.torus_vecs.r, scene.torus_vecs.inv_rot, pos, min_distance);
 
                 if (not_terminate_early) {
                     // compute rest of distance function
@@ -524,7 +524,7 @@ namespace impl::vec2 {
 
                 // cone_distance_vectorized(k, dists, scene.cone_vecs.center_x, scene.cone_vecs.center_y, scene.cone_vecs.center_z, scene.cone_vecs.r1, scene.cone_vecs.r2, scene.cone_vecs.height, scene.cone_vecs.inv_rot, pos);
 
-                int not_terminate_early = cone_distance_short_vectorized(k, dists, tmp2, scene.cone_vecs.center_x, scene.cone_vecs.center_y, scene.cone_vecs.center_z, scene.cone_vecs.r1, scene.cone_vecs.r2, scene.cone_vecs.height, scene.cone_vecs.inv_rot, pos, min_distance);
+                int not_terminate_early = cone_distance_short_vectorized(k, dists, tmp2, scene.cone_vecs.center_x, scene.cone_vecs.center_y, scene.cone_vecs.center_z, scene.cone_vecs.r1, scene.cone_vecs.r2, scene.cone_vecs.height, scene.cone_vecs.r, scene.cone_vecs.inv_rot, pos, min_distance);
 
                 if (not_terminate_early) {
                     // compute rest of distance function
