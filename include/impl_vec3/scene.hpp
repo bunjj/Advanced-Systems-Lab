@@ -105,28 +105,53 @@ namespace impl::vec3 {
     };
 
     struct box_vectors {
+        float* bottom_left_x;
+        float* bottom_left_y;
+        float* bottom_left_z;
         float* extents_x;
         float* extents_y;
         float* extents_z;
         float* r;
+
+        // arrays for each entry of the matrix
+        float* inv_rot[3][3];
     };
 
     struct torus_vectors {
+        float* center_x;
+        float* center_y;
+        float* center_z;
         float* r1;
         float* r2;
         float* r;
+
+        // arrays for each entry of the matrix
+        float* inv_rot[3][3];
     };
 
     struct cone_vectors {
+        float* center_x;
+        float* center_y;
+        float* center_z;
         float* r1;
         float* r2;
         float* height;
         float* r;
-        float* k2d2inv; // 1 / vec_dot2(k2)
+
+        // arrays for each entry of the matrix
+        float* inv_rot[3][3];
+
+        float* k2d2inv;
     };
 
     struct octa_vectors {
+        float* center_x;
+        float* center_y;
+        float* center_z;
         float* s;
+
+        // arrays for each entry of the matrix
+        float* inv_rot[3][3];
     };
 
     struct scene {

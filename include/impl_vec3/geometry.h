@@ -359,6 +359,61 @@ namespace impl::vec3 {
         return xyz;
     }
 
+    static inline vec256 invtransform_point_vectorized(int idx, float* inv_rot[3][3], const float *t_x, const float *t_y, const float *t_z, const vec from) {
+        __m256 bl_x = _mm256_loadu_ps(t_x + idx);
+        __m256 bl_y = _mm256_loadu_ps(t_y + idx);
+        __m256 bl_z = _mm256_loadu_ps(t_z + idx);
+
+        __m256 inv_rot_00 = _mm256_loadu_ps(inv_rot[0][0] + idx);
+        __m256 inv_rot_01 = _mm256_loadu_ps(inv_rot[0][1] + idx);
+        __m256 inv_rot_02 = _mm256_loadu_ps(inv_rot[0][2] + idx);
+        __m256 inv_rot_10 = _mm256_loadu_ps(inv_rot[1][0] + idx);
+        __m256 inv_rot_11 = _mm256_loadu_ps(inv_rot[1][1] + idx);
+        __m256 inv_rot_12 = _mm256_loadu_ps(inv_rot[1][2] + idx);
+        __m256 inv_rot_20 = _mm256_loadu_ps(inv_rot[2][0] + idx);
+        __m256 inv_rot_21 = _mm256_loadu_ps(inv_rot[2][1] + idx);
+        __m256 inv_rot_22 = _mm256_loadu_ps(inv_rot[2][2] + idx);
+
+        __m256 from_x = _mm256_set1_ps(from.x);
+        __m256 from_y = _mm256_set1_ps(from.y);
+        __m256 from_z = _mm256_set1_ps(from.z);
+
+        // vec s = vec_sub(from, b.bottom_left);
+        INS_INC1(add, 24);
+        __m256 s_x = _mm256_sub_ps(from_x, bl_x);
+        __m256 s_y = _mm256_sub_ps(from_y, bl_y);
+        __m256 s_z = _mm256_sub_ps(from_z, bl_z);
+
+        // vec pos = m33_mul_vec(b.inv_rot, t);
+        __m256 pos_x = vectorized_vec_dot(inv_rot_00, inv_rot_01, inv_rot_02, s_x, s_y, s_z);
+        __m256 pos_y = vectorized_vec_dot(inv_rot_10, inv_rot_11, inv_rot_12, s_x, s_y, s_z);
+        __m256 pos_z = vectorized_vec_dot(inv_rot_20, inv_rot_21, inv_rot_22, s_x, s_y, s_z);
+
+        return {pos_x, pos_y, pos_z};
+    }
+
+    static inline vec256 m33_mul_vec_vectorized(int idx, float* inv_rot[3][3], const vec v) {
+        __m256 inv_rot_00 = _mm256_loadu_ps(inv_rot[0][0] + idx);
+        __m256 inv_rot_01 = _mm256_loadu_ps(inv_rot[0][1] + idx);
+        __m256 inv_rot_02 = _mm256_loadu_ps(inv_rot[0][2] + idx);
+        __m256 inv_rot_10 = _mm256_loadu_ps(inv_rot[1][0] + idx);
+        __m256 inv_rot_11 = _mm256_loadu_ps(inv_rot[1][1] + idx);
+        __m256 inv_rot_12 = _mm256_loadu_ps(inv_rot[1][2] + idx);
+        __m256 inv_rot_20 = _mm256_loadu_ps(inv_rot[2][0] + idx);
+        __m256 inv_rot_21 = _mm256_loadu_ps(inv_rot[2][1] + idx);
+        __m256 inv_rot_22 = _mm256_loadu_ps(inv_rot[2][2] + idx);
+
+        __m256 v_x = _mm256_set1_ps(v.x);
+        __m256 v_y = _mm256_set1_ps(v.y);
+        __m256 v_z = _mm256_set1_ps(v.z);
+
+        __m256 pos_x = vectorized_vec_dot(inv_rot_00, inv_rot_01, inv_rot_02, v_x, v_y, v_z);
+        __m256 pos_y = vectorized_vec_dot(inv_rot_10, inv_rot_11, inv_rot_12, v_x, v_y, v_z);
+        __m256 pos_z = vectorized_vec_dot(inv_rot_20, inv_rot_21, inv_rot_22, v_x, v_y, v_z);
+
+        return {pos_x, pos_y, pos_z};
+    }
+
     // }}}
 
 } // namespace impl::vec3
