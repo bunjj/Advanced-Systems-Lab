@@ -181,7 +181,7 @@ namespace impl::vec3 {
      * Computes the sphere distance function with early termination.
      * Returns zero if early termination is possible, and a nonzero value otherwise.
      */
-    static inline int sphere_distance_short_vectorized(int idx, float* res, float* center_x, float* center_y,
+    static inline int sphere_distance_short_vectorized(int idx, __m256* dist, float* center_x, float* center_y,
         float* center_z, float* radius, const vec from, const float current_min) {
         INS_INC1(sphere, 8);
 
@@ -222,8 +222,7 @@ namespace impl::vec3 {
 
         // float res = t_len - sp.radius;
         INS_INC1(add, 8);
-        __m256 dist = _mm256_sub_ps(t_len, r);
-        _mm256_storeu_ps(res, dist);
+        *dist = _mm256_sub_ps(t_len, r);
 
         return 1;
     }
@@ -258,7 +257,7 @@ namespace impl::vec3 {
      * Computes the box distance function with early termination.
      * Returns zero if early termination is possible, and a nonzero value otherwise.
      */
-    static inline int box_distance_short_vectorized(int idx, float* res, float* extents_x, float* extents_y,
+    static inline int box_distance_short_vectorized(int idx, __m256* dist, float* extents_x, float* extents_y,
         float* extents_z, float* rad, const vec256 pos, float current_min) {
         INS_INC1(box, 8);
 
@@ -345,9 +344,7 @@ namespace impl::vec3 {
 
         // return left + right;
         INS_INC1(add, 8);
-        __m256 dist = _mm256_add_ps(left, right);
-
-        _mm256_store_ps(res, dist);
+        *dist = _mm256_add_ps(left, right);
 
         return 1;
     }
@@ -391,7 +388,7 @@ namespace impl::vec3 {
      * Returns zero if early termination is possible, and a nonzero value otherwise.
      */
     static inline int torus_distance_short_vectorized(
-        int idx, float* res, float* rad1, float* rad2, float* rad, const vec256 pos, float current_min) {
+        int idx, __m256* dist, float* rad1, float* rad2, float* rad, const vec256 pos, float current_min) {
         INS_INC1(torus, 8);
 
         __m256 r = _mm256_loadu_ps(rad + idx);
@@ -459,9 +456,7 @@ namespace impl::vec3 {
 
         // return q_len - to.r2;
         INS_INC1(add, 8);
-        __m256 dist = _mm256_sub_ps(q_len, r2);
-
-        _mm256_store_ps(res, dist);
+        *dist = _mm256_sub_ps(q_len, r2);
 
         return 1;
     }
@@ -516,7 +511,7 @@ namespace impl::vec3 {
      * Returns zero if early termination is possible, and a nonzero value otherwise.
      */
     static inline int cone_distance_short_vectorized(
-        int idx, float* res, float* rad1, float* rad2, float* height, float* rad, float *k2d2inv, const vec256 pos, float current_min) {
+        int idx, __m256* dist, float* rad1, float* rad2, float* height, float* rad, float *k2d2inv, const vec256 pos, float current_min) {
         INS_INC1(cone, 8);
 
         // float r1 = c.r1;
@@ -674,9 +669,7 @@ namespace impl::vec3 {
 
         // return s * min;
         INS_INC1(mul, 8);
-        __m256 dist = _mm256_mul_ps(s, min);
-
-        _mm256_storeu_ps(res, dist);
+        *dist = _mm256_mul_ps(s, min);
 
         return 1;
     }
@@ -744,7 +737,7 @@ namespace impl::vec3 {
      * Computes the octahedron distance function with early termination.
      * Returns zero if early termination is possible, and a nonzero value otherwise.
      */
-    static inline int octahedron_distance_short_vectorized(int idx, float* res, float* s_, const vec256 pos, float current_min) {
+    static inline int octahedron_distance_short_vectorized(int idx, __m256* dist, float* s_, const vec256 pos, float current_min) {
         INS_INC1(octa, 8);
 
         __m256 s = _mm256_loadu_ps(s_ + idx);
@@ -877,10 +870,7 @@ namespace impl::vec3 {
         }
 
         INS_INC1(sqrt, 8);
-        __m256 dist = _mm256_sqrt_ps(dist_square);
-
-        _mm256_storeu_ps(res, dist);
-
+        *dist = _mm256_sqrt_ps(dist_square);
         return 1;
     }
 

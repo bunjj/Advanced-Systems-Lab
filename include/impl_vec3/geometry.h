@@ -1,6 +1,7 @@
 #pragma once
 
 #include <immintrin.h>
+#include <xmmintrin.h>
 #include <math.h>
 
 #include <iomanip>
@@ -24,6 +25,25 @@ namespace impl::vec3 {
     static inline float min(float x, float y) {
         INS_CMP;
         return x < y ? x : y;
+    }
+
+    static inline float min_vectorized(__m256 x) {
+        __m128 hi = _mm256_extractf128_ps(x, 1);
+        __m128 lo = _mm256_extractf128_ps(x, 0);
+
+        INS_INC1(max, 4);
+        // contain the min of (0, 4), (1, 5), (2, 6), and (3, 7)
+        __m128 tmp1 = _mm_min_ps(hi, lo);
+        __m128 tmp2 = _mm_permute_ps(tmp1, 0x02 | (0x03 << 2));
+
+        // The lower two values contain the min for half the vector
+        INS_INC1(max, 4);
+        __m128 tmp3 = _mm_min_ps(tmp1, tmp2);
+
+        float tmp4 = _mm_cvtss_f32(tmp3);
+        float tmp5 = _mm_cvtss_f32(_mm_shuffle_ps(tmp3, tmp3, 1));
+
+        return min(tmp4, tmp5);
     }
 
     static inline float clamp(float x, float lo, float hi) {
