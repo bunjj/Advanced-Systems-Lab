@@ -109,18 +109,12 @@ namespace impl::vec3 {
         float* extents_y;
         float* extents_z;
         float* r;
-
-        // arrays for each entry of the matrix
-        float* inv_rot[3][3];
     };
 
     struct torus_vectors {
         float* r1;
         float* r2;
         float* r;
-
-        // arrays for each entry of the matrix
-        float* inv_rot[3][3];
     };
 
     struct cone_vectors {
@@ -128,16 +122,10 @@ namespace impl::vec3 {
         float* r2;
         float* height;
         float* r;
-
-        // arrays for each entry of the matrix
-        float* inv_rot[3][3];
     };
 
     struct octa_vectors {
         float* s;
-
-        // arrays for each entry of the matrix
-        float* inv_rot[3][3];
     };
 
     struct scene {

@@ -313,30 +313,10 @@ namespace impl::vec3 {
         scene.box_vecs.extents_z = (float*)malloc(sizeof(float) * scene.num_boxes);
         scene.box_vecs.r = (float*)malloc(sizeof(float) * scene.num_boxes);
 
-        scene.box_vecs.inv_rot[0][0] = (float*)malloc(sizeof(float) * scene.num_boxes);
-        scene.box_vecs.inv_rot[0][1] = (float*)malloc(sizeof(float) * scene.num_boxes);
-        scene.box_vecs.inv_rot[0][2] = (float*)malloc(sizeof(float) * scene.num_boxes);
-        scene.box_vecs.inv_rot[1][0] = (float*)malloc(sizeof(float) * scene.num_boxes);
-        scene.box_vecs.inv_rot[1][1] = (float*)malloc(sizeof(float) * scene.num_boxes);
-        scene.box_vecs.inv_rot[1][2] = (float*)malloc(sizeof(float) * scene.num_boxes);
-        scene.box_vecs.inv_rot[2][0] = (float*)malloc(sizeof(float) * scene.num_boxes);
-        scene.box_vecs.inv_rot[2][1] = (float*)malloc(sizeof(float) * scene.num_boxes);
-        scene.box_vecs.inv_rot[2][2] = (float*)malloc(sizeof(float) * scene.num_boxes);
-
         // tori
         scene.torus_vecs.r1 = (float*)malloc(sizeof(float) * scene.num_tori);
         scene.torus_vecs.r2 = (float*)malloc(sizeof(float) * scene.num_tori);
         scene.torus_vecs.r = (float*)malloc(sizeof(float) * scene.num_tori);
-
-        scene.torus_vecs.inv_rot[0][0] = (float*)malloc(sizeof(float) * scene.num_tori);
-        scene.torus_vecs.inv_rot[0][1] = (float*)malloc(sizeof(float) * scene.num_tori);
-        scene.torus_vecs.inv_rot[0][2] = (float*)malloc(sizeof(float) * scene.num_tori);
-        scene.torus_vecs.inv_rot[1][0] = (float*)malloc(sizeof(float) * scene.num_tori);
-        scene.torus_vecs.inv_rot[1][1] = (float*)malloc(sizeof(float) * scene.num_tori);
-        scene.torus_vecs.inv_rot[1][2] = (float*)malloc(sizeof(float) * scene.num_tori);
-        scene.torus_vecs.inv_rot[2][0] = (float*)malloc(sizeof(float) * scene.num_tori);
-        scene.torus_vecs.inv_rot[2][1] = (float*)malloc(sizeof(float) * scene.num_tori);
-        scene.torus_vecs.inv_rot[2][2] = (float*)malloc(sizeof(float) * scene.num_tori);
 
         // cones
         scene.cone_vecs.r1 = (float*)malloc(sizeof(float) * scene.num_cones);
@@ -344,28 +324,8 @@ namespace impl::vec3 {
         scene.cone_vecs.height = (float*)malloc(sizeof(float) * scene.num_cones);
         scene.cone_vecs.r = (float*)malloc(sizeof(float) * scene.num_cones);
 
-        scene.cone_vecs.inv_rot[0][0] = (float*)malloc(sizeof(float) * scene.num_cones);
-        scene.cone_vecs.inv_rot[0][1] = (float*)malloc(sizeof(float) * scene.num_cones);
-        scene.cone_vecs.inv_rot[0][2] = (float*)malloc(sizeof(float) * scene.num_cones);
-        scene.cone_vecs.inv_rot[1][0] = (float*)malloc(sizeof(float) * scene.num_cones);
-        scene.cone_vecs.inv_rot[1][1] = (float*)malloc(sizeof(float) * scene.num_cones);
-        scene.cone_vecs.inv_rot[1][2] = (float*)malloc(sizeof(float) * scene.num_cones);
-        scene.cone_vecs.inv_rot[2][0] = (float*)malloc(sizeof(float) * scene.num_cones);
-        scene.cone_vecs.inv_rot[2][1] = (float*)malloc(sizeof(float) * scene.num_cones);
-        scene.cone_vecs.inv_rot[2][2] = (float*)malloc(sizeof(float) * scene.num_cones);
-
         // octahedra
         scene.octa_vecs.s = (float*)malloc(sizeof(float) * scene.num_octahedra);
-
-        scene.octa_vecs.inv_rot[0][0] = (float*)malloc(sizeof(float) * scene.num_octahedra);
-        scene.octa_vecs.inv_rot[0][1] = (float*)malloc(sizeof(float) * scene.num_octahedra);
-        scene.octa_vecs.inv_rot[0][2] = (float*)malloc(sizeof(float) * scene.num_octahedra);
-        scene.octa_vecs.inv_rot[1][0] = (float*)malloc(sizeof(float) * scene.num_octahedra);
-        scene.octa_vecs.inv_rot[1][1] = (float*)malloc(sizeof(float) * scene.num_octahedra);
-        scene.octa_vecs.inv_rot[1][2] = (float*)malloc(sizeof(float) * scene.num_octahedra);
-        scene.octa_vecs.inv_rot[2][0] = (float*)malloc(sizeof(float) * scene.num_octahedra);
-        scene.octa_vecs.inv_rot[2][1] = (float*)malloc(sizeof(float) * scene.num_octahedra);
-        scene.octa_vecs.inv_rot[2][2] = (float*)malloc(sizeof(float) * scene.num_octahedra);
 
         // second pass to actually load the shapes
         int sphere_idx = 0;
@@ -400,16 +360,6 @@ namespace impl::vec3 {
                 scene.box_vecs.extents_z[box_idx] = scene.boxes[box_idx].extents.z;
                 scene.box_vecs.r[box_idx] = scene.boxes[box_idx].r;
 
-                scene.box_vecs.inv_rot[0][0][box_idx] = scene.boxes[box_idx].inv_rot.val[0][0];
-                scene.box_vecs.inv_rot[0][1][box_idx] = scene.boxes[box_idx].inv_rot.val[0][1];
-                scene.box_vecs.inv_rot[0][2][box_idx] = scene.boxes[box_idx].inv_rot.val[0][2];
-                scene.box_vecs.inv_rot[1][0][box_idx] = scene.boxes[box_idx].inv_rot.val[1][0];
-                scene.box_vecs.inv_rot[1][1][box_idx] = scene.boxes[box_idx].inv_rot.val[1][1];
-                scene.box_vecs.inv_rot[1][2][box_idx] = scene.boxes[box_idx].inv_rot.val[1][2];
-                scene.box_vecs.inv_rot[2][0][box_idx] = scene.boxes[box_idx].inv_rot.val[2][0];
-                scene.box_vecs.inv_rot[2][1][box_idx] = scene.boxes[box_idx].inv_rot.val[2][1];
-                scene.box_vecs.inv_rot[2][2][box_idx] = scene.boxes[box_idx].inv_rot.val[2][2];
-
                 box_idx++;
 
             } else if (current == "torus") {
@@ -419,16 +369,6 @@ namespace impl::vec3 {
                 scene.torus_vecs.r1[torus_idx] = scene.tori[torus_idx].r1;
                 scene.torus_vecs.r2[torus_idx] = scene.tori[torus_idx].r2;
                 scene.torus_vecs.r[torus_idx] = scene.tori[torus_idx].r;
-
-                scene.torus_vecs.inv_rot[0][0][torus_idx] = scene.tori[torus_idx].inv_rot.val[0][0];
-                scene.torus_vecs.inv_rot[0][1][torus_idx] = scene.tori[torus_idx].inv_rot.val[0][1];
-                scene.torus_vecs.inv_rot[0][2][torus_idx] = scene.tori[torus_idx].inv_rot.val[0][2];
-                scene.torus_vecs.inv_rot[1][0][torus_idx] = scene.tori[torus_idx].inv_rot.val[1][0];
-                scene.torus_vecs.inv_rot[1][1][torus_idx] = scene.tori[torus_idx].inv_rot.val[1][1];
-                scene.torus_vecs.inv_rot[1][2][torus_idx] = scene.tori[torus_idx].inv_rot.val[1][2];
-                scene.torus_vecs.inv_rot[2][0][torus_idx] = scene.tori[torus_idx].inv_rot.val[2][0];
-                scene.torus_vecs.inv_rot[2][1][torus_idx] = scene.tori[torus_idx].inv_rot.val[2][1];
-                scene.torus_vecs.inv_rot[2][2][torus_idx] = scene.tori[torus_idx].inv_rot.val[2][2];
 
                 torus_idx++;
 
@@ -441,16 +381,6 @@ namespace impl::vec3 {
                 scene.cone_vecs.height[cone_idx] = scene.cones[cone_idx].height;
                 scene.cone_vecs.r[cone_idx] = scene.cones[cone_idx].r;
 
-                scene.cone_vecs.inv_rot[0][0][cone_idx] = scene.cones[cone_idx].inv_rot.val[0][0];
-                scene.cone_vecs.inv_rot[0][1][cone_idx] = scene.cones[cone_idx].inv_rot.val[0][1];
-                scene.cone_vecs.inv_rot[0][2][cone_idx] = scene.cones[cone_idx].inv_rot.val[0][2];
-                scene.cone_vecs.inv_rot[1][0][cone_idx] = scene.cones[cone_idx].inv_rot.val[1][0];
-                scene.cone_vecs.inv_rot[1][1][cone_idx] = scene.cones[cone_idx].inv_rot.val[1][1];
-                scene.cone_vecs.inv_rot[1][2][cone_idx] = scene.cones[cone_idx].inv_rot.val[1][2];
-                scene.cone_vecs.inv_rot[2][0][cone_idx] = scene.cones[cone_idx].inv_rot.val[2][0];
-                scene.cone_vecs.inv_rot[2][1][cone_idx] = scene.cones[cone_idx].inv_rot.val[2][1];
-                scene.cone_vecs.inv_rot[2][2][cone_idx] = scene.cones[cone_idx].inv_rot.val[2][2];
-
                 cone_idx++;
 
             } else if (current == "octahedron") {
@@ -458,16 +388,6 @@ namespace impl::vec3 {
 
                 // vectorized data layout
                 scene.octa_vecs.s[octa_idx] = scene.octahedra[octa_idx].s;
-
-                scene.octa_vecs.inv_rot[0][0][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[0][0];
-                scene.octa_vecs.inv_rot[0][1][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[0][1];
-                scene.octa_vecs.inv_rot[0][2][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[0][2];
-                scene.octa_vecs.inv_rot[1][0][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[1][0];
-                scene.octa_vecs.inv_rot[1][1][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[1][1];
-                scene.octa_vecs.inv_rot[1][2][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[1][2];
-                scene.octa_vecs.inv_rot[2][0][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[2][0];
-                scene.octa_vecs.inv_rot[2][1][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[2][1];
-                scene.octa_vecs.inv_rot[2][2][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[2][2];
 
                 octa_idx++;
             } else {
