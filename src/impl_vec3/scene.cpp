@@ -110,8 +110,8 @@ namespace impl::vec3 {
 
     // Torus {{{
 
-    torus make_torus(vec center, float r1, float r2, vec color, float reflection, float shininess,
-        m33 rot, m33 inv_rot) {
+    torus make_torus(
+        vec center, float r1, float r2, vec color, float reflection, float shininess, m33 rot, m33 inv_rot) {
         torus s;
         s.center = center;
         s.r1 = r1;
@@ -146,8 +146,8 @@ namespace impl::vec3 {
 
     // Cone {{{
 
-    cone make_cone(vec center, float r1, float r2, float height, vec color, float reflection,
-        float shininess, m33 rot, m33 inv_rot) {
+    cone make_cone(vec center, float r1, float r2, float height, vec color, float reflection, float shininess, m33 rot,
+        m33 inv_rot) {
         cone s;
         s.center = center;
         s.r1 = r1;
@@ -158,7 +158,7 @@ namespace impl::vec3 {
         s.shininess = shininess;
         s.rot = rot;
         s.inv_rot = inv_rot;
-        s.r = vec2_length({height, max(r1,r2)});
+        s.r = vec2_length({height, max(r1, r2)});
         vec2 k2 = {r2 - r1, 2 * height};
         s.k2d2inv = 1.f / vec2_dot2(k2);
         return s;
@@ -261,7 +261,6 @@ namespace impl::vec3 {
         }
     }
 
-
     static void load_shapes(json& j) {
         int num_shapes = j["objects"].size();
 
@@ -309,9 +308,6 @@ namespace impl::vec3 {
         scene.sphere_vecs.radius = (float*)malloc(sizeof(float) * scene.num_spheres);
 
         // boxes
-        scene.box_vecs.bottom_left_x = (float*)malloc(sizeof(float) * scene.num_boxes);
-        scene.box_vecs.bottom_left_y = (float*)malloc(sizeof(float) * scene.num_boxes);
-        scene.box_vecs.bottom_left_z = (float*)malloc(sizeof(float) * scene.num_boxes);
         scene.box_vecs.extents_x = (float*)malloc(sizeof(float) * scene.num_boxes);
         scene.box_vecs.extents_y = (float*)malloc(sizeof(float) * scene.num_boxes);
         scene.box_vecs.extents_z = (float*)malloc(sizeof(float) * scene.num_boxes);
@@ -408,10 +404,6 @@ namespace impl::vec3 {
                 scene.boxes[box_idx] = load_box(current_shape);
 
                 // vectorized data layout
-                scene.box_vecs.bottom_left_x[box_idx] = scene.boxes[box_idx].bottom_left.x;
-                scene.box_vecs.bottom_left_y[box_idx] = scene.boxes[box_idx].bottom_left.y;
-                scene.box_vecs.bottom_left_z[box_idx] = scene.boxes[box_idx].bottom_left.z;
-
                 scene.box_vecs.extents_x[box_idx] = scene.boxes[box_idx].extents.x;
                 scene.box_vecs.extents_y[box_idx] = scene.boxes[box_idx].extents.y;
                 scene.box_vecs.extents_z[box_idx] = scene.boxes[box_idx].extents.z;

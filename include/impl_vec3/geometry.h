@@ -48,6 +48,12 @@ namespace impl::vec3 {
         float z;
     };
 
+    struct vec256 {
+        __m256 x;
+        __m256 y;
+        __m256 z;
+    };
+
     std::ostream& operator<<(std::ostream& out, const vec& v);
 
 #define VEC_OP(v1, v2, OP)                                \
@@ -271,6 +277,25 @@ namespace impl::vec3 {
 
     static inline vec trace_ray(const Ray r, const float t) {
         return vec_add(r.o, vec_scale(r.d, t));
+    }
+
+    static inline vec256 trace_ray_vectorized(int idx, const float* o_x_p, const float* o_y_p, const float* o_z_p, const float* d_x_p, const float* d_y_p, const float* d_z_p, const float t) {
+        __m256 o_x = _mm256_loadu_ps(o_x_p + idx);
+        __m256 o_y = _mm256_loadu_ps(o_y_p + idx);
+        __m256 o_z = _mm256_loadu_ps(o_z_p + idx);
+        __m256 d_x = _mm256_loadu_ps(d_x_p + idx);
+        __m256 d_y = _mm256_loadu_ps(d_y_p + idx);
+        __m256 d_z = _mm256_loadu_ps(d_z_p + idx);
+
+        __m256 t_v = _mm256_set1_ps(t);
+
+        // vec_add(r.o, vec_scale(r.d, t));
+        INS_INC1(fma, 24);
+        __m256 res_x = _mm256_fmadd_ps(d_x, t_v, o_x);
+        __m256 res_y = _mm256_fmadd_ps(d_y, t_v, o_y);
+        __m256 res_z = _mm256_fmadd_ps(d_z, t_v, o_z);
+
+        return {res_x, res_y, res_z};
     }
 
     static inline Ray transform_ray(const m33 R, const vec t, const Ray r) {

@@ -105,9 +105,6 @@ namespace impl::vec3 {
     };
 
     struct box_vectors {
-        float* bottom_left_x;
-        float* bottom_left_y;
-        float* bottom_left_z;
         float* extents_x;
         float* extents_y;
         float* extents_z;
@@ -186,11 +183,11 @@ namespace impl::vec3 {
     // distance and normal functions
 
     // Sphere
-    static inline float sphere_distance_short(const sphere sp, const vec from, const float current_min) {
+    static inline float sphere_distance_short(const sphere sp, const vec p_world, const float current_min) {
         INS_INC(sphere);
         INS_ADD;
         float upper_bound = current_min + sp.radius;
-        float squared_distance = vec_dot2(vec_sub(sp.center, from));
+        float squared_distance = vec_dot2(vec_sub(sp.center, p_world));
         INS_MUL;
         INS_CMP;
         if (squared_distance >= upper_bound * upper_bound) {
@@ -287,43 +284,18 @@ namespace impl::vec3 {
      * Computes the box distance function with early termination.
      * Returns zero if early termination is possible, and a nonzero value otherwise.
      */
-    static inline int box_distance_short_vectorized(int idx, float* res, float* bottom_left_x, float* bottom_left_y,
-        float* bottom_left_z, float* extents_x, float* extents_y, float* extents_z, float* rad, float* inv_rot[3][3],
-        const vec from, float current_min) {
+    static inline int box_distance_short_vectorized(int idx, float* res, float* extents_x, float* extents_y,
+        float* extents_z, float* rad, const vec256 pos, float current_min) {
         INS_INC1(box, 8);
 
         // load vectors
-        __m256 bl_x = _mm256_loadu_ps(bottom_left_x + idx);
-        __m256 bl_y = _mm256_loadu_ps(bottom_left_y + idx);
-        __m256 bl_z = _mm256_loadu_ps(bottom_left_z + idx);
-
         __m256 r = _mm256_loadu_ps(rad + idx);
 
-        __m256 inv_rot_00 = _mm256_loadu_ps(inv_rot[0][0] + idx);
-        __m256 inv_rot_01 = _mm256_loadu_ps(inv_rot[0][1] + idx);
-        __m256 inv_rot_02 = _mm256_loadu_ps(inv_rot[0][2] + idx);
-        __m256 inv_rot_10 = _mm256_loadu_ps(inv_rot[1][0] + idx);
-        __m256 inv_rot_11 = _mm256_loadu_ps(inv_rot[1][1] + idx);
-        __m256 inv_rot_12 = _mm256_loadu_ps(inv_rot[1][2] + idx);
-        __m256 inv_rot_20 = _mm256_loadu_ps(inv_rot[2][0] + idx);
-        __m256 inv_rot_21 = _mm256_loadu_ps(inv_rot[2][1] + idx);
-        __m256 inv_rot_22 = _mm256_loadu_ps(inv_rot[2][2] + idx);
-
-        __m256 from_x = _mm256_set1_ps(from.x);
-        __m256 from_y = _mm256_set1_ps(from.y);
-        __m256 from_z = _mm256_set1_ps(from.z);
         __m256 curr_min = _mm256_set1_ps(current_min);
 
-        // vec t = vec_sub(from, b.bottom_left);
-        INS_INC1(add, 24);
-        __m256 t_x = _mm256_sub_ps(bl_x, from_x);
-        __m256 t_y = _mm256_sub_ps(bl_y, from_y);
-        __m256 t_z = _mm256_sub_ps(bl_z, from_z);
-
-        // vec pos = m33_mul_vec(b.inv_rot, t);
-        __m256 pos_x = vectorized_vec_dot(inv_rot_00, inv_rot_01, inv_rot_02, t_x, t_y, t_z);
-        __m256 pos_y = vectorized_vec_dot(inv_rot_10, inv_rot_11, inv_rot_12, t_x, t_y, t_z);
-        __m256 pos_z = vectorized_vec_dot(inv_rot_20, inv_rot_21, inv_rot_22, t_x, t_y, t_z);
+        __m256 pos_x = pos.x;
+        __m256 pos_y = pos.y;
+        __m256 pos_z = pos.z;
 
         // enclosing sphere check
         __m256 pos_square = vectorized_vec_dot(pos_x, pos_y, pos_z, pos_x, pos_y, pos_z);
