@@ -355,9 +355,6 @@ namespace impl::vec3 {
         scene.cone_vecs.inv_rot[2][2] = (float*)malloc(sizeof(float) * scene.num_cones);
 
         // octahedra
-        scene.octa_vecs.center_x = (float*)malloc(sizeof(float) * scene.num_octahedra);
-        scene.octa_vecs.center_y = (float*)malloc(sizeof(float) * scene.num_octahedra);
-        scene.octa_vecs.center_z = (float*)malloc(sizeof(float) * scene.num_octahedra);
         scene.octa_vecs.s = (float*)malloc(sizeof(float) * scene.num_octahedra);
 
         scene.octa_vecs.inv_rot[0][0] = (float*)malloc(sizeof(float) * scene.num_octahedra);
@@ -460,9 +457,6 @@ namespace impl::vec3 {
                 scene.octahedra[octa_idx] = load_octa(current_shape);
 
                 // vectorized data layout
-                scene.octa_vecs.center_x[octa_idx] = scene.octahedra[octa_idx].center.x;
-                scene.octa_vecs.center_y[octa_idx] = scene.octahedra[octa_idx].center.y;
-                scene.octa_vecs.center_z[octa_idx] = scene.octahedra[octa_idx].center.z;
                 scene.octa_vecs.s[octa_idx] = scene.octahedra[octa_idx].s;
 
                 scene.octa_vecs.inv_rot[0][0][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[0][0];
