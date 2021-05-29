@@ -34,5 +34,9 @@ tmp=$(mktemp --suffix=.ppm)
 
 echo "$all_scenes" | while read -r scene; do
     echo -e "\e[32;1m======== $(basename "$scene") ========\e[0m"
-    "${build_dir}/main" "$impl" "${scene}" 1920 1080 "$tmp" "${scene%.*}.ppm"
+    if "${build_dir}/main" "$impl" "${scene}" 1920 1080 "$tmp" "${scene%.*}.ppm"; then
+        echo -e "\e[32;1mPASSED\e[0m"
+    else
+        echo -e "\e[31;1mFAILED\e[0m"
+    fi
 done

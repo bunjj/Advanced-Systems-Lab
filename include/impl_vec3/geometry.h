@@ -54,6 +54,22 @@ namespace impl::vec3 {
         __m256 z;
     };
 
+    /**
+     * Extracts the i-th vector from an 8-way vector
+     */
+    static inline vec vec256_get(vec256 v, int i) {
+        __m256i idx = _mm256_set1_epi32(i);
+        __m256 x_v = _mm256_permutevar8x32_ps(v.x, idx);
+        __m256 y_v = _mm256_permutevar8x32_ps(v.y, idx);
+        __m256 z_v = _mm256_permutevar8x32_ps(v.z, idx);
+
+        float x = _mm256_cvtss_f32(x_v);
+        float y = _mm256_cvtss_f32(y_v);
+        float z = _mm256_cvtss_f32(z_v);
+
+        return {x, y, z};
+    }
+
     std::ostream& operator<<(std::ostream& out, const vec& v);
 
 #define VEC_OP(v1, v2, OP)                                \
@@ -261,7 +277,6 @@ namespace impl::vec3 {
         return {x, y, z};
     }
 
-
     static inline vec transform_point(const m33 R, const vec t, const vec p) {
         return vec_add(m33_mul_vec(R, p), t);
     }
@@ -279,7 +294,8 @@ namespace impl::vec3 {
         return vec_add(r.o, vec_scale(r.d, t));
     }
 
-    static inline vec256 trace_ray_vectorized(int idx, const float* o_x_p, const float* o_y_p, const float* o_z_p, const float* d_x_p, const float* d_y_p, const float* d_z_p, const float t) {
+    static inline vec256 trace_ray_vectorized(int idx, const float* o_x_p, const float* o_y_p, const float* o_z_p,
+        const float* d_x_p, const float* d_y_p, const float* d_z_p, const float t) {
         __m256 o_x = _mm256_loadu_ps(o_x_p + idx);
         __m256 o_y = _mm256_loadu_ps(o_y_p + idx);
         __m256 o_z = _mm256_loadu_ps(o_z_p + idx);

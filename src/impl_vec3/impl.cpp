@@ -110,6 +110,7 @@ namespace impl::vec3 {
             octahedra_d_shade_z[k] = r_octahedra_shade[k].d.z;
         }
 
+        /* Actual Shadow Tracing */
         float t = EPS;
 
         float res = 1.f;
@@ -204,7 +205,8 @@ namespace impl::vec3 {
 
             // remaining box iterations
             for (; k < scene.num_boxes; k++) {
-                float distance = box_distance_short(scene.boxes[k], p_world, min_distance);
+                vec p_obj = trace_ray(r_boxes_shade[k], t);
+                float distance = box_distance_short(scene.boxes[k], p_obj, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -245,7 +247,8 @@ namespace impl::vec3 {
 
             // remaining torus iterations
             for (; k < scene.num_tori; k++) {
-                float distance = torus_distance_short(scene.tori[k], p_world, min_distance);
+                vec p_obj = trace_ray(r_tori_shade[k], t);
+                float distance = torus_distance_short(scene.tori[k], p_obj, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -286,7 +289,8 @@ namespace impl::vec3 {
 
             // remaining cone iterations
             for (; k < scene.num_cones; k++) {
-                float distance = cone_distance_short(scene.cones[k], p_world, min_distance);
+                vec p_obj = trace_ray(r_cones_shade[k], t);
+                float distance = cone_distance_short(scene.cones[k], p_obj, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -302,11 +306,12 @@ namespace impl::vec3 {
 
             // octahedra
             for (k = 0; k < scene.num_octahedra - 7; k += 8) {
-                vec256 p_obj = trace_ray_vectorized(
-                    k, octahedra_o_x, octahedra_o_y, octahedra_o_z, octahedra_d_shade_x, octahedra_d_shade_y, octahedra_d_shade_z, t);
+                vec256 p_obj = trace_ray_vectorized(k, octahedra_o_x, octahedra_o_y, octahedra_o_z, octahedra_d_shade_x,
+                    octahedra_d_shade_y, octahedra_d_shade_z, t);
                 float dists[8];
 
-                int not_terminate_early = octahedron_distance_short_vectorized(k, dists, scene.octa_vecs.s, p_obj, min_distance);
+                int not_terminate_early =
+                    octahedron_distance_short_vectorized(k, dists, scene.octa_vecs.s, p_obj, min_distance);
 
                 if (not_terminate_early) {
                     for (int i = 0; i < 8; i++) {
@@ -326,7 +331,8 @@ namespace impl::vec3 {
 
             // remaining octahedra iterations
             for (; k < scene.num_octahedra; k++) {
-                float distance = octahedron_distance_short(scene.octahedra[k], p_world, min_distance);
+                vec p_obj = trace_ray(r_octahedra_shade[k], t);
+                float distance = octahedron_distance_short(scene.octahedra[k], p_obj, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -453,7 +459,7 @@ namespace impl::vec3 {
 
         float t = 0;
         while (t < D) {
-            vec pos = vec_add(scene.cam.pos, vec_scale(d, t));
+            vec p_world = vec_add(scene.cam.pos, vec_scale(d, t));
 
             float min_distance = INFINITY;
 
@@ -465,7 +471,7 @@ namespace impl::vec3 {
 
                 int not_terminate_early =
                     sphere_distance_short_vectorized(k, dists, scene.sphere_vecs.center_x, scene.sphere_vecs.center_y,
-                        scene.sphere_vecs.center_z, scene.sphere_vecs.radius, pos, min_distance);
+                        scene.sphere_vecs.center_z, scene.sphere_vecs.radius, p_world, min_distance);
 
                 if (not_terminate_early) {
                     for (int i = 0; i < 8; i++) {
@@ -477,8 +483,8 @@ namespace impl::vec3 {
                             INS_MUL;
                             if (min_distance <= EPS * t) {
                                 sphere s = scene.spheres[k + i];
-                                vec normal = sphere_normal(s, pos);
-                                return shade(normal, s.shininess, s.reflection, s.color, pos, d, t);
+                                vec normal = sphere_normal(s, p_world);
+                                return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                             }
                         }
                     }
@@ -487,7 +493,7 @@ namespace impl::vec3 {
 
             // remaining sphere iterations
             for (; k < scene.num_spheres; k++) {
-                float distance = sphere_distance_short(scene.spheres[k], pos, min_distance);
+                float distance = sphere_distance_short(scene.spheres[k], p_world, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -497,15 +503,15 @@ namespace impl::vec3 {
                     INS_MUL;
                     if (min_distance <= EPS * t) {
                         sphere s = scene.spheres[k];
-                        vec normal = sphere_normal(s, pos);
-                        return shade(normal, s.shininess, s.reflection, s.color, pos, d, t);
+                        vec normal = sphere_normal(s, p_world);
+                        return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                     }
                 }
             }
 
             // planes
             for (int k = 0; k < scene.num_planes; k++) {
-                float distance = plane_distance(scene.planes[k], pos);
+                float distance = plane_distance(scene.planes[k], p_world);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -515,8 +521,8 @@ namespace impl::vec3 {
                     INS_MUL;
                     if (min_distance <= EPS * t) {
                         plane s = scene.planes[k];
-                        vec normal = plane_normal(s, pos);
-                        return shade(normal, s.shininess, s.reflection, s.color, pos, d, t);
+                        vec normal = plane_normal(s, p_world);
+                        return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                     }
                 }
             }
@@ -540,8 +546,8 @@ namespace impl::vec3 {
                             INS_MUL;
                             if (min_distance <= EPS * t) {
                                 box s = scene.boxes[k + i];
-                                vec normal = box_normal(s, pos);
-                                return shade(normal, s.shininess, s.reflection, s.color, pos, d, t);
+                                vec normal = box_normal(s, vec256_get(p_obj, i));
+                                return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                             }
                         }
                     }
@@ -550,7 +556,8 @@ namespace impl::vec3 {
 
             // remaining box iterations
             for (; k < scene.num_boxes; k++) {
-                float distance = box_distance_short(scene.boxes[k], pos, min_distance);
+                vec p_obj = trace_ray(r_boxes[k], t);
+                float distance = box_distance_short(scene.boxes[k], p_obj, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -560,8 +567,8 @@ namespace impl::vec3 {
                     INS_MUL;
                     if (min_distance <= EPS * t) {
                         box s = scene.boxes[k];
-                        vec normal = box_normal(s, pos);
-                        return shade(normal, s.shininess, s.reflection, s.color, pos, d, t);
+                        vec normal = box_normal(s, p_obj);
+                        return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                     }
                 }
             }
@@ -584,8 +591,8 @@ namespace impl::vec3 {
                             INS_MUL;
                             if (min_distance <= EPS * t) {
                                 torus s = scene.tori[k + i];
-                                vec normal = torus_normal(s, pos);
-                                return shade(normal, s.shininess, s.reflection, s.color, pos, d, t);
+                                vec normal = torus_normal(s, vec256_get(p_obj, i));
+                                return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                             }
                         }
                     }
@@ -594,7 +601,8 @@ namespace impl::vec3 {
 
             // remaining torus iterations
             for (; k < scene.num_tori; k++) {
-                float distance = torus_distance_short(scene.tori[k], pos, min_distance);
+                vec p_obj = trace_ray(r_tori[k], t);
+                float distance = torus_distance_short(scene.tori[k], p_obj, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -604,8 +612,8 @@ namespace impl::vec3 {
                     INS_MUL;
                     if (min_distance <= EPS * t) {
                         torus s = scene.tori[k];
-                        vec normal = torus_normal(s, pos);
-                        return shade(normal, s.shininess, s.reflection, s.color, pos, d, t);
+                        vec normal = torus_normal(s, p_obj);
+                        return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                     }
                 }
             }
@@ -629,8 +637,8 @@ namespace impl::vec3 {
                             INS_MUL;
                             if (min_distance <= EPS * t) {
                                 cone s = scene.cones[k + i];
-                                vec normal = cone_normal(s, pos);
-                                return shade(normal, s.shininess, s.reflection, s.color, pos, d, t);
+                                vec normal = cone_normal(s, vec256_get(p_obj, i));
+                                return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                             }
                         }
                     }
@@ -639,7 +647,8 @@ namespace impl::vec3 {
 
             // remaining cone iterations
             for (; k < scene.num_cones; k++) {
-                float distance = cone_distance_short(scene.cones[k], pos, min_distance);
+                vec p_obj = trace_ray(r_cones[k], t);
+                float distance = cone_distance_short(scene.cones[k], p_obj, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -649,19 +658,20 @@ namespace impl::vec3 {
                     INS_MUL;
                     if (min_distance <= EPS * t) {
                         cone s = scene.cones[k];
-                        vec normal = cone_normal(s, pos);
-                        return shade(normal, s.shininess, s.reflection, s.color, pos, d, t);
+                        vec normal = cone_normal(s, p_obj);
+                        return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                     }
                 }
             }
 
             // octahedra
             for (k = 0; k < scene.num_octahedra - 7; k += 8) {
-                vec256 p_obj =
-                    trace_ray_vectorized(k, octahedra_o_x, octahedra_o_y, octahedra_o_z, octahedra_d_x, octahedra_d_y, octahedra_d_z, t);
+                vec256 p_obj = trace_ray_vectorized(
+                    k, octahedra_o_x, octahedra_o_y, octahedra_o_z, octahedra_d_x, octahedra_d_y, octahedra_d_z, t);
                 float dists[8];
 
-                int not_terminate_early = octahedron_distance_short_vectorized(k, dists, scene.octa_vecs.s, p_obj, min_distance);
+                int not_terminate_early =
+                    octahedron_distance_short_vectorized(k, dists, scene.octa_vecs.s, p_obj, min_distance);
 
                 if (not_terminate_early) {
                     for (int i = 0; i < 8; i++) {
@@ -673,8 +683,8 @@ namespace impl::vec3 {
                             INS_MUL;
                             if (min_distance <= EPS * t) {
                                 octa s = scene.octahedra[k + i];
-                                vec normal = octahedron_normal(s, pos);
-                                return shade(normal, s.shininess, s.reflection, s.color, pos, d, t);
+                                vec normal = octahedron_normal(s, vec256_get(p_obj, i));
+                                return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                             }
                         }
                     }
@@ -683,7 +693,8 @@ namespace impl::vec3 {
 
             // remaining octahedron iterations
             for (; k < scene.num_octahedra; k++) {
-                float distance = octahedron_distance_short(scene.octahedra[k], pos, min_distance);
+                vec p_obj = trace_ray(r_octahedra[k], t);
+                float distance = octahedron_distance_short(scene.octahedra[k], p_obj, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -693,8 +704,8 @@ namespace impl::vec3 {
                     INS_MUL;
                     if (min_distance <= EPS * t) {
                         octa s = scene.octahedra[k];
-                        vec normal = octahedron_normal(s, pos);
-                        return shade(normal, s.shininess, s.reflection, s.color, pos, d, t);
+                        vec normal = octahedron_normal(s, p_obj);
+                        return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                     }
                 }
             }
