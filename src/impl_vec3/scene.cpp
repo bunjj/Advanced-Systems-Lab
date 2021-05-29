@@ -339,9 +339,6 @@ namespace impl::vec3 {
         scene.torus_vecs.inv_rot[2][2] = (float*)malloc(sizeof(float) * scene.num_tori);
 
         // cones
-        scene.cone_vecs.center_x = (float*)malloc(sizeof(float) * scene.num_cones);
-        scene.cone_vecs.center_y = (float*)malloc(sizeof(float) * scene.num_cones);
-        scene.cone_vecs.center_z = (float*)malloc(sizeof(float) * scene.num_cones);
         scene.cone_vecs.r1 = (float*)malloc(sizeof(float) * scene.num_cones);
         scene.cone_vecs.r2 = (float*)malloc(sizeof(float) * scene.num_cones);
         scene.cone_vecs.height = (float*)malloc(sizeof(float) * scene.num_cones);
@@ -442,9 +439,6 @@ namespace impl::vec3 {
                 scene.cones[cone_idx] = load_cone(current_shape);
 
                 // vectorized data layout
-                scene.cone_vecs.center_x[cone_idx] = scene.cones[cone_idx].center.x;
-                scene.cone_vecs.center_y[cone_idx] = scene.cones[cone_idx].center.y;
-                scene.cone_vecs.center_z[cone_idx] = scene.cones[cone_idx].center.z;
                 scene.cone_vecs.r1[cone_idx] = scene.cones[cone_idx].r1;
                 scene.cone_vecs.r2[cone_idx] = scene.cones[cone_idx].r2;
                 scene.cone_vecs.height[cone_idx] = scene.cones[cone_idx].height;

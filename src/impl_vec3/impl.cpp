@@ -35,6 +35,18 @@ namespace impl::vec3 {
     static float* tori_d_shade_y;
     static float* tori_d_shade_z;
 
+    static float* cones_o_x;
+    static float* cones_o_y;
+    static float* cones_o_z;
+
+    static float* cones_d_x;
+    static float* cones_d_y;
+    static float* cones_d_z;
+
+    static float* cones_d_shade_x;
+    static float* cones_d_shade_y;
+    static float* cones_d_shade_z;
+
     static Ray* r_boxes;
     static Ray* r_tori;
     static Ray* r_cones;
@@ -69,6 +81,12 @@ namespace impl::vec3 {
         }
         for (int k = 0; k < scene.num_cones; k++) {
             r_cones_shade[k] = invtransform_ray(scene.cones[k].inv_rot, scene.cones[k].center, r_world);
+            cones_o_x[k] = r_cones_shade[k].o.x;
+            cones_o_y[k] = r_cones_shade[k].o.y;
+            cones_o_z[k] = r_cones_shade[k].o.z;
+            cones_d_shade_x[k] = r_cones_shade[k].d.x;
+            cones_d_shade_y[k] = r_cones_shade[k].d.y;
+            cones_d_shade_z[k] = r_cones_shade[k].d.z;
         }
         for (int k = 0; k < scene.num_octahedra; k++) {
             r_octahedra_shade[k] = invtransform_ray(scene.octahedra[k].inv_rot, scene.octahedra[k].center, r_world);
@@ -225,11 +243,12 @@ namespace impl::vec3 {
 
             // cones
             for (k = 0; k < scene.num_cones - 7; k += 8) {
+                vec256 p_obj = trace_ray_vectorized(
+                    k, cones_o_x, cones_o_y, cones_o_z, cones_d_shade_x, cones_d_shade_y, cones_d_shade_z, t);
                 float dists[8];
 
-                int not_terminate_early = cone_distance_short_vectorized(k, dists, scene.cone_vecs.center_x,
-                    scene.cone_vecs.center_y, scene.cone_vecs.center_z, scene.cone_vecs.r1, scene.cone_vecs.r2,
-                    scene.cone_vecs.height, scene.cone_vecs.r, scene.cone_vecs.inv_rot, p_world, min_distance);
+                int not_terminate_early = cone_distance_short_vectorized(k, dists, scene.cone_vecs.r1,
+                    scene.cone_vecs.r2, scene.cone_vecs.height, scene.cone_vecs.r, p_obj, min_distance);
 
                 if (not_terminate_early) {
                     for (int i = 0; i < 8; i++) {
@@ -397,6 +416,12 @@ namespace impl::vec3 {
         }
         for (int k = 0; k < scene.num_cones; k++) {
             r_cones[k].d = m33_mul_vec(scene.cones[k].inv_rot, d);
+            cones_o_x[k] = r_cones[k].o.x;
+            cones_o_y[k] = r_cones[k].o.y;
+            cones_o_z[k] = r_cones[k].o.z;
+            cones_d_x[k] = r_cones[k].d.x;
+            cones_d_y[k] = r_cones[k].d.y;
+            cones_d_z[k] = r_cones[k].d.z;
         }
         for (int k = 0; k < scene.num_octahedra; k++) {
             r_octahedra[k].d = m33_mul_vec(scene.octahedra[k].inv_rot, d);
@@ -563,11 +588,12 @@ namespace impl::vec3 {
 
             // cones
             for (k = 0; k < scene.num_cones - 7; k += 8) {
+                vec256 p_obj =
+                    trace_ray_vectorized(k, cones_o_x, cones_o_y, cones_o_z, cones_d_x, cones_d_y, cones_d_z, t);
                 float dists[8];
 
-                int not_terminate_early = cone_distance_short_vectorized(k, dists, scene.cone_vecs.center_x,
-                    scene.cone_vecs.center_y, scene.cone_vecs.center_z, scene.cone_vecs.r1, scene.cone_vecs.r2,
-                    scene.cone_vecs.height, scene.cone_vecs.r, scene.cone_vecs.inv_rot, pos, min_distance);
+                int not_terminate_early = cone_distance_short_vectorized(k, dists, scene.cone_vecs.r1,
+                    scene.cone_vecs.r2, scene.cone_vecs.height, scene.cone_vecs.r, p_obj, min_distance);
 
                 if (not_terminate_early) {
                     for (int i = 0; i < 8; i++) {
@@ -701,6 +727,18 @@ namespace impl::vec3 {
         tori_d_shade_y = (float*)malloc(4 * scene.num_tori);
         tori_d_shade_z = (float*)malloc(4 * scene.num_tori);
 
+        cones_o_x = (float*)malloc(4 * scene.num_cones);
+        cones_o_y = (float*)malloc(4 * scene.num_cones);
+        cones_o_z = (float*)malloc(4 * scene.num_cones);
+
+        cones_d_x = (float*)malloc(4 * scene.num_cones);
+        cones_d_y = (float*)malloc(4 * scene.num_cones);
+        cones_d_z = (float*)malloc(4 * scene.num_cones);
+
+        cones_d_shade_x = (float*)malloc(4 * scene.num_cones);
+        cones_d_shade_y = (float*)malloc(4 * scene.num_cones);
+        cones_d_shade_z = (float*)malloc(4 * scene.num_cones);
+
         /* Precompute camera ray origin in object coordinates */
         // TODO vectorize
         for (int k = 0; k < scene.num_boxes; k++) {
@@ -717,6 +755,9 @@ namespace impl::vec3 {
         }
         for (int k = 0; k < scene.num_cones; k++) {
             r_cones[k].o = invtransform_point(scene.cones[k].inv_rot, scene.cones[k].center, scene.cam.pos);
+            cones_o_x[k] = r_cones[k].o.x;
+            cones_o_y[k] = r_cones[k].o.y;
+            cones_o_z[k] = r_cones[k].o.z;
         }
         for (int k = 0; k < scene.num_octahedra; k++) {
             r_octahedra[k].o = invtransform_point(scene.octahedra[k].inv_rot, scene.octahedra[k].center, scene.cam.pos);
