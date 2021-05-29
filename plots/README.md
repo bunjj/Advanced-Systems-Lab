@@ -9,7 +9,7 @@ files from these results.
 You can then generate plots using `gnuplot`:
 
 ```bash
-gnuplot -c size-time.plt <bench-type> <y-index> <y-label>
+gnuplot -c size-time.plt <bench-type> <y-index> <y-label> <output-basename>
 ```
 
 This will generate a single plots with one line per optimization.
@@ -20,3 +20,4 @@ This will generate a single plots with one line per optimization.
     * `3 * i + 4`: Cycles
     * `3 * i + 5`: flops/cycle
 * `<y-label>` sets the label for the y axis
+* `<output-basename>` Name of the output file without extension

@@ -8,7 +8,7 @@ load "common.plt"
 
 set offsets 0, 0, graph 0.2, graph 0
 
-set label "{/=22:Bold Sphere Tracing on Haswell 3.30GHz}" at graph -0, graph 1.18
+set label "{/=22:Bold Sphere Tracing on Skylake 2.60GHz}" at graph -0, graph 1.18
 
 set xlabel "Width/Height [Pixels]"
 set label '[flops/cycle]' at graph -0.071, graph 1.08
