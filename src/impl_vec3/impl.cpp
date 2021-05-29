@@ -4,21 +4,27 @@
 
 namespace impl::vec3 {
     // max distance
-    static const float D = 100;
-    static const float EPS = 0.001;
+    static const float D = 100.f;
+    static const float EPS = 0.001f;
+    static const float PI4 = 4 * M_PI_F;
+    static const float M_E_F = M_E;
 
-    struct hit {
-        bool is_hit;
-        float distance;
-        int steps;
-        vec color;
-    };
+    static const float sharpness = 3.f; // sharpness of shadows
+
+    static Ray* r_boxes;
+    static Ray* r_tori;
+    static Ray* r_cones;
+    static Ray* r_octahedra;
+
+    static Ray* r_boxes_shade;
+    static Ray* r_tori_shade;
+    static Ray* r_cones_shade;
+    static Ray* r_octahedra_shade;
 
     // https://www.iquilezles.org/www/articles/rmshadows/rmshadows.htm
     static float sphere_trace_softshadow(vec point, vec light_dir, float max_distance) {
         float t = EPS;
 
-        float sharpness = 3.f; // sharpness of shadows
         float res = 1.f;
         while (t < max_distance) {
             vec pos = vec_add(point, vec_scale(light_dir, t));
@@ -252,26 +258,22 @@ namespace impl::vec3 {
         return res;
     }
 
+    static const float kd = 1.f;              // diffuse parameter
+    static const float ka = 0.0075f;          // ambient parameter
+    static const float neg_sigma_a = -4e-6f;  // atmospheric absorbtion coeff
+
     static vec shade(vec normal, float shininess, float reflection, vec color, vec pos, vec dir, float t) {
         /* Prepare shading parameters */
         INS_MUL;
-        float alpha = shininess;     // shininess parameter
         float ks = reflection * 0.4; // specular parameter
-        float kd = 1.f;              // diffuse parameter
-        float ka = 0.0075f;          // ambient parameter
-        float sigma_a = 4e-6f;       // atmospheric absorbtion coeff
 
-        vec wi;                        // incident direction
-        vec wr;                        // reflected direction
         vec wo = vec_scale(dir, -1.f); // outgoing direction
-        vec wn = normal;               // normal direction
 
-        vec Li;             // incident Light
         vec Lo = {0, 0, 0}; // outgoing Light
         vec La = {0, 0, 0}; // ambient Light
 
         for (int i = 0; i < scene.num_lights; i++) {
-            wi = vec_sub(scene.lights[i].pos, pos); // unnormalized
+            vec wi = vec_sub(scene.lights[i].pos, pos); // incident direction unnormalized
 
             INS_DIV;
             float dist2 = vec_dot2(wi);   // squared distance of light
@@ -279,13 +281,13 @@ namespace impl::vec3 {
             wi = vec_scale(wi, 1 / dist); // normalize incident direction
 
             // incoming light
-            INS_INC1(mul, 2);
+            INS_MUL;
             INS_DIV;
-            Li = vec_scale(scene.lights[i].emission, 1 / (4 * M_PI_F * dist2)); // incident light
+            vec Li = vec_scale(scene.lights[i].emission, 1 / (PI4 * dist2)); // incident light
             La = vec_add(La, Li); // incident light contributes to ambient light
 
             INS_CMP;
-            if (vec_dot(wn, wi) > 0) {
+            if (vec_dot(normal, wi) > 0) {
                 float shadow = sphere_trace_softshadow(pos, wi, dist);
                 INS_CMP;
                 if (shadow > EPS) {
@@ -293,16 +295,17 @@ namespace impl::vec3 {
 
                     // diffuse
                     INS_MUL;
-                    vec f_diffuse = vec_scale(color, kd * vec_dot(wn, wi)); // fraction of reflected light
-                    Lo = vec_add(Lo, vec_mul(Li, f_diffuse));               // diffuse contribution to outgoing light
+                    vec f_diffuse = vec_scale(color, kd * vec_dot(normal, wi)); // fraction of reflected light
+                    Lo = vec_add(Lo, vec_mul(Li, f_diffuse)); // diffuse contribution to outgoing light
 
                     // specular
                     INS_INC1(mul, 2);
                     INS_POW;
-                    wr = vec_sub(vec_scale(wn, 2 * vec_dot(wn, wi)), wi); // reflected direction
-                    float f_specular =
-                        ks * pow(max(0.f, vec_dot(wr, wo)), alpha); // fraction of reflected light TODO: normalization?
-                    Lo = vec_add(Lo, vec_scale(Li, f_specular));    // specular contribution to outgoing light
+
+                    vec wr = vec_sub(vec_scale(normal, 2 * vec_dot(normal, wi)), wi); // reflected direction
+                    float f_specular = ks * pow(max(0.f, vec_dot(wr, wo)),
+                                                shininess);      // fraction of reflected light TODO: normalization?
+                    Lo = vec_add(Lo, vec_scale(Li, f_specular)); // specular contribution to outgoing light
                 }
             }
         }
@@ -313,18 +316,15 @@ namespace impl::vec3 {
         // atmospheric effect using exponential decay
         INS_INC1(mul, 3);
         INS_POW;
-        Lo = vec_scale(Lo, powf(M_E, -sigma_a * t * t * t));
+        Lo = vec_scale(Lo, powf(M_E_F, neg_sigma_a * t * t * t));
 
         return Lo;
     }
 
-    static hit sphere_trace(vec origin, vec dir) {
+    static vec sphere_trace(vec dir) {
         float t = 0;
-        int steps = 0;
-        vec color;
-
         while (t < D) {
-            vec pos = vec_add(origin, vec_scale(dir, t));
+            vec pos = vec_add(scene.cam.pos, vec_scale(dir, t));
 
             float min_distance = INFINITY;
 
@@ -349,8 +349,7 @@ namespace impl::vec3 {
                             if (min_distance <= EPS * t) {
                                 sphere s = scene.spheres[k + i];
                                 vec normal = sphere_normal(s, pos);
-                                color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
-                                return {true, t, steps, color};
+                                return shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
                             }
                         }
                     }
@@ -370,8 +369,7 @@ namespace impl::vec3 {
                     if (min_distance <= EPS * t) {
                         sphere s = scene.spheres[k];
                         vec normal = sphere_normal(s, pos);
-                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
-                        return {true, t, steps, color};
+                        return shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
                     }
                 }
             }
@@ -389,8 +387,7 @@ namespace impl::vec3 {
                     if (min_distance <= EPS * t) {
                         plane s = scene.planes[k];
                         vec normal = plane_normal(s, pos);
-                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
-                        return {true, t, steps, color};
+                        return shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
                     }
                 }
             }
@@ -415,8 +412,7 @@ namespace impl::vec3 {
                             if (min_distance <= EPS * t) {
                                 box s = scene.boxes[k + i];
                                 vec normal = box_normal(s, pos);
-                                color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
-                                return {true, t, steps, color};
+                                return shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
                             }
                         }
                     }
@@ -436,8 +432,7 @@ namespace impl::vec3 {
                     if (min_distance <= EPS * t) {
                         box s = scene.boxes[k];
                         vec normal = box_normal(s, pos);
-                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
-                        return {true, t, steps, color};
+                        return shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
                     }
                 }
             }
@@ -461,8 +456,7 @@ namespace impl::vec3 {
                             if (min_distance <= EPS * t) {
                                 torus s = scene.tori[k + i];
                                 vec normal = torus_normal(s, pos);
-                                color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
-                                return {true, t, steps, color};
+                                return shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
                             }
                         }
                     }
@@ -482,8 +476,7 @@ namespace impl::vec3 {
                     if (min_distance <= EPS * t) {
                         torus s = scene.tori[k];
                         vec normal = torus_normal(s, pos);
-                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
-                        return {true, t, steps, color};
+                        return shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
                     }
                 }
             }
@@ -507,8 +500,7 @@ namespace impl::vec3 {
                             if (min_distance <= EPS * t) {
                                 cone s = scene.cones[k + i];
                                 vec normal = cone_normal(s, pos);
-                                color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
-                                return {true, t, steps, color};
+                                return shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
                             }
                         }
                     }
@@ -528,8 +520,7 @@ namespace impl::vec3 {
                     if (min_distance <= EPS * t) {
                         cone s = scene.cones[k];
                         vec normal = cone_normal(s, pos);
-                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
-                        return {true, t, steps, color};
+                        return shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
                     }
                 }
             }
@@ -553,8 +544,7 @@ namespace impl::vec3 {
                             if (min_distance <= EPS * t) {
                                 octa s = scene.octahedra[k + i];
                                 vec normal = octahedron_normal(s, pos);
-                                color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
-                                return {true, t, steps, color};
+                                return shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
                             }
                         }
                     }
@@ -574,39 +564,62 @@ namespace impl::vec3 {
                     if (min_distance <= EPS * t) {
                         octa s = scene.octahedra[k];
                         vec normal = octahedron_normal(s, pos);
-                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
-                        return {true, t, steps, color};
+                        return shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
                     }
                 }
             }
 
             t = FADD(t, min_distance);
-            steps++;
         }
 
-        return hit{false, t, steps, {0, 0, 0}};
+        return {0, 0, 0};
     }
 
     void render_init(std::string input) {
-        // convert scene from reference format to custom format
-        // std::cout << "Reference scene already loaded (" << input << "), converting to required format" << std::endl;
-        // from_ref_scene();
-
-        // alternatively, we can just read the scene again from the json file
-        std::cout << "Loading scene again" << std::endl;
         load_scene(input);
     }
 
     void render(int width, int height, float* pixels) {
-        m44 camera_matrix = get_transf_matrix(scene.cam.pos, scene.cam.rotation);
+        m33 camera_rotation = get_rot_matrix_33(scene.cam.rotation);
         INS_DIV;
         INS_DIV;
         INS_MUL;
         INS_TAN;
         float fov_factor = tanf(TO_RAD(scene.cam.fov / 2));
 
+        r_boxes = (struct Ray*) malloc(sizeof(Ray) * scene.num_boxes);
+        r_tori = (struct Ray*) malloc(sizeof(Ray) * scene.num_tori);
+        r_cones = (struct Ray*) malloc(sizeof(Ray) * scene.num_cones);
+        r_octahedra = (struct Ray*) malloc(sizeof(Ray) * scene.num_octahedra);
+
+        r_boxes_shade = (struct Ray*) malloc(sizeof(Ray) * scene.num_boxes);
+        r_tori_shade = (struct Ray*) malloc(sizeof(Ray) * scene.num_tori);
+        r_cones_shade = (struct Ray*) malloc(sizeof(Ray) * scene.num_cones);
+        r_octahedra_shade = (struct Ray*) malloc(sizeof(Ray) * scene.num_octahedra);
+
+        /* Precompute camera ray origin in object coordinates */
+        for (int k = 0; k < scene.num_boxes; k++) {
+            r_boxes[k].o = invtransform_point(scene.boxes[k].inv_rot, scene.boxes[k].bottom_left, scene.cam.pos);
+        }
+        for (int k = 0; k < scene.num_tori; k++) {
+            r_tori[k].o = invtransform_point(scene.tori[k].inv_rot, scene.tori[k].center, scene.cam.pos);
+        }         
+        for (int k = 0; k < scene.num_cones; k++) {
+            r_cones[k].o = invtransform_point(scene.cones[k].inv_rot, scene.cones[k].center, scene.cam.pos);
+        }
+        for (int k = 0; k < scene.num_octahedra; k++) {
+            r_octahedra[k].o = invtransform_point(scene.octahedra[k].inv_rot, scene.octahedra[k].center, scene.cam.pos);
+        }
+
+        float fwidth = width;
+        float fheight = height;
+
         INS_DIV;
-        float aspect_ratio = static_cast<float>(width) / height;
+        float aspect_ratio = fwidth / fheight;
+
+        INS_MUL;
+        float fov_aspect = aspect_ratio * fov_factor;
+
         for (int py = 0; py < height; py++) {
             for (int px = 0; px < width; px++) {
                 /*
@@ -616,27 +629,29 @@ namespace impl::vec3 {
                  * image plane is one unit away from the camera (z = -1 in this
                  * case).
                  */
-                INS_INC1(add, 4);
-                INS_INC1(mul, 5);
+                INS_INC1(add, 2);
+                INS_INC1(mul, 2);
                 INS_INC1(div, 2);
-                float x = (2 * (px + 0.5) / width - 1) * aspect_ratio * fov_factor;
-                float y = (1 - 2 * (py + 0.5) / height) * fov_factor;
+
+                /*
+                 * 2 * (px + 0.5) == 2 * px + 1
+                 *
+                 * Now we only use integer operations
+                 */
+                float px_1 = static_cast<float>(2 * px + 1);
+                float py_1 = static_cast<float>(2 * py + 1);
+
+                float x = (px_1 / fwidth - 1) * fov_aspect;
+                float y = (1 - py_1 / fheight) * fov_factor;
                 float z = 1;
 
                 // Direction in camera space.
-                vec dir = vec_normalize({x, y, z});
+                vec d = m33_mul_vec(camera_rotation, vec_normalize({x, y, z}));
 
-                vec4 world_dir = m44_mul_vec(camera_matrix, vec4_from_dir(dir));
+                vec color = sphere_trace(d);
 
-                auto h = sphere_trace(scene.cam.pos, vec4_to_vec(world_dir));
-
-                vec color = h.is_hit ? h.color : vec{0, 0, 0};
-
-                pixels[3 * (width * py + px)] = color.x;
-                pixels[3 * (width * py + px) + 1] = color.y;
-                pixels[3 * (width * py + px) + 2] = color.z;
+                memcpy(pixels + (3 * (width * py + px)), &color, 12);
             }
         }
     }
-
 } // namespace impl::vec3
