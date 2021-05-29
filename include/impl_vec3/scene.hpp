@@ -53,7 +53,6 @@ namespace impl::vec3 {
         vec bottom_left;
         vec extents;
         m33 rot;
-        m44 inv_matrix;
         vec color;
         float reflection;
         float shininess;
@@ -67,7 +66,6 @@ namespace impl::vec3 {
         float r2;
         float r;
         m33 rot;
-        m44 inv_matrix;
         vec color;
         float reflection;
         float shininess;
@@ -80,19 +78,18 @@ namespace impl::vec3 {
         float r2;
         float height;
         m33 rot;
-        m44 inv_matrix;
         vec color;
         float reflection;
         float shininess;
         m33 inv_rot;
         float r;
+        float k2d2inv; // 1 / vec_dot2(k2)
     };
 
     struct octa {
         vec center;
         float s;
         m33 rot;
-        m44 inv_matrix;
         vec color;
         float reflection;
         float shininess;
