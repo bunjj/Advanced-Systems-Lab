@@ -21,7 +21,7 @@ datapoints = []
 
 shape_scenes = {}
 
-impls = ["ref", "opt0", "opt1", "opt3", "opt4", "opt5"]
+impls = ["ref", "opt0", "opt1", "opt3", "opt4", "opt5", "vec1", "vec2", "vec3"]
 shapes = ["all", "box", "sphere", "cone", "torus", "octahedron"]
 bench_types = ["size"] + shapes
 # flags = [
