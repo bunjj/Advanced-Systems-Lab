@@ -324,9 +324,6 @@ namespace impl::vec3 {
         scene.box_vecs.inv_rot[2][2] = (float*)malloc(sizeof(float) * scene.num_boxes);
 
         // tori
-        scene.torus_vecs.center_x = (float*)malloc(sizeof(float) * scene.num_tori);
-        scene.torus_vecs.center_y = (float*)malloc(sizeof(float) * scene.num_tori);
-        scene.torus_vecs.center_z = (float*)malloc(sizeof(float) * scene.num_tori);
         scene.torus_vecs.r1 = (float*)malloc(sizeof(float) * scene.num_tori);
         scene.torus_vecs.r2 = (float*)malloc(sizeof(float) * scene.num_tori);
         scene.torus_vecs.r = (float*)malloc(sizeof(float) * scene.num_tori);
@@ -425,9 +422,6 @@ namespace impl::vec3 {
                 scene.tori[torus_idx] = load_torus(current_shape);
 
                 // vectorized data layout
-                scene.torus_vecs.center_x[torus_idx] = scene.tori[torus_idx].center.x;
-                scene.torus_vecs.center_y[torus_idx] = scene.tori[torus_idx].center.y;
-                scene.torus_vecs.center_z[torus_idx] = scene.tori[torus_idx].center.z;
                 scene.torus_vecs.r1[torus_idx] = scene.tori[torus_idx].r1;
                 scene.torus_vecs.r2[torus_idx] = scene.tori[torus_idx].r2;
                 scene.torus_vecs.r[torus_idx] = scene.tori[torus_idx].r;

@@ -23,6 +23,18 @@ namespace impl::vec3 {
     static float* boxes_d_shade_y;
     static float* boxes_d_shade_z;
 
+    static float* tori_o_x;
+    static float* tori_o_y;
+    static float* tori_o_z;
+
+    static float* tori_d_x;
+    static float* tori_d_y;
+    static float* tori_d_z;
+
+    static float* tori_d_shade_x;
+    static float* tori_d_shade_y;
+    static float* tori_d_shade_z;
+
     static Ray* r_boxes;
     static Ray* r_tori;
     static Ray* r_cones;
@@ -48,6 +60,12 @@ namespace impl::vec3 {
         }
         for (int k = 0; k < scene.num_tori; k++) {
             r_tori_shade[k] = invtransform_ray(scene.tori[k].inv_rot, scene.tori[k].center, r_world);
+            tori_o_x[k] = r_tori_shade[k].o.x;
+            tori_o_y[k] = r_tori_shade[k].o.y;
+            tori_o_z[k] = r_tori_shade[k].o.z;
+            tori_d_shade_x[k] = r_tori_shade[k].d.x;
+            tori_d_shade_y[k] = r_tori_shade[k].d.y;
+            tori_d_shade_z[k] = r_tori_shade[k].d.z;
         }
         for (int k = 0; k < scene.num_cones; k++) {
             r_cones_shade[k] = invtransform_ray(scene.cones[k].inv_rot, scene.cones[k].center, r_world);
@@ -166,11 +184,12 @@ namespace impl::vec3 {
 
             // tori
             for (k = 0; k < scene.num_tori - 7; k += 8) {
+                vec256 p_obj = trace_ray_vectorized(
+                    k, tori_o_x, tori_o_y, tori_o_z, tori_d_shade_x, tori_d_shade_y, tori_d_shade_z, t);
                 float dists[8];
 
-                int not_terminate_early = torus_distance_short_vectorized(k, dists, scene.torus_vecs.center_x,
-                    scene.torus_vecs.center_y, scene.torus_vecs.center_z, scene.torus_vecs.r1, scene.torus_vecs.r2,
-                    scene.torus_vecs.r, scene.torus_vecs.inv_rot, p_world, min_distance);
+                int not_terminate_early = torus_distance_short_vectorized(
+                    k, dists, scene.torus_vecs.r1, scene.torus_vecs.r2, scene.torus_vecs.r, p_obj, min_distance);
 
                 if (not_terminate_early) {
                     for (int i = 0; i < 8; i++) {
@@ -369,6 +388,12 @@ namespace impl::vec3 {
         }
         for (int k = 0; k < scene.num_tori; k++) {
             r_tori[k].d = m33_mul_vec(scene.tori[k].inv_rot, d);
+            tori_o_x[k] = r_tori[k].o.x;
+            tori_o_y[k] = r_tori[k].o.y;
+            tori_o_z[k] = r_tori[k].o.z;
+            tori_d_x[k] = r_tori[k].d.x;
+            tori_d_y[k] = r_tori[k].d.y;
+            tori_d_z[k] = r_tori[k].d.z;
         }
         for (int k = 0; k < scene.num_cones; k++) {
             r_cones[k].d = m33_mul_vec(scene.cones[k].inv_rot, d);
@@ -494,11 +519,11 @@ namespace impl::vec3 {
 
             // tori
             for (k = 0; k < scene.num_tori - 7; k += 8) {
+                vec256 p_obj = trace_ray_vectorized(k, tori_o_x, tori_o_y, tori_o_z, tori_d_x, tori_d_y, tori_d_z, t);
                 float dists[8];
 
-                int not_terminate_early = torus_distance_short_vectorized(k, dists, scene.torus_vecs.center_x,
-                    scene.torus_vecs.center_y, scene.torus_vecs.center_z, scene.torus_vecs.r1, scene.torus_vecs.r2,
-                    scene.torus_vecs.r, scene.torus_vecs.inv_rot, pos, min_distance);
+                int not_terminate_early = torus_distance_short_vectorized(
+                    k, dists, scene.torus_vecs.r1, scene.torus_vecs.r2, scene.torus_vecs.r, p_obj, min_distance);
 
                 if (not_terminate_early) {
                     for (int i = 0; i < 8; i++) {
@@ -664,6 +689,18 @@ namespace impl::vec3 {
         boxes_d_shade_y = (float*)malloc(4 * scene.num_boxes);
         boxes_d_shade_z = (float*)malloc(4 * scene.num_boxes);
 
+        tori_o_x = (float*)malloc(4 * scene.num_tori);
+        tori_o_y = (float*)malloc(4 * scene.num_tori);
+        tori_o_z = (float*)malloc(4 * scene.num_tori);
+
+        tori_d_x = (float*)malloc(4 * scene.num_tori);
+        tori_d_y = (float*)malloc(4 * scene.num_tori);
+        tori_d_z = (float*)malloc(4 * scene.num_tori);
+
+        tori_d_shade_x = (float*)malloc(4 * scene.num_tori);
+        tori_d_shade_y = (float*)malloc(4 * scene.num_tori);
+        tori_d_shade_z = (float*)malloc(4 * scene.num_tori);
+
         /* Precompute camera ray origin in object coordinates */
         // TODO vectorize
         for (int k = 0; k < scene.num_boxes; k++) {
@@ -674,6 +711,9 @@ namespace impl::vec3 {
         }
         for (int k = 0; k < scene.num_tori; k++) {
             r_tori[k].o = invtransform_point(scene.tori[k].inv_rot, scene.tori[k].center, scene.cam.pos);
+            tori_o_x[k] = r_tori[k].o.x;
+            tori_o_y[k] = r_tori[k].o.y;
+            tori_o_z[k] = r_tori[k].o.z;
         }
         for (int k = 0; k < scene.num_cones; k++) {
             r_cones[k].o = invtransform_point(scene.cones[k].inv_rot, scene.cones[k].center, scene.cam.pos);

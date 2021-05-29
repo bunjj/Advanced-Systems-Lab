@@ -115,9 +115,6 @@ namespace impl::vec3 {
     };
 
     struct torus_vectors {
-        float* center_x;
-        float* center_y;
-        float* center_z;
         float* r1;
         float* r2;
         float* r;
@@ -422,41 +419,17 @@ namespace impl::vec3 {
      * Computes the torus distance function with early termination.
      * Returns zero if early termination is possible, and a nonzero value otherwise.
      */
-    static inline int torus_distance_short_vectorized(int idx, float* res, float* center_x, float* center_y,
-        float* center_z, float* rad1, float* rad2, float* rad, float* inv_rot[3][3], const vec from,
-        float current_min) {
+    static inline int torus_distance_short_vectorized(
+        int idx, float* res, float* rad1, float* rad2, float* rad, const vec256 pos, float current_min) {
         INS_INC1(torus, 8);
 
-        __m256 c_x = _mm256_loadu_ps(center_x + idx);
-        __m256 c_y = _mm256_loadu_ps(center_y + idx);
-        __m256 c_z = _mm256_loadu_ps(center_z + idx);
         __m256 r = _mm256_loadu_ps(rad + idx);
 
-        __m256 inv_rot_00 = _mm256_loadu_ps(inv_rot[0][0] + idx);
-        __m256 inv_rot_01 = _mm256_loadu_ps(inv_rot[0][1] + idx);
-        __m256 inv_rot_02 = _mm256_loadu_ps(inv_rot[0][2] + idx);
-        __m256 inv_rot_10 = _mm256_loadu_ps(inv_rot[1][0] + idx);
-        __m256 inv_rot_11 = _mm256_loadu_ps(inv_rot[1][1] + idx);
-        __m256 inv_rot_12 = _mm256_loadu_ps(inv_rot[1][2] + idx);
-        __m256 inv_rot_20 = _mm256_loadu_ps(inv_rot[2][0] + idx);
-        __m256 inv_rot_21 = _mm256_loadu_ps(inv_rot[2][1] + idx);
-        __m256 inv_rot_22 = _mm256_loadu_ps(inv_rot[2][2] + idx);
-
-        __m256 from_x = _mm256_set1_ps(from.x);
-        __m256 from_y = _mm256_set1_ps(from.y);
-        __m256 from_z = _mm256_set1_ps(from.z);
         __m256 curr_min = _mm256_set1_ps(current_min);
 
-        // vec t = vec_sub(from, to.center);
-        INS_INC1(add, 24);
-        __m256 t_x = _mm256_sub_ps(from_x, c_x);
-        __m256 t_y = _mm256_sub_ps(from_y, c_y);
-        __m256 t_z = _mm256_sub_ps(from_z, c_z);
-
-        // vec pos = m33_mul_vec(to.inv_rot, t);
-        __m256 pos_x = vectorized_vec_dot(inv_rot_00, inv_rot_01, inv_rot_02, t_x, t_y, t_z);
-        __m256 pos_y = vectorized_vec_dot(inv_rot_10, inv_rot_11, inv_rot_12, t_x, t_y, t_z);
-        __m256 pos_z = vectorized_vec_dot(inv_rot_20, inv_rot_21, inv_rot_22, t_x, t_y, t_z);
+        __m256 pos_x = pos.x;
+        __m256 pos_y = pos.y;
+        __m256 pos_z = pos.z;
 
         // enclosing sphere check
         INS_INC1(mul, 8);
