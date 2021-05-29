@@ -323,6 +323,7 @@ namespace impl::vec3 {
         scene.cone_vecs.r2 = (float*)malloc(sizeof(float) * scene.num_cones);
         scene.cone_vecs.height = (float*)malloc(sizeof(float) * scene.num_cones);
         scene.cone_vecs.r = (float*)malloc(sizeof(float) * scene.num_cones);
+        scene.cone_vecs.k2d2inv = (float*)malloc(sizeof(float) * scene.num_cones);
 
         // octahedra
         scene.octa_vecs.s = (float*)malloc(sizeof(float) * scene.num_octahedra);
@@ -380,6 +381,7 @@ namespace impl::vec3 {
                 scene.cone_vecs.r2[cone_idx] = scene.cones[cone_idx].r2;
                 scene.cone_vecs.height[cone_idx] = scene.cones[cone_idx].height;
                 scene.cone_vecs.r[cone_idx] = scene.cones[cone_idx].r;
+                scene.cone_vecs.k2d2inv[cone_idx] = scene.cones[cone_idx].k2d2inv;
 
                 cone_idx++;
 

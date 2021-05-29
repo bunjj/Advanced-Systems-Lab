@@ -122,6 +122,7 @@ namespace impl::vec3 {
         float* r2;
         float* height;
         float* r;
+        float* k2d2inv; // 1 / vec_dot2(k2)
     };
 
     struct octa_vectors {
@@ -515,7 +516,7 @@ namespace impl::vec3 {
      * Returns zero if early termination is possible, and a nonzero value otherwise.
      */
     static inline int cone_distance_short_vectorized(
-        int idx, float* res, float* rad1, float* rad2, float* height, float* rad, const vec256 pos, float current_min) {
+        int idx, float* res, float* rad1, float* rad2, float* height, float* rad, float *k2d2inv, const vec256 pos, float current_min) {
         INS_INC1(cone, 8);
 
         // float r1 = c.r1;
@@ -598,11 +599,7 @@ namespace impl::vec3 {
         INS_INC1(mul, 8);
         __m256 h_twice = _mm256_mul_ps(h, two);
 
-        // float k2_dot2 = vec2_dot2(k2);
-        INS_INC1(mul, 8);
-        __m256 r2_minus_r1_square = _mm256_mul_ps(r2_minus_r1, r2_minus_r1);
-        INS_INC1(fma, 8);
-        __m256 k2_dot2 = _mm256_fmadd_ps(h_twice, h_twice, r2_minus_r1_square);
+        __m256 k2_dot2_inv = _mm256_loadu_ps(k2d2inv + idx);
 
         // vec2 k1_minus_q = vec2_sub(k1, q);
         INS_INC1(add, 16);
@@ -615,9 +612,9 @@ namespace impl::vec3 {
         INS_INC1(fma, 8);
         __m256 k1_minus_q_dot_k2 = _mm256_fmadd_ps(k1_minus_q_2, h_twice, k1_minus_q_dot_k2_1);
 
-        // float to_clamp = k1_minus_q_dot_k2 / k2_dot2;
-        INS_INC1(div, 8);
-        __m256 to_clamp = _mm256_div_ps(k1_minus_q_dot_k2, k2_dot2);
+        // float to_clamp = k1_minus_q_dot_k2 * k2d2inv;
+        INS_INC1(mul, 8);
+        __m256 to_clamp = _mm256_mul_ps(k1_minus_q_dot_k2, k2_dot2_inv);
 
         // float clamped = clamp(to_clamp, 0.0f, 1.0f);
         __m256 one = _mm256_set1_ps(1.f);
@@ -641,7 +638,6 @@ namespace impl::vec3 {
         __m256 ca2_lt_0_mask = _mm256_cmp_ps(ca2, zero, _CMP_LT_OQ);
         __m256 cond_mask = _mm256_and_ps(cb1_lt_0_mask, ca2_lt_0_mask);
         __m256 minusone = _mm256_set1_ps(-1.f);
-        __m256 s = _mm256_blendv_ps(one, minusone, cond_mask);
 
         // float ca_dot2 = vec2_dot2(ca);
         INS_INC1(mul, 8);
@@ -673,6 +669,8 @@ namespace impl::vec3 {
         // float min = sqrtf(min_square);
         INS_INC1(sqrt, 8);
         __m256 min = _mm256_sqrt_ps(min_square);
+
+        __m256 s = _mm256_blendv_ps(one, minusone, cond_mask);
 
         // return s * min;
         INS_INC1(mul, 8);
@@ -853,8 +851,8 @@ namespace impl::vec3 {
         __m256 dist_vec_dot2 =
             vectorized_vec_dot(dist_vec_x, dist_vec_y, dist_vec_z, dist_vec_x, dist_vec_y, dist_vec_z);
 
-        // float m_scaled = m * 0.57735027;
-        __m256 constant = _mm256_set1_ps(0.57735027f);
+        // float m_scaled = m * SQRT3_INV;
+        __m256 constant = _mm256_set1_ps(SQRT3_INV);
         INS_INC1(mul, 8);
         __m256 m_scaled = _mm256_mul_ps(m, constant);
 

@@ -268,8 +268,9 @@ namespace impl::vec3 {
                     k, cones_o_x, cones_o_y, cones_o_z, cones_d_shade_x, cones_d_shade_y, cones_d_shade_z, t);
                 float dists[8];
 
-                int not_terminate_early = cone_distance_short_vectorized(k, dists, scene.cone_vecs.r1,
-                    scene.cone_vecs.r2, scene.cone_vecs.height, scene.cone_vecs.r, p_obj, min_distance);
+                int not_terminate_early =
+                    cone_distance_short_vectorized(k, dists, scene.cone_vecs.r1, scene.cone_vecs.r2,
+                        scene.cone_vecs.height, scene.cone_vecs.r, scene.cone_vecs.k2d2inv, p_obj, min_distance);
 
                 if (not_terminate_early) {
                     for (int i = 0; i < 8; i++) {
@@ -624,8 +625,9 @@ namespace impl::vec3 {
                     trace_ray_vectorized(k, cones_o_x, cones_o_y, cones_o_z, cones_d_x, cones_d_y, cones_d_z, t);
                 float dists[8];
 
-                int not_terminate_early = cone_distance_short_vectorized(k, dists, scene.cone_vecs.r1,
-                    scene.cone_vecs.r2, scene.cone_vecs.height, scene.cone_vecs.r, p_obj, min_distance);
+                int not_terminate_early =
+                    cone_distance_short_vectorized(k, dists, scene.cone_vecs.r1, scene.cone_vecs.r2,
+                        scene.cone_vecs.height, scene.cone_vecs.r, scene.cone_vecs.k2d2inv, p_obj, min_distance);
 
                 if (not_terminate_early) {
                     for (int i = 0; i < 8; i++) {
