@@ -210,10 +210,10 @@ namespace impl::vec3 {
         float* center_z, float* radius, const vec from, const float current_min) {
         INS_INC1(sphere, 8);
 
-        __m256 c_x = _mm256_loadu_ps(center_x + idx);
-        __m256 c_y = _mm256_loadu_ps(center_y + idx);
-        __m256 c_z = _mm256_loadu_ps(center_z + idx);
-        __m256 r = _mm256_loadu_ps(radius + idx);
+        __m256 c_x = _mm256_load_ps(center_x + idx);
+        __m256 c_y = _mm256_load_ps(center_y + idx);
+        __m256 c_z = _mm256_load_ps(center_z + idx);
+        __m256 r = _mm256_load_ps(radius + idx);
 
         __m256 from_x = _mm256_set1_ps(from.x);
         __m256 from_y = _mm256_set1_ps(from.y);
@@ -256,13 +256,15 @@ namespace impl::vec3 {
     static inline float box_distance_short(const box b, const vec pos, const float current_min) {
         INS_INC(box);
 
-        //computation of DUF
+        // computation of DUF
         INS_ADD;
         INS_MUL;
         INS_CMP;
         float pos_squared = vec_dot2(pos);
         float duf_bound = b.r + current_min;
-        if( pos_squared >= duf_bound * duf_bound) return current_min;
+        if (pos_squared >= duf_bound * duf_bound) {
+            return current_min;
+        }
 
         vec q = vec_sub(vec_abs(pos), b.extents);
         float extent_values = min(0.0f, max(max(q.x, q.y), q.z));
@@ -287,7 +289,7 @@ namespace impl::vec3 {
         INS_INC1(box, 8);
 
         // load vectors
-        __m256 r = _mm256_loadu_ps(rad + idx);
+        __m256 r = _mm256_load_ps(rad + idx);
 
         __m256 curr_min = _mm256_set1_ps(current_min);
 
@@ -311,9 +313,9 @@ namespace impl::vec3 {
         INS_INC1(box_r, 8);
 
         // load remaining vectors
-        __m256 ext_x = _mm256_loadu_ps(extents_x + idx);
-        __m256 ext_y = _mm256_loadu_ps(extents_y + idx);
-        __m256 ext_z = _mm256_loadu_ps(extents_z + idx);
+        __m256 ext_x = _mm256_load_ps(extents_x + idx);
+        __m256 ext_y = _mm256_load_ps(extents_y + idx);
+        __m256 ext_z = _mm256_load_ps(extents_z + idx);
 
         // vec pos_abs = vec_abs(pos);
         // can compute absolute value by setting the sign bits to 0
@@ -384,13 +386,15 @@ namespace impl::vec3 {
     static inline float torus_distance_short(const torus t, const vec pos, const float current_min) {
         INS_INC(torus);
 
-        //computation of DUF
+        // computation of DUF
         INS_ADD;
         INS_MUL;
         INS_CMP;
         float pos_squared = vec_dot2(pos);
         float duf_bound = t.r + current_min;
-        if( pos_squared >= duf_bound * duf_bound) return current_min;
+        if (pos_squared >= duf_bound * duf_bound) {
+            return current_min;
+        }
         vec2 posxz = {pos.x, pos.z};
         INS_ADD;
         vec2 q = {vec2_length(posxz) - t.r1, pos.y};
@@ -416,7 +420,7 @@ namespace impl::vec3 {
         int idx, __m256* dist, float* rad1, float* rad2, float* rad, const vec256 pos, float current_min) {
         INS_INC1(torus, 8);
 
-        __m256 r = _mm256_loadu_ps(rad + idx);
+        __m256 r = _mm256_load_ps(rad + idx);
 
         __m256 curr_min = _mm256_set1_ps(current_min);
 
@@ -449,8 +453,8 @@ namespace impl::vec3 {
         __m256 pos_xz_len = _mm256_sqrt_ps(pos_xz_square);
 
         // load remaining vectors
-        __m256 r1 = _mm256_loadu_ps(rad1 + idx);
-        __m256 r2 = _mm256_loadu_ps(rad2 + idx);
+        __m256 r1 = _mm256_load_ps(rad1 + idx);
+        __m256 r2 = _mm256_load_ps(rad2 + idx);
 
         // float q1 = posxz_len - to.r1;
         INS_INC1(add, 8);
@@ -490,13 +494,15 @@ namespace impl::vec3 {
     static inline float cone_distance_short(const cone c, const vec pos, const float current_min) {
         INS_INC(cone);
 
-        //computation of DUF
+        // computation of DUF
         INS_ADD;
         INS_MUL;
         INS_CMP;
         float pos_squared = vec_dot2(pos);
         float duf_bound = c.r + current_min;
-        if( pos_squared >= duf_bound * duf_bound) return current_min;
+        if (pos_squared >= duf_bound * duf_bound) {
+            return current_min;
+        }
 
         float r1 = c.r1;
         float r2 = c.r2;
@@ -514,7 +520,8 @@ namespace impl::vec3 {
         INS_CMP;
         vec2 ca = {q.x - min(q.x, (q.y < 0 ? r1 : r2)), fabsf(q.y) - h};
         INS_MUL;
-        vec2 cb = vec2_add(vec2_sub(q, k1), vec2_scale(k2, clamp(vec2_dot(vec2_sub(k1, q), k2) * c.k2d2inv, 0.0f, 1.0f)));
+        vec2 cb =
+            vec2_add(vec2_sub(q, k1), vec2_scale(k2, clamp(vec2_dot(vec2_sub(k1, q), k2) * c.k2d2inv, 0.0f, 1.0f)));
 
         float squared_min = min(vec2_dot2(ca), vec2_dot2(cb));
         INS_MUL;
@@ -535,15 +542,15 @@ namespace impl::vec3 {
      * Computes the cone distance function with early termination.
      * Returns zero if early termination is possible, and a nonzero value otherwise.
      */
-    static inline int cone_distance_short_vectorized(
-        int idx, __m256* dist, float* rad1, float* rad2, float* height, float* rad, float *k2d2inv, const vec256 pos, float current_min) {
+    static inline int cone_distance_short_vectorized(int idx, __m256* dist, float* rad1, float* rad2, float* height,
+        float* rad, float* k2d2inv, const vec256 pos, float current_min) {
         INS_INC1(cone, 8);
 
         // float r1 = c.r1;
         // float r2 = c.r2;
         // float h = c.height;
 
-        __m256 r = _mm256_loadu_ps(rad + idx);
+        __m256 r = _mm256_load_ps(rad + idx);
 
         __m256 curr_min = _mm256_set1_ps(current_min);
 
@@ -571,9 +578,9 @@ namespace impl::vec3 {
         INS_INC1(cone_r, 8);
 
         // load remaining vectors
-        __m256 r1 = _mm256_loadu_ps(rad1 + idx);
-        __m256 r2 = _mm256_loadu_ps(rad2 + idx);
-        __m256 h = _mm256_loadu_ps(height + idx);
+        __m256 r1 = _mm256_load_ps(rad1 + idx);
+        __m256 r2 = _mm256_load_ps(rad2 + idx);
+        __m256 h = _mm256_load_ps(height + idx);
 
         // float xz_len = vec2_length({pos.x, pos.z});
         INS_INC1(sqrt, 8);
@@ -619,7 +626,7 @@ namespace impl::vec3 {
         INS_INC1(mul, 8);
         __m256 h_twice = _mm256_mul_ps(h, two);
 
-        __m256 k2_dot2_inv = _mm256_loadu_ps(k2d2inv + idx);
+        __m256 k2_dot2_inv = _mm256_load_ps(k2d2inv + idx);
 
         // vec2 k1_minus_q = vec2_sub(k1, q);
         INS_INC1(add, 16);
@@ -703,13 +710,15 @@ namespace impl::vec3 {
     static inline float octahedron_distance_short(const octa o, const vec pos, const float current_min) {
         INS_INC(octa);
 
-        //computation of DUF
+        // computation of DUF
         INS_ADD;
         INS_MUL;
         INS_CMP;
         float pos_squared = vec_dot2(pos);
         float duf_bound = o.s + current_min;
-        if( pos_squared >= duf_bound * duf_bound) return current_min;
+        if (pos_squared >= duf_bound * duf_bound) {
+            return current_min;
+        }
 
         vec abs = vec_abs(pos);
 
@@ -762,10 +771,11 @@ namespace impl::vec3 {
      * Computes the octahedron distance function with early termination.
      * Returns zero if early termination is possible, and a nonzero value otherwise.
      */
-    static inline int octahedron_distance_short_vectorized(int idx, __m256* dist, float* s_, const vec256 pos, float current_min) {
+    static inline int octahedron_distance_short_vectorized(
+        int idx, __m256* dist, float* s_, const vec256 pos, float current_min) {
         INS_INC1(octa, 8);
 
-        __m256 s = _mm256_loadu_ps(s_ + idx);
+        __m256 s = _mm256_load_ps(s_ + idx);
 
         __m256 curr_min = _mm256_set1_ps(current_min);
 
@@ -911,7 +921,7 @@ namespace impl::vec3 {
         vec abs = vec_abs(pos);
         vec q = vec_sub(abs, b.extents);
 
-        vec n_obj = {0.f , 0.f, 0.f};
+        vec n_obj = {0.f, 0.f, 0.f};
 
         // We only need to find the normal of the side we touched
         if (q.x > q.y && q.x > q.z && q.x > 0) {
@@ -968,7 +978,8 @@ namespace impl::vec3 {
         INS_CMP;
         vec2 ca = {q.x - min(q.x, (q.y < 0 ? r1 : r2)), fabsf(q.y) - h};
         INS_MUL;
-        vec2 cb = vec2_add(vec2_sub(q, k1), vec2_scale(k2, clamp(vec2_dot(vec2_sub(k1, q), k2) * c.k2d2inv, 0.0f, 1.0f)));
+        vec2 cb =
+            vec2_add(vec2_sub(q, k1), vec2_scale(k2, clamp(vec2_dot(vec2_sub(k1, q), k2) * c.k2d2inv, 0.0f, 1.0f)));
 
         // invert transform from rotation invariant subspace
         vec n_obj = {0, 0, 0};

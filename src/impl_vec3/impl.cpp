@@ -76,14 +76,14 @@ namespace impl::vec3 {
         for (; k < scene.num_boxes - 7; k += 8) {
             vec256 pos = invtransform_point_vectorized(k, scene.box_vecs.inv_rot, scene.box_vecs.bottom_left_x,
                 scene.box_vecs.bottom_left_y, scene.box_vecs.bottom_left_z, r_world.o);
-            _mm256_storeu_ps(boxes_o_shade_x + k, pos.x);
-            _mm256_storeu_ps(boxes_o_shade_y + k, pos.y);
-            _mm256_storeu_ps(boxes_o_shade_z + k, pos.z);
+            _mm256_store_ps(boxes_o_shade_x + k, pos.x);
+            _mm256_store_ps(boxes_o_shade_y + k, pos.y);
+            _mm256_store_ps(boxes_o_shade_z + k, pos.z);
 
             vec256 dir = m33_mul_vec_vectorized(k, scene.box_vecs.inv_rot, r_world.d);
-            _mm256_storeu_ps(boxes_d_x + k, dir.x);
-            _mm256_storeu_ps(boxes_d_y + k, dir.y);
-            _mm256_storeu_ps(boxes_d_z + k, dir.z);
+            _mm256_store_ps(boxes_d_x + k, dir.x);
+            _mm256_store_ps(boxes_d_y + k, dir.y);
+            _mm256_store_ps(boxes_d_z + k, dir.z);
         }
 
         for (; k < scene.num_boxes; k++) {
@@ -100,13 +100,13 @@ namespace impl::vec3 {
         for (; k < scene.num_tori - 7; k += 8) {
             vec256 pos = invtransform_point_vectorized(k, scene.torus_vecs.inv_rot, scene.torus_vecs.center_x,
                 scene.torus_vecs.center_y, scene.torus_vecs.center_z, r_world.o);
-            _mm256_storeu_ps(tori_o_shade_x + k, pos.x);
-            _mm256_storeu_ps(tori_o_shade_y + k, pos.y);
-            _mm256_storeu_ps(tori_o_shade_z + k, pos.z);
+            _mm256_store_ps(tori_o_shade_x + k, pos.x);
+            _mm256_store_ps(tori_o_shade_y + k, pos.y);
+            _mm256_store_ps(tori_o_shade_z + k, pos.z);
             vec256 dir = m33_mul_vec_vectorized(k, scene.torus_vecs.inv_rot, r_world.d);
-            _mm256_storeu_ps(tori_d_x + k, dir.x);
-            _mm256_storeu_ps(tori_d_y + k, dir.y);
-            _mm256_storeu_ps(tori_d_z + k, dir.z);
+            _mm256_store_ps(tori_d_x + k, dir.x);
+            _mm256_store_ps(tori_d_y + k, dir.y);
+            _mm256_store_ps(tori_d_z + k, dir.z);
         }
 
         for (; k < scene.num_tori; k++) {
@@ -123,13 +123,13 @@ namespace impl::vec3 {
         for (; k < scene.num_cones - 7; k += 8) {
             vec256 pos = invtransform_point_vectorized(k, scene.cone_vecs.inv_rot, scene.cone_vecs.center_x,
                 scene.cone_vecs.center_y, scene.cone_vecs.center_z, r_world.o);
-            _mm256_storeu_ps(cones_o_shade_x + k, pos.x);
-            _mm256_storeu_ps(cones_o_shade_y + k, pos.y);
-            _mm256_storeu_ps(cones_o_shade_z + k, pos.z);
+            _mm256_store_ps(cones_o_shade_x + k, pos.x);
+            _mm256_store_ps(cones_o_shade_y + k, pos.y);
+            _mm256_store_ps(cones_o_shade_z + k, pos.z);
             vec256 dir = m33_mul_vec_vectorized(k, scene.cone_vecs.inv_rot, r_world.d);
-            _mm256_storeu_ps(cones_d_x + k, dir.x);
-            _mm256_storeu_ps(cones_d_y + k, dir.y);
-            _mm256_storeu_ps(cones_d_z + k, dir.z);
+            _mm256_store_ps(cones_d_x + k, dir.x);
+            _mm256_store_ps(cones_d_y + k, dir.y);
+            _mm256_store_ps(cones_d_z + k, dir.z);
         }
 
         for (; k < scene.num_cones; k++) {
@@ -146,13 +146,13 @@ namespace impl::vec3 {
         for (; k < scene.num_octahedra - 7; k += 8) {
             vec256 pos = invtransform_point_vectorized(k, scene.octa_vecs.inv_rot, scene.octa_vecs.center_x,
                 scene.octa_vecs.center_y, scene.octa_vecs.center_z, r_world.o);
-            _mm256_storeu_ps(octahedra_o_shade_x + k, pos.x);
-            _mm256_storeu_ps(octahedra_o_shade_y + k, pos.y);
-            _mm256_storeu_ps(octahedra_o_shade_z + k, pos.z);
+            _mm256_store_ps(octahedra_o_shade_x + k, pos.x);
+            _mm256_store_ps(octahedra_o_shade_y + k, pos.y);
+            _mm256_store_ps(octahedra_o_shade_z + k, pos.z);
             vec256 dir = m33_mul_vec_vectorized(k, scene.octa_vecs.inv_rot, r_world.d);
-            _mm256_storeu_ps(octahedra_d_x + k, dir.x);
-            _mm256_storeu_ps(octahedra_d_y + k, dir.y);
-            _mm256_storeu_ps(octahedra_d_z + k, dir.z);
+            _mm256_store_ps(octahedra_d_x + k, dir.x);
+            _mm256_store_ps(octahedra_d_y + k, dir.y);
+            _mm256_store_ps(octahedra_d_z + k, dir.z);
         }
 
         for (; k < scene.num_octahedra; k++) {
@@ -472,9 +472,9 @@ namespace impl::vec3 {
         int k = 0;
         for (; k < scene.num_boxes - 7; k += 8) {
             vec256 dir = m33_mul_vec_vectorized(k, scene.box_vecs.inv_rot, d);
-            _mm256_storeu_ps(boxes_d_x + k, dir.x);
-            _mm256_storeu_ps(boxes_d_y + k, dir.y);
-            _mm256_storeu_ps(boxes_d_z + k, dir.z);
+            _mm256_store_ps(boxes_d_x + k, dir.x);
+            _mm256_store_ps(boxes_d_y + k, dir.y);
+            _mm256_store_ps(boxes_d_z + k, dir.z);
         }
 
         for (; k < scene.num_boxes; k++) {
@@ -487,9 +487,9 @@ namespace impl::vec3 {
         k = 0;
         for (; k < scene.num_tori - 7; k += 8) {
             vec256 dir = m33_mul_vec_vectorized(k, scene.torus_vecs.inv_rot, d);
-            _mm256_storeu_ps(tori_d_x + k, dir.x);
-            _mm256_storeu_ps(tori_d_y + k, dir.y);
-            _mm256_storeu_ps(tori_d_z + k, dir.z);
+            _mm256_store_ps(tori_d_x + k, dir.x);
+            _mm256_store_ps(tori_d_y + k, dir.y);
+            _mm256_store_ps(tori_d_z + k, dir.z);
         }
 
         for (; k < scene.num_tori; k++) {
@@ -502,9 +502,9 @@ namespace impl::vec3 {
         k = 0;
         for (; k < scene.num_cones - 7; k += 8) {
             vec256 dir = m33_mul_vec_vectorized(k, scene.cone_vecs.inv_rot, d);
-            _mm256_storeu_ps(cones_d_x + k, dir.x);
-            _mm256_storeu_ps(cones_d_y + k, dir.y);
-            _mm256_storeu_ps(cones_d_z + k, dir.z);
+            _mm256_store_ps(cones_d_x + k, dir.x);
+            _mm256_store_ps(cones_d_y + k, dir.y);
+            _mm256_store_ps(cones_d_z + k, dir.z);
         }
 
         for (; k < scene.num_cones; k++) {
@@ -517,9 +517,9 @@ namespace impl::vec3 {
         k = 0;
         for (; k < scene.num_octahedra - 7; k += 8) {
             vec256 dir = m33_mul_vec_vectorized(k, scene.octa_vecs.inv_rot, d);
-            _mm256_storeu_ps(octahedra_d_x + k, dir.x);
-            _mm256_storeu_ps(octahedra_d_y + k, dir.y);
-            _mm256_storeu_ps(octahedra_d_z + k, dir.z);
+            _mm256_store_ps(octahedra_d_x + k, dir.x);
+            _mm256_store_ps(octahedra_d_y + k, dir.y);
+            _mm256_store_ps(octahedra_d_z + k, dir.z);
         }
 
         for (; k < scene.num_octahedra; k++) {
@@ -832,62 +832,62 @@ namespace impl::vec3 {
         r_cones_shade = (struct Ray*)malloc(sizeof(Ray) * scene.num_cones);
         r_octahedra_shade = (struct Ray*)malloc(sizeof(Ray) * scene.num_octahedra);
 
-        boxes_o_x = (float*)malloc(4 * scene.num_boxes);
-        boxes_o_y = (float*)malloc(4 * scene.num_boxes);
-        boxes_o_z = (float*)malloc(4 * scene.num_boxes);
+        boxes_o_x = (float*)aligned_alloc(32, 4 * scene.num_boxes);
+        boxes_o_y = (float*)aligned_alloc(32, 4 * scene.num_boxes);
+        boxes_o_z = (float*)aligned_alloc(32, 4 * scene.num_boxes);
 
-        boxes_d_x = (float*)malloc(4 * scene.num_boxes);
-        boxes_d_y = (float*)malloc(4 * scene.num_boxes);
-        boxes_d_z = (float*)malloc(4 * scene.num_boxes);
+        boxes_d_x = (float*)aligned_alloc(32, 4 * scene.num_boxes);
+        boxes_d_y = (float*)aligned_alloc(32, 4 * scene.num_boxes);
+        boxes_d_z = (float*)aligned_alloc(32, 4 * scene.num_boxes);
 
-        boxes_o_shade_x = (float*)malloc(4 * scene.num_boxes);
-        boxes_o_shade_y = (float*)malloc(4 * scene.num_boxes);
-        boxes_o_shade_z = (float*)malloc(4 * scene.num_boxes);
+        boxes_o_shade_x = (float*)aligned_alloc(32, 4 * scene.num_boxes);
+        boxes_o_shade_y = (float*)aligned_alloc(32, 4 * scene.num_boxes);
+        boxes_o_shade_z = (float*)aligned_alloc(32, 4 * scene.num_boxes);
 
-        tori_o_x = (float*)malloc(4 * scene.num_tori);
-        tori_o_y = (float*)malloc(4 * scene.num_tori);
-        tori_o_z = (float*)malloc(4 * scene.num_tori);
+        tori_o_x = (float*)aligned_alloc(32, 4 * scene.num_tori);
+        tori_o_y = (float*)aligned_alloc(32, 4 * scene.num_tori);
+        tori_o_z = (float*)aligned_alloc(32, 4 * scene.num_tori);
 
-        tori_d_x = (float*)malloc(4 * scene.num_tori);
-        tori_d_y = (float*)malloc(4 * scene.num_tori);
-        tori_d_z = (float*)malloc(4 * scene.num_tori);
+        tori_d_x = (float*)aligned_alloc(32, 4 * scene.num_tori);
+        tori_d_y = (float*)aligned_alloc(32, 4 * scene.num_tori);
+        tori_d_z = (float*)aligned_alloc(32, 4 * scene.num_tori);
 
-        tori_o_shade_x = (float*)malloc(4 * scene.num_tori);
-        tori_o_shade_y = (float*)malloc(4 * scene.num_tori);
-        tori_o_shade_z = (float*)malloc(4 * scene.num_tori);
+        tori_o_shade_x = (float*)aligned_alloc(32, 4 * scene.num_tori);
+        tori_o_shade_y = (float*)aligned_alloc(32, 4 * scene.num_tori);
+        tori_o_shade_z = (float*)aligned_alloc(32, 4 * scene.num_tori);
 
-        cones_o_x = (float*)malloc(4 * scene.num_cones);
-        cones_o_y = (float*)malloc(4 * scene.num_cones);
-        cones_o_z = (float*)malloc(4 * scene.num_cones);
+        cones_o_x = (float*)aligned_alloc(32, 4 * scene.num_cones);
+        cones_o_y = (float*)aligned_alloc(32, 4 * scene.num_cones);
+        cones_o_z = (float*)aligned_alloc(32, 4 * scene.num_cones);
 
-        cones_d_x = (float*)malloc(4 * scene.num_cones);
-        cones_d_y = (float*)malloc(4 * scene.num_cones);
-        cones_d_z = (float*)malloc(4 * scene.num_cones);
+        cones_d_x = (float*)aligned_alloc(32, 4 * scene.num_cones);
+        cones_d_y = (float*)aligned_alloc(32, 4 * scene.num_cones);
+        cones_d_z = (float*)aligned_alloc(32, 4 * scene.num_cones);
 
-        cones_o_shade_x = (float*)malloc(4 * scene.num_cones);
-        cones_o_shade_y = (float*)malloc(4 * scene.num_cones);
-        cones_o_shade_z = (float*)malloc(4 * scene.num_cones);
+        cones_o_shade_x = (float*)aligned_alloc(32, 4 * scene.num_cones);
+        cones_o_shade_y = (float*)aligned_alloc(32, 4 * scene.num_cones);
+        cones_o_shade_z = (float*)aligned_alloc(32, 4 * scene.num_cones);
 
-        octahedra_o_x = (float*)malloc(4 * scene.num_octahedra);
-        octahedra_o_y = (float*)malloc(4 * scene.num_octahedra);
-        octahedra_o_z = (float*)malloc(4 * scene.num_octahedra);
+        octahedra_o_x = (float*)aligned_alloc(32, 4 * scene.num_octahedra);
+        octahedra_o_y = (float*)aligned_alloc(32, 4 * scene.num_octahedra);
+        octahedra_o_z = (float*)aligned_alloc(32, 4 * scene.num_octahedra);
 
-        octahedra_d_x = (float*)malloc(4 * scene.num_octahedra);
-        octahedra_d_y = (float*)malloc(4 * scene.num_octahedra);
-        octahedra_d_z = (float*)malloc(4 * scene.num_octahedra);
+        octahedra_d_x = (float*)aligned_alloc(32, 4 * scene.num_octahedra);
+        octahedra_d_y = (float*)aligned_alloc(32, 4 * scene.num_octahedra);
+        octahedra_d_z = (float*)aligned_alloc(32, 4 * scene.num_octahedra);
 
-        octahedra_o_shade_x = (float*)malloc(4 * scene.num_octahedra);
-        octahedra_o_shade_y = (float*)malloc(4 * scene.num_octahedra);
-        octahedra_o_shade_z = (float*)malloc(4 * scene.num_octahedra);
+        octahedra_o_shade_x = (float*)aligned_alloc(32, 4 * scene.num_octahedra);
+        octahedra_o_shade_y = (float*)aligned_alloc(32, 4 * scene.num_octahedra);
+        octahedra_o_shade_z = (float*)aligned_alloc(32, 4 * scene.num_octahedra);
 
         /* Precompute camera ray origin in object coordinates */
         int k = 0;
         for (; k < scene.num_boxes - 7; k += 8) {
             vec256 pos = invtransform_point_vectorized(k, scene.box_vecs.inv_rot, scene.box_vecs.bottom_left_x,
                 scene.box_vecs.bottom_left_y, scene.box_vecs.bottom_left_z, scene.cam.pos);
-            _mm256_storeu_ps(boxes_o_x + k, pos.x);
-            _mm256_storeu_ps(boxes_o_y + k, pos.y);
-            _mm256_storeu_ps(boxes_o_z + k, pos.z);
+            _mm256_store_ps(boxes_o_x + k, pos.x);
+            _mm256_store_ps(boxes_o_y + k, pos.y);
+            _mm256_store_ps(boxes_o_z + k, pos.z);
         }
 
         for (; k < scene.num_boxes; k++) {
@@ -898,9 +898,9 @@ namespace impl::vec3 {
         for (; k < scene.num_tori - 7; k += 8) {
             vec256 pos = invtransform_point_vectorized(k, scene.torus_vecs.inv_rot, scene.torus_vecs.center_x,
                 scene.torus_vecs.center_y, scene.torus_vecs.center_z, scene.cam.pos);
-            _mm256_storeu_ps(tori_o_x + k, pos.x);
-            _mm256_storeu_ps(tori_o_y + k, pos.y);
-            _mm256_storeu_ps(tori_o_z + k, pos.z);
+            _mm256_store_ps(tori_o_x + k, pos.x);
+            _mm256_store_ps(tori_o_y + k, pos.y);
+            _mm256_store_ps(tori_o_z + k, pos.z);
         }
 
         for (; k < scene.num_tori; k++) {
@@ -911,9 +911,9 @@ namespace impl::vec3 {
         for (; k < scene.num_cones - 7; k += 8) {
             vec256 pos = invtransform_point_vectorized(k, scene.cone_vecs.inv_rot, scene.cone_vecs.center_x,
                 scene.cone_vecs.center_y, scene.cone_vecs.center_z, scene.cam.pos);
-            _mm256_storeu_ps(cones_o_x + k, pos.x);
-            _mm256_storeu_ps(cones_o_y + k, pos.y);
-            _mm256_storeu_ps(cones_o_z + k, pos.z);
+            _mm256_store_ps(cones_o_x + k, pos.x);
+            _mm256_store_ps(cones_o_y + k, pos.y);
+            _mm256_store_ps(cones_o_z + k, pos.z);
         }
         for (; k < scene.num_cones; k++) {
             r_cones[k].o = invtransform_point(scene.cones[k].inv_rot, scene.cones[k].center, scene.cam.pos);
@@ -923,9 +923,9 @@ namespace impl::vec3 {
         for (; k < scene.num_octahedra - 7; k += 8) {
             vec256 pos = invtransform_point_vectorized(k, scene.octa_vecs.inv_rot, scene.octa_vecs.center_x,
                 scene.octa_vecs.center_y, scene.octa_vecs.center_z, scene.cam.pos);
-            _mm256_storeu_ps(octahedra_o_x + k, pos.x);
-            _mm256_storeu_ps(octahedra_o_y + k, pos.y);
-            _mm256_storeu_ps(octahedra_o_z + k, pos.z);
+            _mm256_store_ps(octahedra_o_x + k, pos.x);
+            _mm256_store_ps(octahedra_o_y + k, pos.y);
+            _mm256_store_ps(octahedra_o_z + k, pos.z);
         }
 
         for (; k < scene.num_octahedra; k++) {

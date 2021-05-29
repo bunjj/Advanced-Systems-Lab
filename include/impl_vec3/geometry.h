@@ -1,8 +1,8 @@
 #pragma once
 
 #include <immintrin.h>
-#include <xmmintrin.h>
 #include <math.h>
+#include <xmmintrin.h>
 
 #include <iomanip>
 #include <iostream>
@@ -316,12 +316,12 @@ namespace impl::vec3 {
 
     static inline vec256 trace_ray_vectorized(int idx, const float* o_x_p, const float* o_y_p, const float* o_z_p,
         const float* d_x_p, const float* d_y_p, const float* d_z_p, const float t) {
-        __m256 o_x = _mm256_loadu_ps(o_x_p + idx);
-        __m256 o_y = _mm256_loadu_ps(o_y_p + idx);
-        __m256 o_z = _mm256_loadu_ps(o_z_p + idx);
-        __m256 d_x = _mm256_loadu_ps(d_x_p + idx);
-        __m256 d_y = _mm256_loadu_ps(d_y_p + idx);
-        __m256 d_z = _mm256_loadu_ps(d_z_p + idx);
+        __m256 o_x = _mm256_load_ps(o_x_p + idx);
+        __m256 o_y = _mm256_load_ps(o_y_p + idx);
+        __m256 o_z = _mm256_load_ps(o_z_p + idx);
+        __m256 d_x = _mm256_load_ps(d_x_p + idx);
+        __m256 d_y = _mm256_load_ps(d_y_p + idx);
+        __m256 d_z = _mm256_load_ps(d_z_p + idx);
 
         __m256 t_v = _mm256_set1_ps(t);
 
@@ -359,20 +359,21 @@ namespace impl::vec3 {
         return xyz;
     }
 
-    static inline vec256 invtransform_point_vectorized(int idx, float* inv_rot[3][3], const float *t_x, const float *t_y, const float *t_z, const vec from) {
-        __m256 bl_x = _mm256_loadu_ps(t_x + idx);
-        __m256 bl_y = _mm256_loadu_ps(t_y + idx);
-        __m256 bl_z = _mm256_loadu_ps(t_z + idx);
+    static inline vec256 invtransform_point_vectorized(
+        int idx, float* inv_rot[3][3], const float* t_x, const float* t_y, const float* t_z, const vec from) {
+        __m256 bl_x = _mm256_load_ps(t_x + idx);
+        __m256 bl_y = _mm256_load_ps(t_y + idx);
+        __m256 bl_z = _mm256_load_ps(t_z + idx);
 
-        __m256 inv_rot_00 = _mm256_loadu_ps(inv_rot[0][0] + idx);
-        __m256 inv_rot_01 = _mm256_loadu_ps(inv_rot[0][1] + idx);
-        __m256 inv_rot_02 = _mm256_loadu_ps(inv_rot[0][2] + idx);
-        __m256 inv_rot_10 = _mm256_loadu_ps(inv_rot[1][0] + idx);
-        __m256 inv_rot_11 = _mm256_loadu_ps(inv_rot[1][1] + idx);
-        __m256 inv_rot_12 = _mm256_loadu_ps(inv_rot[1][2] + idx);
-        __m256 inv_rot_20 = _mm256_loadu_ps(inv_rot[2][0] + idx);
-        __m256 inv_rot_21 = _mm256_loadu_ps(inv_rot[2][1] + idx);
-        __m256 inv_rot_22 = _mm256_loadu_ps(inv_rot[2][2] + idx);
+        __m256 inv_rot_00 = _mm256_load_ps(inv_rot[0][0] + idx);
+        __m256 inv_rot_01 = _mm256_load_ps(inv_rot[0][1] + idx);
+        __m256 inv_rot_02 = _mm256_load_ps(inv_rot[0][2] + idx);
+        __m256 inv_rot_10 = _mm256_load_ps(inv_rot[1][0] + idx);
+        __m256 inv_rot_11 = _mm256_load_ps(inv_rot[1][1] + idx);
+        __m256 inv_rot_12 = _mm256_load_ps(inv_rot[1][2] + idx);
+        __m256 inv_rot_20 = _mm256_load_ps(inv_rot[2][0] + idx);
+        __m256 inv_rot_21 = _mm256_load_ps(inv_rot[2][1] + idx);
+        __m256 inv_rot_22 = _mm256_load_ps(inv_rot[2][2] + idx);
 
         __m256 from_x = _mm256_set1_ps(from.x);
         __m256 from_y = _mm256_set1_ps(from.y);
@@ -393,15 +394,15 @@ namespace impl::vec3 {
     }
 
     static inline vec256 m33_mul_vec_vectorized(int idx, float* inv_rot[3][3], const vec v) {
-        __m256 inv_rot_00 = _mm256_loadu_ps(inv_rot[0][0] + idx);
-        __m256 inv_rot_01 = _mm256_loadu_ps(inv_rot[0][1] + idx);
-        __m256 inv_rot_02 = _mm256_loadu_ps(inv_rot[0][2] + idx);
-        __m256 inv_rot_10 = _mm256_loadu_ps(inv_rot[1][0] + idx);
-        __m256 inv_rot_11 = _mm256_loadu_ps(inv_rot[1][1] + idx);
-        __m256 inv_rot_12 = _mm256_loadu_ps(inv_rot[1][2] + idx);
-        __m256 inv_rot_20 = _mm256_loadu_ps(inv_rot[2][0] + idx);
-        __m256 inv_rot_21 = _mm256_loadu_ps(inv_rot[2][1] + idx);
-        __m256 inv_rot_22 = _mm256_loadu_ps(inv_rot[2][2] + idx);
+        __m256 inv_rot_00 = _mm256_load_ps(inv_rot[0][0] + idx);
+        __m256 inv_rot_01 = _mm256_load_ps(inv_rot[0][1] + idx);
+        __m256 inv_rot_02 = _mm256_load_ps(inv_rot[0][2] + idx);
+        __m256 inv_rot_10 = _mm256_load_ps(inv_rot[1][0] + idx);
+        __m256 inv_rot_11 = _mm256_load_ps(inv_rot[1][1] + idx);
+        __m256 inv_rot_12 = _mm256_load_ps(inv_rot[1][2] + idx);
+        __m256 inv_rot_20 = _mm256_load_ps(inv_rot[2][0] + idx);
+        __m256 inv_rot_21 = _mm256_load_ps(inv_rot[2][1] + idx);
+        __m256 inv_rot_22 = _mm256_load_ps(inv_rot[2][2] + idx);
 
         __m256 v_x = _mm256_set1_ps(v.x);
         __m256 v_y = _mm256_set1_ps(v.y);
