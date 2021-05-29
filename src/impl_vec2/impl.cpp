@@ -32,13 +32,9 @@ namespace impl::vec2 {
 
                 float dists[8];
 
-                // store square distances between sphere center and point in dists (for early termination)
                 int not_terminate_early = sphere_distance_short_vectorized(k, dists, scene.sphere_vecs.center_x, scene.sphere_vecs.center_y, scene.sphere_vecs.center_z, scene.sphere_vecs.radius, pos, min_distance);
 
                 if (not_terminate_early) {
-                    // compute rest of distance function
-                    sphere_distance_rest_vectorized(k, dists, dists, scene.sphere_vecs.radius);
-
                     for (int i = 0; i < 8; i++) {
                         INS_CMP;
                         if (dists[i] < min_distance) {
@@ -90,16 +86,11 @@ namespace impl::vec2 {
             // boxes
             for (k = 0; k < scene.num_boxes - 7; k += 8) {
 
-                float dists[8]; // also use this as tmp1
-                float tmp2[8];
+                float dists[8];
 
-                // compute first part of distance function and store intermediate results (for early termination)
-                int not_terminate_early = box_distance_short_vectorized(k, dists, tmp2, scene.box_vecs.bottom_left_x, scene.box_vecs.bottom_left_y, scene.box_vecs.bottom_left_z, scene.box_vecs.extents_x, scene.box_vecs.extents_y, scene.box_vecs.extents_z, scene.box_vecs.inv_rot, pos, min_distance);
+                int not_terminate_early = box_distance_short_vectorized(k, dists, scene.box_vecs.bottom_left_x, scene.box_vecs.bottom_left_y, scene.box_vecs.bottom_left_z, scene.box_vecs.extents_x, scene.box_vecs.extents_y, scene.box_vecs.extents_z, scene.box_vecs.r, scene.box_vecs.inv_rot, pos, min_distance);
 
                 if (not_terminate_early) {
-                    // compute rest of distance function
-                    box_distance_rest_vectorized(dists, tmp2, dists);
-
                     for (int i = 0; i < 8; i++) {
                         INS_CMP;
                         if (dists[i] < min_distance) {
@@ -136,12 +127,9 @@ namespace impl::vec2 {
 
                 float dists[8];
 
-                int not_terminate_early = torus_distance_short_vectorized(k, dists, scene.torus_vecs.center_x, scene.torus_vecs.center_y, scene.torus_vecs.center_z, scene.torus_vecs.r1, scene.torus_vecs.r2, scene.torus_vecs.inv_rot, pos, min_distance);
+                int not_terminate_early = torus_distance_short_vectorized(k, dists, scene.torus_vecs.center_x, scene.torus_vecs.center_y, scene.torus_vecs.center_z, scene.torus_vecs.r1, scene.torus_vecs.r2, scene.torus_vecs.r, scene.torus_vecs.inv_rot, pos, min_distance);
 
                 if (not_terminate_early) {
-                    // compute rest of distance function
-                    torus_distance_rest_vectorized(k, dists, dists, scene.torus_vecs.r2);
-
                     for (int i = 0; i < 8; i++) {
                         INS_CMP;
                         if (dists[i] < min_distance) {
@@ -177,17 +165,11 @@ namespace impl::vec2 {
             // cones
             for (k = 0; k < scene.num_cones - 7; k += 8) {
 
-                float dists[8]; // also used as tmp1
-                float tmp2[8];
+                float dists[8];
 
-                // cone_distance_vectorized(k, dists, scene.cone_vecs.center_x, scene.cone_vecs.center_y, scene.cone_vecs.center_z, scene.cone_vecs.r1, scene.cone_vecs.r2, scene.cone_vecs.height, scene.cone_vecs.inv_rot, pos);
-
-                int not_terminate_early = cone_distance_short_vectorized(k, dists, tmp2, scene.cone_vecs.center_x, scene.cone_vecs.center_y, scene.cone_vecs.center_z, scene.cone_vecs.r1, scene.cone_vecs.r2, scene.cone_vecs.height, scene.cone_vecs.inv_rot, pos, min_distance);
+                int not_terminate_early = cone_distance_short_vectorized(k, dists, scene.cone_vecs.center_x, scene.cone_vecs.center_y, scene.cone_vecs.center_z, scene.cone_vecs.r1, scene.cone_vecs.r2, scene.cone_vecs.height, scene.cone_vecs.r, scene.cone_vecs.inv_rot, pos, min_distance);
 
                 if (not_terminate_early) {
-                    // compute rest of distance function
-                    cone_distance_rest_vectorized(dists, tmp2, dists);
-
                     for (int i = 0; i < 8; i++) {
                         INS_CMP;
                         if (dists[i] < min_distance) {
@@ -227,10 +209,6 @@ namespace impl::vec2 {
                 int not_terminate_early = octahedron_distance_short_vectorized(k, dists, scene.octa_vecs.center_x, scene.octa_vecs.center_y, scene.octa_vecs.center_z, scene.octa_vecs.s, scene.octa_vecs.inv_rot, pos, min_distance);
 
                 if (not_terminate_early) {
-
-                    // compute rest of distance function
-                    octahedron_distance_rest_vectorized(dists, dists);
-
                     for (int i = 0; i < 8; i++) {
                         INS_CMP;
                         if (dists[i] < min_distance) {
@@ -353,13 +331,9 @@ namespace impl::vec2 {
 
                 float dists[8];
 
-                // store square distances between sphere center and point in dists (for early termination)
                 int not_terminate_early = sphere_distance_short_vectorized(k, dists, scene.sphere_vecs.center_x, scene.sphere_vecs.center_y, scene.sphere_vecs.center_z, scene.sphere_vecs.radius, pos, min_distance);
 
                 if (not_terminate_early) {
-                    // compute rest of distance function
-                    sphere_distance_rest_vectorized(k, dists, dists, scene.sphere_vecs.radius);
-
                     for (int i = 0; i < 8; i++) {
                         INS_CMP;
                         if (dists[i] < min_distance) {
@@ -420,16 +394,11 @@ namespace impl::vec2 {
             // boxes
             for (k = 0; k < scene.num_boxes - 7; k += 8) {
 
-                float dists[8]; // also use this as tmp1
-                float tmp2[8];
+                float dists[8];
 
-                // compute first part of distance function and store intermediate results (for early termination)
-                int not_terminate_early = box_distance_short_vectorized(k, dists, tmp2, scene.box_vecs.bottom_left_x, scene.box_vecs.bottom_left_y, scene.box_vecs.bottom_left_z, scene.box_vecs.extents_x, scene.box_vecs.extents_y, scene.box_vecs.extents_z, scene.box_vecs.inv_rot, pos, min_distance);
+                int not_terminate_early = box_distance_short_vectorized(k, dists, scene.box_vecs.bottom_left_x, scene.box_vecs.bottom_left_y, scene.box_vecs.bottom_left_z, scene.box_vecs.extents_x, scene.box_vecs.extents_y, scene.box_vecs.extents_z, scene.box_vecs.r, scene.box_vecs.inv_rot, pos, min_distance);
 
                 if (not_terminate_early) {
-                    // compute rest of distance function
-                    box_distance_rest_vectorized(dists, tmp2, dists);
-
                     for (int i = 0; i < 8; i++) {
                         INS_CMP;
                         if (dists[i] < min_distance) {
@@ -472,12 +441,9 @@ namespace impl::vec2 {
 
                 float dists[8];
 
-                int not_terminate_early = torus_distance_short_vectorized(k, dists, scene.torus_vecs.center_x, scene.torus_vecs.center_y, scene.torus_vecs.center_z, scene.torus_vecs.r1, scene.torus_vecs.r2, scene.torus_vecs.inv_rot, pos, min_distance);
+                int not_terminate_early = torus_distance_short_vectorized(k, dists, scene.torus_vecs.center_x, scene.torus_vecs.center_y, scene.torus_vecs.center_z, scene.torus_vecs.r1, scene.torus_vecs.r2, scene.torus_vecs.r, scene.torus_vecs.inv_rot, pos, min_distance);
 
                 if (not_terminate_early) {
-                    // compute rest of distance function
-                    torus_distance_rest_vectorized(k, dists, dists, scene.torus_vecs.r2);
-
                     for (int i = 0; i < 8; i++) {
                         INS_CMP;
                         if (dists[i] < min_distance) {
@@ -519,17 +485,11 @@ namespace impl::vec2 {
             // cones
             for (k = 0; k < scene.num_cones - 7; k += 8) {
 
-                float dists[8]; // also used as tmp1
-                float tmp2[8];
+                float dists[8];
 
-                // cone_distance_vectorized(k, dists, scene.cone_vecs.center_x, scene.cone_vecs.center_y, scene.cone_vecs.center_z, scene.cone_vecs.r1, scene.cone_vecs.r2, scene.cone_vecs.height, scene.cone_vecs.inv_rot, pos);
-
-                int not_terminate_early = cone_distance_short_vectorized(k, dists, tmp2, scene.cone_vecs.center_x, scene.cone_vecs.center_y, scene.cone_vecs.center_z, scene.cone_vecs.r1, scene.cone_vecs.r2, scene.cone_vecs.height, scene.cone_vecs.inv_rot, pos, min_distance);
+                int not_terminate_early = cone_distance_short_vectorized(k, dists, scene.cone_vecs.center_x, scene.cone_vecs.center_y, scene.cone_vecs.center_z, scene.cone_vecs.r1, scene.cone_vecs.r2, scene.cone_vecs.height, scene.cone_vecs.r, scene.cone_vecs.inv_rot, pos, min_distance);
 
                 if (not_terminate_early) {
-                    // compute rest of distance function
-                    cone_distance_rest_vectorized(dists, tmp2, dists);
-
                     for (int i = 0; i < 8; i++) {
                         INS_CMP;
                         if (dists[i] < min_distance) {
@@ -575,10 +535,6 @@ namespace impl::vec2 {
                 int not_terminate_early = octahedron_distance_short_vectorized(k, dists, scene.octa_vecs.center_x, scene.octa_vecs.center_y, scene.octa_vecs.center_z, scene.octa_vecs.s, scene.octa_vecs.inv_rot, pos, min_distance);
 
                 if (not_terminate_early) {
-
-                    // compute rest of distance function
-                    octahedron_distance_rest_vectorized(dists, dists);
-
                     for (int i = 0; i < 8; i++) {
                         INS_CMP;
                         if (dists[i] < min_distance) {

@@ -346,9 +346,6 @@ namespace impl::opt3 {
         float duf_bound = o.s + current_min;
         if( pos_squared >= duf_bound * duf_bound) return current_min;
 
-
-
-
         pos = vec_abs(pos);
 
         float s = o.s;
