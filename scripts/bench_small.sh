@@ -23,18 +23,18 @@ benchmark_small="$(find "${scene_dir}/benchmark_small" -name "*.json")"
 
 all_scenes=$(echo "${scene0}"$'\n'"${benchmark_small}" | sort)
 finish() { 
-    if [ -e "$tmp" ]; then
-        rm "$tmp"
+    if [ -d "$tmp" ]; then
+        rm -R "$tmp"
     fi
 }
 
 trap finish EXIT
 
-tmp=$(mktemp --suffix=.ppm)
+tmp=$(mktemp -d)
 
 echo "$all_scenes" | while read -r scene; do
     echo -e "\e[32;1m======== $(basename "$scene") ========\e[0m"
-    if "${build_dir}/main" "$impl" "${scene}" 1920 1080 "$tmp" "${scene%.*}.ppm"; then
+    if "${build_dir}/main" "$impl" "${scene}" 1920 1080 "$tmp/main.ppm" "${scene%.*}.ppm"; then
         echo -e "\e[32;1mPASSED\e[0m"
     else
         echo -e "\e[31;1mFAILED\e[0m"
