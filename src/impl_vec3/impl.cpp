@@ -832,53 +832,53 @@ namespace impl::vec3 {
         r_cones_shade = (struct Ray*)malloc(sizeof(Ray) * scene.num_cones);
         r_octahedra_shade = (struct Ray*)malloc(sizeof(Ray) * scene.num_octahedra);
 
-        boxes_o_x = (float*)aligned_alloc(32, 4 * scene.num_boxes);
-        boxes_o_y = (float*)aligned_alloc(32, 4 * scene.num_boxes);
-        boxes_o_z = (float*)aligned_alloc(32, 4 * scene.num_boxes);
+        boxes_o_x = (float*)aligned_alloc_wrapper(32, 4 * scene.num_boxes);
+        boxes_o_y = (float*)aligned_alloc_wrapper(32, 4 * scene.num_boxes);
+        boxes_o_z = (float*)aligned_alloc_wrapper(32, 4 * scene.num_boxes);
 
-        boxes_d_x = (float*)aligned_alloc(32, 4 * scene.num_boxes);
-        boxes_d_y = (float*)aligned_alloc(32, 4 * scene.num_boxes);
-        boxes_d_z = (float*)aligned_alloc(32, 4 * scene.num_boxes);
+        boxes_d_x = (float*)aligned_alloc_wrapper(32, 4 * scene.num_boxes);
+        boxes_d_y = (float*)aligned_alloc_wrapper(32, 4 * scene.num_boxes);
+        boxes_d_z = (float*)aligned_alloc_wrapper(32, 4 * scene.num_boxes);
 
-        boxes_o_shade_x = (float*)aligned_alloc(32, 4 * scene.num_boxes);
-        boxes_o_shade_y = (float*)aligned_alloc(32, 4 * scene.num_boxes);
-        boxes_o_shade_z = (float*)aligned_alloc(32, 4 * scene.num_boxes);
+        boxes_o_shade_x = (float*)aligned_alloc_wrapper(32, 4 * scene.num_boxes);
+        boxes_o_shade_y = (float*)aligned_alloc_wrapper(32, 4 * scene.num_boxes);
+        boxes_o_shade_z = (float*)aligned_alloc_wrapper(32, 4 * scene.num_boxes);
 
-        tori_o_x = (float*)aligned_alloc(32, 4 * scene.num_tori);
-        tori_o_y = (float*)aligned_alloc(32, 4 * scene.num_tori);
-        tori_o_z = (float*)aligned_alloc(32, 4 * scene.num_tori);
+        tori_o_x = (float*)aligned_alloc_wrapper(32, 4 * scene.num_tori);
+        tori_o_y = (float*)aligned_alloc_wrapper(32, 4 * scene.num_tori);
+        tori_o_z = (float*)aligned_alloc_wrapper(32, 4 * scene.num_tori);
 
-        tori_d_x = (float*)aligned_alloc(32, 4 * scene.num_tori);
-        tori_d_y = (float*)aligned_alloc(32, 4 * scene.num_tori);
-        tori_d_z = (float*)aligned_alloc(32, 4 * scene.num_tori);
+        tori_d_x = (float*)aligned_alloc_wrapper(32, 4 * scene.num_tori);
+        tori_d_y = (float*)aligned_alloc_wrapper(32, 4 * scene.num_tori);
+        tori_d_z = (float*)aligned_alloc_wrapper(32, 4 * scene.num_tori);
 
-        tori_o_shade_x = (float*)aligned_alloc(32, 4 * scene.num_tori);
-        tori_o_shade_y = (float*)aligned_alloc(32, 4 * scene.num_tori);
-        tori_o_shade_z = (float*)aligned_alloc(32, 4 * scene.num_tori);
+        tori_o_shade_x = (float*)aligned_alloc_wrapper(32, 4 * scene.num_tori);
+        tori_o_shade_y = (float*)aligned_alloc_wrapper(32, 4 * scene.num_tori);
+        tori_o_shade_z = (float*)aligned_alloc_wrapper(32, 4 * scene.num_tori);
 
-        cones_o_x = (float*)aligned_alloc(32, 4 * scene.num_cones);
-        cones_o_y = (float*)aligned_alloc(32, 4 * scene.num_cones);
-        cones_o_z = (float*)aligned_alloc(32, 4 * scene.num_cones);
+        cones_o_x = (float*)aligned_alloc_wrapper(32, 4 * scene.num_cones);
+        cones_o_y = (float*)aligned_alloc_wrapper(32, 4 * scene.num_cones);
+        cones_o_z = (float*)aligned_alloc_wrapper(32, 4 * scene.num_cones);
 
-        cones_d_x = (float*)aligned_alloc(32, 4 * scene.num_cones);
-        cones_d_y = (float*)aligned_alloc(32, 4 * scene.num_cones);
-        cones_d_z = (float*)aligned_alloc(32, 4 * scene.num_cones);
+        cones_d_x = (float*)aligned_alloc_wrapper(32, 4 * scene.num_cones);
+        cones_d_y = (float*)aligned_alloc_wrapper(32, 4 * scene.num_cones);
+        cones_d_z = (float*)aligned_alloc_wrapper(32, 4 * scene.num_cones);
 
-        cones_o_shade_x = (float*)aligned_alloc(32, 4 * scene.num_cones);
-        cones_o_shade_y = (float*)aligned_alloc(32, 4 * scene.num_cones);
-        cones_o_shade_z = (float*)aligned_alloc(32, 4 * scene.num_cones);
+        cones_o_shade_x = (float*)aligned_alloc_wrapper(32, 4 * scene.num_cones);
+        cones_o_shade_y = (float*)aligned_alloc_wrapper(32, 4 * scene.num_cones);
+        cones_o_shade_z = (float*)aligned_alloc_wrapper(32, 4 * scene.num_cones);
 
-        octahedra_o_x = (float*)aligned_alloc(32, 4 * scene.num_octahedra);
-        octahedra_o_y = (float*)aligned_alloc(32, 4 * scene.num_octahedra);
-        octahedra_o_z = (float*)aligned_alloc(32, 4 * scene.num_octahedra);
+        octahedra_o_x = (float*)aligned_alloc_wrapper(32, 4 * scene.num_octahedra);
+        octahedra_o_y = (float*)aligned_alloc_wrapper(32, 4 * scene.num_octahedra);
+        octahedra_o_z = (float*)aligned_alloc_wrapper(32, 4 * scene.num_octahedra);
 
-        octahedra_d_x = (float*)aligned_alloc(32, 4 * scene.num_octahedra);
-        octahedra_d_y = (float*)aligned_alloc(32, 4 * scene.num_octahedra);
-        octahedra_d_z = (float*)aligned_alloc(32, 4 * scene.num_octahedra);
+        octahedra_d_x = (float*)aligned_alloc_wrapper(32, 4 * scene.num_octahedra);
+        octahedra_d_y = (float*)aligned_alloc_wrapper(32, 4 * scene.num_octahedra);
+        octahedra_d_z = (float*)aligned_alloc_wrapper(32, 4 * scene.num_octahedra);
 
-        octahedra_o_shade_x = (float*)aligned_alloc(32, 4 * scene.num_octahedra);
-        octahedra_o_shade_y = (float*)aligned_alloc(32, 4 * scene.num_octahedra);
-        octahedra_o_shade_z = (float*)aligned_alloc(32, 4 * scene.num_octahedra);
+        octahedra_o_shade_x = (float*)aligned_alloc_wrapper(32, 4 * scene.num_octahedra);
+        octahedra_o_shade_y = (float*)aligned_alloc_wrapper(32, 4 * scene.num_octahedra);
+        octahedra_o_shade_z = (float*)aligned_alloc_wrapper(32, 4 * scene.num_octahedra);
 
         /* Precompute camera ray origin in object coordinates */
         int k = 0;

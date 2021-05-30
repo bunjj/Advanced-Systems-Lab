@@ -182,6 +182,7 @@ namespace impl::vec3 {
 
     extern struct scene scene;
 
+    void* aligned_alloc_wrapper(size_t alignment, size_t size);
     void load_scene(std::string& input);
     void from_ref_scene();
 

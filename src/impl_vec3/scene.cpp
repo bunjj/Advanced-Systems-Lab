@@ -261,6 +261,15 @@ namespace impl::vec3 {
         }
     }
 
+    /**
+     * Allocates 'size' bytes of memory that are 'alignment' aligned
+     */
+    static void* aligned_alloc_wrapper(size_t alignment, size_t size) {
+        size_t rounded = (size + alignment - 1) & ~(alignment - 1);
+
+        return aligned_alloc(alignment, rounded);
+    }
+
     static void load_shapes(json& j) {
         int num_shapes = j["objects"].size();
 
@@ -302,82 +311,82 @@ namespace impl::vec3 {
 
         // allocate memory for the vectorized data layout
         // spheres
-        scene.sphere_vecs.center_x = (float*)aligned_alloc(32, sizeof(float) * scene.num_spheres);
-        scene.sphere_vecs.center_y = (float*)aligned_alloc(32, sizeof(float) * scene.num_spheres);
-        scene.sphere_vecs.center_z = (float*)aligned_alloc(32, sizeof(float) * scene.num_spheres);
-        scene.sphere_vecs.radius = (float*)aligned_alloc(32, sizeof(float) * scene.num_spheres);
+        scene.sphere_vecs.center_x = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_spheres);
+        scene.sphere_vecs.center_y = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_spheres);
+        scene.sphere_vecs.center_z = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_spheres);
+        scene.sphere_vecs.radius = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_spheres);
 
         // boxes
-        scene.box_vecs.bottom_left_x = (float*)aligned_alloc(32, sizeof(float) * scene.num_boxes);
-        scene.box_vecs.bottom_left_y = (float*)aligned_alloc(32, sizeof(float) * scene.num_boxes);
-        scene.box_vecs.bottom_left_z = (float*)aligned_alloc(32, sizeof(float) * scene.num_boxes);
-        scene.box_vecs.extents_x = (float*)aligned_alloc(32, sizeof(float) * scene.num_boxes);
-        scene.box_vecs.extents_y = (float*)aligned_alloc(32, sizeof(float) * scene.num_boxes);
-        scene.box_vecs.extents_z = (float*)aligned_alloc(32, sizeof(float) * scene.num_boxes);
-        scene.box_vecs.r = (float*)aligned_alloc(32, sizeof(float) * scene.num_boxes);
+        scene.box_vecs.bottom_left_x = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_boxes);
+        scene.box_vecs.bottom_left_y = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_boxes);
+        scene.box_vecs.bottom_left_z = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_boxes);
+        scene.box_vecs.extents_x = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_boxes);
+        scene.box_vecs.extents_y = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_boxes);
+        scene.box_vecs.extents_z = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_boxes);
+        scene.box_vecs.r = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_boxes);
 
-        scene.box_vecs.inv_rot[0][0] = (float*)aligned_alloc(32, sizeof(float) * scene.num_boxes);
-        scene.box_vecs.inv_rot[0][1] = (float*)aligned_alloc(32, sizeof(float) * scene.num_boxes);
-        scene.box_vecs.inv_rot[0][2] = (float*)aligned_alloc(32, sizeof(float) * scene.num_boxes);
-        scene.box_vecs.inv_rot[1][0] = (float*)aligned_alloc(32, sizeof(float) * scene.num_boxes);
-        scene.box_vecs.inv_rot[1][1] = (float*)aligned_alloc(32, sizeof(float) * scene.num_boxes);
-        scene.box_vecs.inv_rot[1][2] = (float*)aligned_alloc(32, sizeof(float) * scene.num_boxes);
-        scene.box_vecs.inv_rot[2][0] = (float*)aligned_alloc(32, sizeof(float) * scene.num_boxes);
-        scene.box_vecs.inv_rot[2][1] = (float*)aligned_alloc(32, sizeof(float) * scene.num_boxes);
-        scene.box_vecs.inv_rot[2][2] = (float*)aligned_alloc(32, sizeof(float) * scene.num_boxes);
+        scene.box_vecs.inv_rot[0][0] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_boxes);
+        scene.box_vecs.inv_rot[0][1] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_boxes);
+        scene.box_vecs.inv_rot[0][2] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_boxes);
+        scene.box_vecs.inv_rot[1][0] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_boxes);
+        scene.box_vecs.inv_rot[1][1] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_boxes);
+        scene.box_vecs.inv_rot[1][2] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_boxes);
+        scene.box_vecs.inv_rot[2][0] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_boxes);
+        scene.box_vecs.inv_rot[2][1] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_boxes);
+        scene.box_vecs.inv_rot[2][2] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_boxes);
 
         // tori
-        scene.torus_vecs.center_x = (float*)aligned_alloc(32, sizeof(float) * scene.num_tori);
-        scene.torus_vecs.center_y = (float*)aligned_alloc(32, sizeof(float) * scene.num_tori);
-        scene.torus_vecs.center_z = (float*)aligned_alloc(32, sizeof(float) * scene.num_tori);
-        scene.torus_vecs.r1 = (float*)aligned_alloc(32, sizeof(float) * scene.num_tori);
-        scene.torus_vecs.r2 = (float*)aligned_alloc(32, sizeof(float) * scene.num_tori);
-        scene.torus_vecs.r = (float*)aligned_alloc(32, sizeof(float) * scene.num_tori);
+        scene.torus_vecs.center_x = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_tori);
+        scene.torus_vecs.center_y = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_tori);
+        scene.torus_vecs.center_z = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_tori);
+        scene.torus_vecs.r1 = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_tori);
+        scene.torus_vecs.r2 = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_tori);
+        scene.torus_vecs.r = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_tori);
 
-        scene.torus_vecs.inv_rot[0][0] = (float*)aligned_alloc(32, sizeof(float) * scene.num_tori);
-        scene.torus_vecs.inv_rot[0][1] = (float*)aligned_alloc(32, sizeof(float) * scene.num_tori);
-        scene.torus_vecs.inv_rot[0][2] = (float*)aligned_alloc(32, sizeof(float) * scene.num_tori);
-        scene.torus_vecs.inv_rot[1][0] = (float*)aligned_alloc(32, sizeof(float) * scene.num_tori);
-        scene.torus_vecs.inv_rot[1][1] = (float*)aligned_alloc(32, sizeof(float) * scene.num_tori);
-        scene.torus_vecs.inv_rot[1][2] = (float*)aligned_alloc(32, sizeof(float) * scene.num_tori);
-        scene.torus_vecs.inv_rot[2][0] = (float*)aligned_alloc(32, sizeof(float) * scene.num_tori);
-        scene.torus_vecs.inv_rot[2][1] = (float*)aligned_alloc(32, sizeof(float) * scene.num_tori);
-        scene.torus_vecs.inv_rot[2][2] = (float*)aligned_alloc(32, sizeof(float) * scene.num_tori);
+        scene.torus_vecs.inv_rot[0][0] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_tori);
+        scene.torus_vecs.inv_rot[0][1] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_tori);
+        scene.torus_vecs.inv_rot[0][2] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_tori);
+        scene.torus_vecs.inv_rot[1][0] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_tori);
+        scene.torus_vecs.inv_rot[1][1] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_tori);
+        scene.torus_vecs.inv_rot[1][2] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_tori);
+        scene.torus_vecs.inv_rot[2][0] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_tori);
+        scene.torus_vecs.inv_rot[2][1] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_tori);
+        scene.torus_vecs.inv_rot[2][2] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_tori);
 
         // cones
-        scene.cone_vecs.center_x = (float*)aligned_alloc(32, sizeof(float) * scene.num_cones);
-        scene.cone_vecs.center_y = (float*)aligned_alloc(32, sizeof(float) * scene.num_cones);
-        scene.cone_vecs.center_z = (float*)aligned_alloc(32, sizeof(float) * scene.num_cones);
-        scene.cone_vecs.r1 = (float*)aligned_alloc(32, sizeof(float) * scene.num_cones);
-        scene.cone_vecs.r2 = (float*)aligned_alloc(32, sizeof(float) * scene.num_cones);
-        scene.cone_vecs.height = (float*)aligned_alloc(32, sizeof(float) * scene.num_cones);
-        scene.cone_vecs.r = (float*)aligned_alloc(32, sizeof(float) * scene.num_cones);
-        scene.cone_vecs.k2d2inv = (float*)aligned_alloc(32, sizeof(float) * scene.num_cones);
-        scene.cone_vecs.inv_rot[0][0] = (float*)aligned_alloc(32, sizeof(float) * scene.num_cones);
-        scene.cone_vecs.inv_rot[0][1] = (float*)aligned_alloc(32, sizeof(float) * scene.num_cones);
-        scene.cone_vecs.inv_rot[0][2] = (float*)aligned_alloc(32, sizeof(float) * scene.num_cones);
-        scene.cone_vecs.inv_rot[1][0] = (float*)aligned_alloc(32, sizeof(float) * scene.num_cones);
-        scene.cone_vecs.inv_rot[1][1] = (float*)aligned_alloc(32, sizeof(float) * scene.num_cones);
-        scene.cone_vecs.inv_rot[1][2] = (float*)aligned_alloc(32, sizeof(float) * scene.num_cones);
-        scene.cone_vecs.inv_rot[2][0] = (float*)aligned_alloc(32, sizeof(float) * scene.num_cones);
-        scene.cone_vecs.inv_rot[2][1] = (float*)aligned_alloc(32, sizeof(float) * scene.num_cones);
-        scene.cone_vecs.inv_rot[2][2] = (float*)aligned_alloc(32, sizeof(float) * scene.num_cones);
+        scene.cone_vecs.center_x = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_cones);
+        scene.cone_vecs.center_y = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_cones);
+        scene.cone_vecs.center_z = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_cones);
+        scene.cone_vecs.r1 = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_cones);
+        scene.cone_vecs.r2 = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_cones);
+        scene.cone_vecs.height = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_cones);
+        scene.cone_vecs.r = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_cones);
+        scene.cone_vecs.k2d2inv = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_cones);
+        scene.cone_vecs.inv_rot[0][0] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_cones);
+        scene.cone_vecs.inv_rot[0][1] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_cones);
+        scene.cone_vecs.inv_rot[0][2] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_cones);
+        scene.cone_vecs.inv_rot[1][0] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_cones);
+        scene.cone_vecs.inv_rot[1][1] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_cones);
+        scene.cone_vecs.inv_rot[1][2] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_cones);
+        scene.cone_vecs.inv_rot[2][0] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_cones);
+        scene.cone_vecs.inv_rot[2][1] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_cones);
+        scene.cone_vecs.inv_rot[2][2] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_cones);
 
         // octahedra
-        scene.octa_vecs.center_x = (float*)aligned_alloc(32, sizeof(float) * scene.num_octahedra);
-        scene.octa_vecs.center_y = (float*)aligned_alloc(32, sizeof(float) * scene.num_octahedra);
-        scene.octa_vecs.center_z = (float*)aligned_alloc(32, sizeof(float) * scene.num_octahedra);
-        scene.octa_vecs.s = (float*)aligned_alloc(32, sizeof(float) * scene.num_octahedra);
+        scene.octa_vecs.center_x = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_octahedra);
+        scene.octa_vecs.center_y = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_octahedra);
+        scene.octa_vecs.center_z = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_octahedra);
+        scene.octa_vecs.s = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_octahedra);
 
-        scene.octa_vecs.inv_rot[0][0] = (float*)aligned_alloc(32, sizeof(float) * scene.num_octahedra);
-        scene.octa_vecs.inv_rot[0][1] = (float*)aligned_alloc(32, sizeof(float) * scene.num_octahedra);
-        scene.octa_vecs.inv_rot[0][2] = (float*)aligned_alloc(32, sizeof(float) * scene.num_octahedra);
-        scene.octa_vecs.inv_rot[1][0] = (float*)aligned_alloc(32, sizeof(float) * scene.num_octahedra);
-        scene.octa_vecs.inv_rot[1][1] = (float*)aligned_alloc(32, sizeof(float) * scene.num_octahedra);
-        scene.octa_vecs.inv_rot[1][2] = (float*)aligned_alloc(32, sizeof(float) * scene.num_octahedra);
-        scene.octa_vecs.inv_rot[2][0] = (float*)aligned_alloc(32, sizeof(float) * scene.num_octahedra);
-        scene.octa_vecs.inv_rot[2][1] = (float*)aligned_alloc(32, sizeof(float) * scene.num_octahedra);
-        scene.octa_vecs.inv_rot[2][2] = (float*)aligned_alloc(32, sizeof(float) * scene.num_octahedra);
+        scene.octa_vecs.inv_rot[0][0] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_octahedra);
+        scene.octa_vecs.inv_rot[0][1] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_octahedra);
+        scene.octa_vecs.inv_rot[0][2] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_octahedra);
+        scene.octa_vecs.inv_rot[1][0] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_octahedra);
+        scene.octa_vecs.inv_rot[1][1] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_octahedra);
+        scene.octa_vecs.inv_rot[1][2] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_octahedra);
+        scene.octa_vecs.inv_rot[2][0] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_octahedra);
+        scene.octa_vecs.inv_rot[2][1] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_octahedra);
+        scene.octa_vecs.inv_rot[2][2] = (float*)aligned_alloc_wrapper(32, sizeof(float) * scene.num_octahedra);
 
         // second pass to actually load the shapes
         int sphere_idx = 0;
