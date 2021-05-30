@@ -264,7 +264,7 @@ namespace impl::vec3 {
     /**
      * Allocates 'size' bytes of memory that are 'alignment' aligned
      */
-    static void* aligned_alloc_wrapper(size_t alignment, size_t size) {
+    void* aligned_alloc_wrapper(size_t alignment, size_t size) {
         size_t rounded = (size + alignment - 1) & ~(alignment - 1);
 
         return aligned_alloc(alignment, rounded);
