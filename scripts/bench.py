@@ -86,8 +86,8 @@ def get_range(bench_type):
         x_end = 4200
         x_step = 200
     elif bench_type in ["all", "box", "sphere", "cone", "torus", "octahedron"]:
-        x_base = 40
-        x_end = 401
+        x_base = 10
+        x_end = 371
         x_step = 40
     else:
         raise ValueError(bench_type)
