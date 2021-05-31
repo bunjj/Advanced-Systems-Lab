@@ -15,6 +15,7 @@ typedef struct {
     uint64_t sqrt;
     uint64_t abs;
     uint64_t cmp;
+    uint64_t max; //< For max and min
     uint64_t pow;
     uint64_t tan;
     uint64_t sphere;
@@ -49,7 +50,7 @@ extern flops_t flops_counter;
 
 static inline uint64_t ins_total() {
     return flops_counter.add + flops_counter.mul + 2 * flops_counter.fma + flops_counter.div + flops_counter.sqrt +
-           flops_counter.abs + flops_counter.cmp + flops_counter.pow + flops_counter.tan;
+           flops_counter.abs + flops_counter.cmp + flops_counter.max + flops_counter.pow + flops_counter.tan;
 }
 
 static inline void ins_dump(const char* title) {
@@ -65,6 +66,7 @@ static inline void ins_dump(const char* title) {
     fprintf(stderr, "SQRT     : %12" PRIu64 "\n", flops_counter.sqrt);
     fprintf(stderr, "ABS      : %12" PRIu64 "\n", flops_counter.abs);
     fprintf(stderr, "CMP      : %12" PRIu64 "\n", flops_counter.cmp);
+    fprintf(stderr, "MAX      : %12" PRIu64 "\n", flops_counter.max);
     fprintf(stderr, "POW      : %12" PRIu64 "\n", flops_counter.pow);
     fprintf(stderr, "TAN      : %12" PRIu64 "\n", flops_counter.tan);
     fprintf(stderr, "SPHERE   : %12" PRIu64 "\n", flops_counter.sphere);

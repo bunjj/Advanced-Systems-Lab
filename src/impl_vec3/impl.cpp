@@ -4,24 +4,173 @@
 
 namespace impl::vec3 {
     // max distance
-    static const float D = 100;
-    static const float EPS = 0.001;
+    static const float D = 100.f;
+    static const float EPS = 0.001f;
+    static const float PI4 = 4 * M_PI_F;
+    static const float M_E_F = M_E;
 
-    struct hit {
-        bool is_hit;
-        float distance;
-        int steps;
-        vec color;
-    };
+    static const float sharpness = 3.f; // sharpness of shadows
+
+    static float* boxes_o_x;
+    static float* boxes_o_y;
+    static float* boxes_o_z;
+
+    static float* boxes_d_x;
+    static float* boxes_d_y;
+    static float* boxes_d_z;
+
+    static float* boxes_o_shade_x;
+    static float* boxes_o_shade_y;
+    static float* boxes_o_shade_z;
+
+    static float* tori_o_x;
+    static float* tori_o_y;
+    static float* tori_o_z;
+
+    static float* tori_d_x;
+    static float* tori_d_y;
+    static float* tori_d_z;
+
+    static float* tori_o_shade_x;
+    static float* tori_o_shade_y;
+    static float* tori_o_shade_z;
+
+    static float* cones_o_x;
+    static float* cones_o_y;
+    static float* cones_o_z;
+
+    static float* cones_d_x;
+    static float* cones_d_y;
+    static float* cones_d_z;
+
+    static float* cones_o_shade_x;
+    static float* cones_o_shade_y;
+    static float* cones_o_shade_z;
+
+    static float* octahedra_o_x;
+    static float* octahedra_o_y;
+    static float* octahedra_o_z;
+
+    static float* octahedra_d_x;
+    static float* octahedra_d_y;
+    static float* octahedra_d_z;
+
+    static float* octahedra_o_shade_x;
+    static float* octahedra_o_shade_y;
+    static float* octahedra_o_shade_z;
+
+    static Ray* r_boxes;
+    static Ray* r_tori;
+    static Ray* r_cones;
+    static Ray* r_octahedra;
+
+    static Ray* r_boxes_shade;
+    static Ray* r_tori_shade;
+    static Ray* r_cones_shade;
+    static Ray* r_octahedra_shade;
 
     // https://www.iquilezles.org/www/articles/rmshadows/rmshadows.htm
-    static float sphere_trace_softshadow(vec point, vec light_dir, float max_distance) {
+    static float sphere_trace_softshadow(Ray r_world, float max_distance) {
+        /* Precompute ray in all object coordinates */
+        int k = 0;
+        for (; k < scene.num_boxes - 7; k += 8) {
+            vec256 pos = invtransform_point_vectorized(k, scene.box_vecs.inv_rot, scene.box_vecs.bottom_left_x,
+                scene.box_vecs.bottom_left_y, scene.box_vecs.bottom_left_z, r_world.o);
+            _mm256_store_ps(boxes_o_shade_x + k, pos.x);
+            _mm256_store_ps(boxes_o_shade_y + k, pos.y);
+            _mm256_store_ps(boxes_o_shade_z + k, pos.z);
+
+            vec256 dir = m33_mul_vec_vectorized(k, scene.box_vecs.inv_rot, r_world.d);
+            _mm256_store_ps(boxes_d_x + k, dir.x);
+            _mm256_store_ps(boxes_d_y + k, dir.y);
+            _mm256_store_ps(boxes_d_z + k, dir.z);
+        }
+
+        for (; k < scene.num_boxes; k++) {
+            r_boxes_shade[k] = invtransform_ray(scene.boxes[k].inv_rot, scene.boxes[k].bottom_left, r_world);
+            boxes_o_shade_x[k] = r_boxes_shade[k].o.x;
+            boxes_o_shade_y[k] = r_boxes_shade[k].o.y;
+            boxes_o_shade_z[k] = r_boxes_shade[k].o.z;
+            boxes_d_x[k] = r_boxes_shade[k].d.x;
+            boxes_d_y[k] = r_boxes_shade[k].d.y;
+            boxes_d_z[k] = r_boxes_shade[k].d.z;
+        }
+
+        k = 0;
+        for (; k < scene.num_tori - 7; k += 8) {
+            vec256 pos = invtransform_point_vectorized(k, scene.torus_vecs.inv_rot, scene.torus_vecs.center_x,
+                scene.torus_vecs.center_y, scene.torus_vecs.center_z, r_world.o);
+            _mm256_store_ps(tori_o_shade_x + k, pos.x);
+            _mm256_store_ps(tori_o_shade_y + k, pos.y);
+            _mm256_store_ps(tori_o_shade_z + k, pos.z);
+            vec256 dir = m33_mul_vec_vectorized(k, scene.torus_vecs.inv_rot, r_world.d);
+            _mm256_store_ps(tori_d_x + k, dir.x);
+            _mm256_store_ps(tori_d_y + k, dir.y);
+            _mm256_store_ps(tori_d_z + k, dir.z);
+        }
+
+        for (; k < scene.num_tori; k++) {
+            r_tori_shade[k] = invtransform_ray(scene.tori[k].inv_rot, scene.tori[k].center, r_world);
+            tori_o_shade_x[k] = r_tori_shade[k].o.x;
+            tori_o_shade_y[k] = r_tori_shade[k].o.y;
+            tori_o_shade_z[k] = r_tori_shade[k].o.z;
+            tori_d_x[k] = r_tori_shade[k].d.x;
+            tori_d_y[k] = r_tori_shade[k].d.y;
+            tori_d_z[k] = r_tori_shade[k].d.z;
+        }
+
+        k = 0;
+        for (; k < scene.num_cones - 7; k += 8) {
+            vec256 pos = invtransform_point_vectorized(k, scene.cone_vecs.inv_rot, scene.cone_vecs.center_x,
+                scene.cone_vecs.center_y, scene.cone_vecs.center_z, r_world.o);
+            _mm256_store_ps(cones_o_shade_x + k, pos.x);
+            _mm256_store_ps(cones_o_shade_y + k, pos.y);
+            _mm256_store_ps(cones_o_shade_z + k, pos.z);
+            vec256 dir = m33_mul_vec_vectorized(k, scene.cone_vecs.inv_rot, r_world.d);
+            _mm256_store_ps(cones_d_x + k, dir.x);
+            _mm256_store_ps(cones_d_y + k, dir.y);
+            _mm256_store_ps(cones_d_z + k, dir.z);
+        }
+
+        for (; k < scene.num_cones; k++) {
+            r_cones_shade[k] = invtransform_ray(scene.cones[k].inv_rot, scene.cones[k].center, r_world);
+            cones_o_shade_x[k] = r_cones_shade[k].o.x;
+            cones_o_shade_y[k] = r_cones_shade[k].o.y;
+            cones_o_shade_z[k] = r_cones_shade[k].o.z;
+            cones_d_x[k] = r_cones_shade[k].d.x;
+            cones_d_y[k] = r_cones_shade[k].d.y;
+            cones_d_z[k] = r_cones_shade[k].d.z;
+        }
+
+        k = 0;
+        for (; k < scene.num_octahedra - 7; k += 8) {
+            vec256 pos = invtransform_point_vectorized(k, scene.octa_vecs.inv_rot, scene.octa_vecs.center_x,
+                scene.octa_vecs.center_y, scene.octa_vecs.center_z, r_world.o);
+            _mm256_store_ps(octahedra_o_shade_x + k, pos.x);
+            _mm256_store_ps(octahedra_o_shade_y + k, pos.y);
+            _mm256_store_ps(octahedra_o_shade_z + k, pos.z);
+            vec256 dir = m33_mul_vec_vectorized(k, scene.octa_vecs.inv_rot, r_world.d);
+            _mm256_store_ps(octahedra_d_x + k, dir.x);
+            _mm256_store_ps(octahedra_d_y + k, dir.y);
+            _mm256_store_ps(octahedra_d_z + k, dir.z);
+        }
+
+        for (; k < scene.num_octahedra; k++) {
+            r_octahedra_shade[k] = invtransform_ray(scene.octahedra[k].inv_rot, scene.octahedra[k].center, r_world);
+            octahedra_o_shade_x[k] = r_octahedra_shade[k].o.x;
+            octahedra_o_shade_y[k] = r_octahedra_shade[k].o.y;
+            octahedra_o_shade_z[k] = r_octahedra_shade[k].o.z;
+            octahedra_d_x[k] = r_octahedra_shade[k].d.x;
+            octahedra_d_y[k] = r_octahedra_shade[k].d.y;
+            octahedra_d_z[k] = r_octahedra_shade[k].d.z;
+        }
+
+        /* Actual Shadow Tracing */
         float t = EPS;
 
-        float sharpness = 3.f; // sharpness of shadows
         float res = 1.f;
         while (t < max_distance) {
-            vec pos = vec_add(point, vec_scale(light_dir, t));
+            vec p_world = trace_ray(r_world, t);
 
             float min_distance = INFINITY;
 
@@ -29,23 +178,22 @@ namespace impl::vec3 {
 
             // spheres
             for (k = 0; k < scene.num_spheres - 7; k += 8) {
-                float dists[8];
+                __m256 dists;
 
                 int not_terminate_early =
-                    sphere_distance_short_vectorized(k, dists, scene.sphere_vecs.center_x, scene.sphere_vecs.center_y,
-                        scene.sphere_vecs.center_z, scene.sphere_vecs.radius, pos, min_distance);
+                    sphere_distance_short_vectorized(k, &dists, scene.sphere_vecs.center_x, scene.sphere_vecs.center_y,
+                        scene.sphere_vecs.center_z, scene.sphere_vecs.radius, p_world, min_distance);
 
                 if (not_terminate_early) {
-                    for (int i = 0; i < 8; i++) {
-                        INS_CMP;
-                        if (dists[i] < min_distance) {
-                            min_distance = dists[i];
+                    float dist = min_vectorized(dists);
 
-                            INS_CMP;
-                            INS_MUL;
-                            if (min_distance <= EPS * t) {
-                                return 0.0f;
-                            }
+                    INS_CMP;
+                    if (dist < min_distance) {
+                        min_distance = dist;
+                        INS_CMP;
+                        INS_MUL;
+                        if (min_distance <= EPS * t) {
+                            return 0.0f;
                         }
                     }
                 }
@@ -53,7 +201,7 @@ namespace impl::vec3 {
 
             // remaining sphere iterations
             for (; k < scene.num_spheres; k++) {
-                float distance = sphere_distance_short(scene.spheres[k], pos, min_distance);
+                float distance = sphere_distance_short(scene.spheres[k], p_world, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -69,7 +217,7 @@ namespace impl::vec3 {
 
             // planes
             for (int k = 0; k < scene.num_planes; k++) {
-                float distance = plane_distance(scene.planes[k], pos);
+                float distance = plane_distance(scene.planes[k], p_world);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -85,24 +233,23 @@ namespace impl::vec3 {
 
             // boxes
             for (k = 0; k < scene.num_boxes - 7; k += 8) {
-                float dists[8];
+                vec256 p_obj = trace_ray_vectorized(
+                    k, boxes_o_shade_x, boxes_o_shade_y, boxes_o_shade_z, boxes_d_x, boxes_d_y, boxes_d_z, t);
+                __m256 dists;
 
-                int not_terminate_early =
-                    box_distance_short_vectorized(k, dists, scene.box_vecs.bottom_left_x, scene.box_vecs.bottom_left_y,
-                        scene.box_vecs.bottom_left_z, scene.box_vecs.extents_x, scene.box_vecs.extents_y,
-                        scene.box_vecs.extents_z, scene.box_vecs.r, scene.box_vecs.inv_rot, pos, min_distance);
+                int not_terminate_early = box_distance_short_vectorized(k, &dists, scene.box_vecs.extents_x,
+                    scene.box_vecs.extents_y, scene.box_vecs.extents_z, scene.box_vecs.r, p_obj, min_distance);
 
                 if (not_terminate_early) {
-                    for (int i = 0; i < 8; i++) {
-                        INS_CMP;
-                        if (dists[i] < min_distance) {
-                            min_distance = dists[i];
+                    float dist = min_vectorized(dists);
 
-                            INS_CMP;
-                            INS_MUL;
-                            if (min_distance <= EPS * t) {
-                                return 0.0f;
-                            }
+                    INS_CMP;
+                    if (dist < min_distance) {
+                        min_distance = dist;
+                        INS_CMP;
+                        INS_MUL;
+                        if (min_distance <= EPS * t) {
+                            return 0.0f;
                         }
                     }
                 }
@@ -110,7 +257,8 @@ namespace impl::vec3 {
 
             // remaining box iterations
             for (; k < scene.num_boxes; k++) {
-                float distance = box_distance_short(scene.boxes[k], pos, min_distance);
+                vec p_obj = trace_ray(r_boxes_shade[k], t);
+                float distance = box_distance_short(scene.boxes[k], p_obj, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -126,23 +274,23 @@ namespace impl::vec3 {
 
             // tori
             for (k = 0; k < scene.num_tori - 7; k += 8) {
-                float dists[8];
+                vec256 p_obj = trace_ray_vectorized(
+                    k, tori_o_shade_x, tori_o_shade_y, tori_o_shade_z, tori_d_x, tori_d_y, tori_d_z, t);
+                __m256 dists;
 
-                int not_terminate_early = torus_distance_short_vectorized(k, dists, scene.torus_vecs.center_x,
-                    scene.torus_vecs.center_y, scene.torus_vecs.center_z, scene.torus_vecs.r1, scene.torus_vecs.r2,
-                    scene.torus_vecs.r, scene.torus_vecs.inv_rot, pos, min_distance);
+                int not_terminate_early = torus_distance_short_vectorized(
+                    k, &dists, scene.torus_vecs.r1, scene.torus_vecs.r2, scene.torus_vecs.r, p_obj, min_distance);
 
                 if (not_terminate_early) {
-                    for (int i = 0; i < 8; i++) {
-                        INS_CMP;
-                        if (dists[i] < min_distance) {
-                            min_distance = dists[i];
+                    float dist = min_vectorized(dists);
 
-                            INS_CMP;
-                            INS_MUL;
-                            if (min_distance <= EPS * t) {
-                                return 0.0f;
-                            }
+                    INS_CMP;
+                    if (dist < min_distance) {
+                        min_distance = dist;
+                        INS_CMP;
+                        INS_MUL;
+                        if (min_distance <= EPS * t) {
+                            return 0.0f;
                         }
                     }
                 }
@@ -150,7 +298,8 @@ namespace impl::vec3 {
 
             // remaining torus iterations
             for (; k < scene.num_tori; k++) {
-                float distance = torus_distance_short(scene.tori[k], pos, min_distance);
+                vec p_obj = trace_ray(r_tori_shade[k], t);
+                float distance = torus_distance_short(scene.tori[k], p_obj, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -166,23 +315,24 @@ namespace impl::vec3 {
 
             // cones
             for (k = 0; k < scene.num_cones - 7; k += 8) {
-                float dists[8];
+                vec256 p_obj = trace_ray_vectorized(
+                    k, cones_o_shade_x, cones_o_shade_y, cones_o_shade_z, cones_d_x, cones_d_y, cones_d_z, t);
+                __m256 dists;
 
-                int not_terminate_early = cone_distance_short_vectorized(k, dists, scene.cone_vecs.center_x,
-                    scene.cone_vecs.center_y, scene.cone_vecs.center_z, scene.cone_vecs.r1, scene.cone_vecs.r2,
-                    scene.cone_vecs.height, scene.cone_vecs.r, scene.cone_vecs.inv_rot, pos, min_distance);
+                int not_terminate_early =
+                    cone_distance_short_vectorized(k, &dists, scene.cone_vecs.r1, scene.cone_vecs.r2,
+                        scene.cone_vecs.height, scene.cone_vecs.r, scene.cone_vecs.k2d2inv, p_obj, min_distance);
 
                 if (not_terminate_early) {
-                    for (int i = 0; i < 8; i++) {
-                        INS_CMP;
-                        if (dists[i] < min_distance) {
-                            min_distance = dists[i];
+                    float dist = min_vectorized(dists);
 
-                            INS_CMP;
-                            INS_MUL;
-                            if (min_distance <= EPS * t) {
-                                return 0.0f;
-                            }
+                    INS_CMP;
+                    if (dist < min_distance) {
+                        min_distance = dist;
+                        INS_CMP;
+                        INS_MUL;
+                        if (min_distance <= EPS * t) {
+                            return 0.0f;
                         }
                     }
                 }
@@ -190,7 +340,8 @@ namespace impl::vec3 {
 
             // remaining cone iterations
             for (; k < scene.num_cones; k++) {
-                float distance = cone_distance_short(scene.cones[k], pos, min_distance);
+                vec p_obj = trace_ray(r_cones_shade[k], t);
+                float distance = cone_distance_short(scene.cones[k], p_obj, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -206,23 +357,23 @@ namespace impl::vec3 {
 
             // octahedra
             for (k = 0; k < scene.num_octahedra - 7; k += 8) {
-                float dists[8];
+                vec256 p_obj = trace_ray_vectorized(k, octahedra_o_shade_x, octahedra_o_shade_y, octahedra_o_shade_z,
+                    octahedra_d_x, octahedra_d_y, octahedra_d_z, t);
+                __m256 dists;
 
                 int not_terminate_early =
-                    octahedron_distance_short_vectorized(k, dists, scene.octa_vecs.center_x, scene.octa_vecs.center_y,
-                        scene.octa_vecs.center_z, scene.octa_vecs.s, scene.octa_vecs.inv_rot, pos, min_distance);
+                    octahedron_distance_short_vectorized(k, &dists, scene.octa_vecs.s, p_obj, min_distance);
 
                 if (not_terminate_early) {
-                    for (int i = 0; i < 8; i++) {
-                        INS_CMP;
-                        if (dists[i] < min_distance) {
-                            min_distance = dists[i];
+                    float dist = min_vectorized(dists);
 
-                            INS_CMP;
-                            INS_MUL;
-                            if (min_distance <= EPS * t) {
-                                return 0.0f;
-                            }
+                    INS_CMP;
+                    if (dist < min_distance) {
+                        min_distance = dist;
+                        INS_CMP;
+                        INS_MUL;
+                        if (min_distance <= EPS * t) {
+                            return 0.0f;
                         }
                     }
                 }
@@ -230,7 +381,8 @@ namespace impl::vec3 {
 
             // remaining octahedra iterations
             for (; k < scene.num_octahedra; k++) {
-                float distance = octahedron_distance_short(scene.octahedra[k], pos, min_distance);
+                vec p_obj = trace_ray(r_octahedra_shade[k], t);
+                float distance = octahedron_distance_short(scene.octahedra[k], p_obj, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -252,26 +404,22 @@ namespace impl::vec3 {
         return res;
     }
 
+    static const float kd = 1.f;             // diffuse parameter
+    static const float ka = 0.0075f;         // ambient parameter
+    static const float neg_sigma_a = -4e-6f; // atmospheric absorbtion coeff
+
     static vec shade(vec normal, float shininess, float reflection, vec color, vec pos, vec dir, float t) {
         /* Prepare shading parameters */
         INS_MUL;
-        float alpha = shininess;     // shininess parameter
         float ks = reflection * 0.4; // specular parameter
-        float kd = 1.f;              // diffuse parameter
-        float ka = 0.0075f;          // ambient parameter
-        float sigma_a = 4e-6f;       // atmospheric absorbtion coeff
 
-        vec wi;                        // incident direction
-        vec wr;                        // reflected direction
         vec wo = vec_scale(dir, -1.f); // outgoing direction
-        vec wn = normal;               // normal direction
 
-        vec Li;             // incident Light
         vec Lo = {0, 0, 0}; // outgoing Light
         vec La = {0, 0, 0}; // ambient Light
 
         for (int i = 0; i < scene.num_lights; i++) {
-            wi = vec_sub(scene.lights[i].pos, pos); // unnormalized
+            vec wi = vec_sub(scene.lights[i].pos, pos); // incident direction unnormalized
 
             INS_DIV;
             float dist2 = vec_dot2(wi);   // squared distance of light
@@ -279,30 +427,31 @@ namespace impl::vec3 {
             wi = vec_scale(wi, 1 / dist); // normalize incident direction
 
             // incoming light
-            INS_INC1(mul, 2);
+            INS_MUL;
             INS_DIV;
-            Li = vec_scale(scene.lights[i].emission, 1 / (4 * M_PI_F * dist2)); // incident light
+            vec Li = vec_scale(scene.lights[i].emission, 1 / (PI4 * dist2)); // incident light
             La = vec_add(La, Li); // incident light contributes to ambient light
 
             INS_CMP;
-            if (vec_dot(wn, wi) > 0) {
-                float shadow = sphere_trace_softshadow(pos, wi, dist);
+            if (vec_dot(normal, wi) > 0) {
+                float shadow = sphere_trace_softshadow({pos, wi}, dist);
                 INS_CMP;
                 if (shadow > EPS) {
                     Li = vec_scale(Li, shadow);
 
                     // diffuse
                     INS_MUL;
-                    vec f_diffuse = vec_scale(color, kd * vec_dot(wn, wi)); // fraction of reflected light
-                    Lo = vec_add(Lo, vec_mul(Li, f_diffuse));               // diffuse contribution to outgoing light
+                    vec f_diffuse = vec_scale(color, kd * vec_dot(normal, wi)); // fraction of reflected light
+                    Lo = vec_add(Lo, vec_mul(Li, f_diffuse)); // diffuse contribution to outgoing light
 
                     // specular
                     INS_INC1(mul, 2);
                     INS_POW;
-                    wr = vec_sub(vec_scale(wn, 2 * vec_dot(wn, wi)), wi); // reflected direction
-                    float f_specular =
-                        ks * pow(max(0.f, vec_dot(wr, wo)), alpha); // fraction of reflected light TODO: normalization?
-                    Lo = vec_add(Lo, vec_scale(Li, f_specular));    // specular contribution to outgoing light
+
+                    vec wr = vec_sub(vec_scale(normal, 2 * vec_dot(normal, wi)), wi); // reflected direction
+                    float f_specular = ks * pow(max(0.f, vec_dot(wr, wo)),
+                                                shininess);      // fraction of reflected light TODO: normalization?
+                    Lo = vec_add(Lo, vec_scale(Li, f_specular)); // specular contribution to outgoing light
                 }
             }
         }
@@ -313,44 +462,110 @@ namespace impl::vec3 {
         // atmospheric effect using exponential decay
         INS_INC1(mul, 3);
         INS_POW;
-        Lo = vec_scale(Lo, powf(M_E, -sigma_a * t * t * t));
+        Lo = vec_scale(Lo, powf(M_E_F, neg_sigma_a * t * t * t));
 
         return Lo;
     }
 
-    static hit sphere_trace(vec origin, vec dir) {
-        float t = 0;
-        int steps = 0;
-        vec color;
+    static vec sphere_trace(vec d) {
+        /* Precompute ray direction in all object coordinates */
+        int k = 0;
+        for (; k < scene.num_boxes - 7; k += 8) {
+            vec256 dir = m33_mul_vec_vectorized(k, scene.box_vecs.inv_rot, d);
+            _mm256_store_ps(boxes_d_x + k, dir.x);
+            _mm256_store_ps(boxes_d_y + k, dir.y);
+            _mm256_store_ps(boxes_d_z + k, dir.z);
+        }
 
+        for (; k < scene.num_boxes; k++) {
+            r_boxes[k].d = m33_mul_vec(scene.boxes[k].inv_rot, d);
+            boxes_d_x[k] = r_boxes[k].d.x;
+            boxes_d_y[k] = r_boxes[k].d.y;
+            boxes_d_z[k] = r_boxes[k].d.z;
+        }
+
+        k = 0;
+        for (; k < scene.num_tori - 7; k += 8) {
+            vec256 dir = m33_mul_vec_vectorized(k, scene.torus_vecs.inv_rot, d);
+            _mm256_store_ps(tori_d_x + k, dir.x);
+            _mm256_store_ps(tori_d_y + k, dir.y);
+            _mm256_store_ps(tori_d_z + k, dir.z);
+        }
+
+        for (; k < scene.num_tori; k++) {
+            r_tori[k].d = m33_mul_vec(scene.tori[k].inv_rot, d);
+            tori_d_x[k] = r_tori[k].d.x;
+            tori_d_y[k] = r_tori[k].d.y;
+            tori_d_z[k] = r_tori[k].d.z;
+        }
+
+        k = 0;
+        for (; k < scene.num_cones - 7; k += 8) {
+            vec256 dir = m33_mul_vec_vectorized(k, scene.cone_vecs.inv_rot, d);
+            _mm256_store_ps(cones_d_x + k, dir.x);
+            _mm256_store_ps(cones_d_y + k, dir.y);
+            _mm256_store_ps(cones_d_z + k, dir.z);
+        }
+
+        for (; k < scene.num_cones; k++) {
+            r_cones[k].d = m33_mul_vec(scene.cones[k].inv_rot, d);
+            cones_d_x[k] = r_cones[k].d.x;
+            cones_d_y[k] = r_cones[k].d.y;
+            cones_d_z[k] = r_cones[k].d.z;
+        }
+
+        k = 0;
+        for (; k < scene.num_octahedra - 7; k += 8) {
+            vec256 dir = m33_mul_vec_vectorized(k, scene.octa_vecs.inv_rot, d);
+            _mm256_store_ps(octahedra_d_x + k, dir.x);
+            _mm256_store_ps(octahedra_d_y + k, dir.y);
+            _mm256_store_ps(octahedra_d_z + k, dir.z);
+        }
+
+        for (; k < scene.num_octahedra; k++) {
+            r_octahedra[k].d = m33_mul_vec(scene.octahedra[k].inv_rot, d);
+            octahedra_d_x[k] = r_octahedra[k].d.x;
+            octahedra_d_y[k] = r_octahedra[k].d.y;
+            octahedra_d_z[k] = r_octahedra[k].d.z;
+        }
+
+        float t = 0;
         while (t < D) {
-            vec pos = vec_add(origin, vec_scale(dir, t));
+            vec p_world = vec_add(scene.cam.pos, vec_scale(d, t));
 
             float min_distance = INFINITY;
 
             int k;
 
+            /*
+             * Temporarily stores 8 distances returned from distance function.
+             * Only needed when we need to figure out which shape was hit.
+             */
+            static float dists_tmp[8] __attribute__((aligned(32)));
+
             // spheres
             for (k = 0; k < scene.num_spheres - 7; k += 8) {
-                float dists[8];
+                __m256 dists;
 
                 int not_terminate_early =
-                    sphere_distance_short_vectorized(k, dists, scene.sphere_vecs.center_x, scene.sphere_vecs.center_y,
-                        scene.sphere_vecs.center_z, scene.sphere_vecs.radius, pos, min_distance);
+                    sphere_distance_short_vectorized(k, &dists, scene.sphere_vecs.center_x, scene.sphere_vecs.center_y,
+                        scene.sphere_vecs.center_z, scene.sphere_vecs.radius, p_world, min_distance);
 
                 if (not_terminate_early) {
-                    for (int i = 0; i < 8; i++) {
-                        INS_CMP;
-                        if (dists[i] < min_distance) {
-                            min_distance = dists[i];
+                    float dist = min_vectorized(dists);
 
+                    INS_CMP;
+                    INS_MUL;
+                    if (dist > EPS * t) {
+                        min_distance = dist;
+                    } else {
+                        _mm256_store_ps(dists_tmp, dists);
+                        for (int i = 0; i < 8; i++) {
                             INS_CMP;
-                            INS_MUL;
-                            if (min_distance <= EPS * t) {
+                            if (dists_tmp[i] == dist) {
                                 sphere s = scene.spheres[k + i];
-                                vec normal = sphere_normal(s, pos);
-                                color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
-                                return {true, t, steps, color};
+                                vec normal = sphere_normal(s, p_world);
+                                return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                             }
                         }
                     }
@@ -359,7 +574,7 @@ namespace impl::vec3 {
 
             // remaining sphere iterations
             for (; k < scene.num_spheres; k++) {
-                float distance = sphere_distance_short(scene.spheres[k], pos, min_distance);
+                float distance = sphere_distance_short(scene.spheres[k], p_world, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -369,16 +584,15 @@ namespace impl::vec3 {
                     INS_MUL;
                     if (min_distance <= EPS * t) {
                         sphere s = scene.spheres[k];
-                        vec normal = sphere_normal(s, pos);
-                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
-                        return {true, t, steps, color};
+                        vec normal = sphere_normal(s, p_world);
+                        return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                     }
                 }
             }
 
             // planes
             for (int k = 0; k < scene.num_planes; k++) {
-                float distance = plane_distance(scene.planes[k], pos);
+                float distance = plane_distance(scene.planes[k], p_world);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -388,35 +602,36 @@ namespace impl::vec3 {
                     INS_MUL;
                     if (min_distance <= EPS * t) {
                         plane s = scene.planes[k];
-                        vec normal = plane_normal(s, pos);
-                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
-                        return {true, t, steps, color};
+                        vec normal = plane_normal(s, p_world);
+                        return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                     }
                 }
             }
 
             // boxes
             for (k = 0; k < scene.num_boxes - 7; k += 8) {
-                float dists[8];
+                vec256 p_obj =
+                    trace_ray_vectorized(k, boxes_o_x, boxes_o_y, boxes_o_z, boxes_d_x, boxes_d_y, boxes_d_z, t);
+                __m256 dists;
 
-                int not_terminate_early =
-                    box_distance_short_vectorized(k, dists, scene.box_vecs.bottom_left_x, scene.box_vecs.bottom_left_y,
-                        scene.box_vecs.bottom_left_z, scene.box_vecs.extents_x, scene.box_vecs.extents_y,
-                        scene.box_vecs.extents_z, scene.box_vecs.r, scene.box_vecs.inv_rot, pos, min_distance);
+                int not_terminate_early = box_distance_short_vectorized(k, &dists, scene.box_vecs.extents_x,
+                    scene.box_vecs.extents_y, scene.box_vecs.extents_z, scene.box_vecs.r, p_obj, min_distance);
 
                 if (not_terminate_early) {
-                    for (int i = 0; i < 8; i++) {
-                        INS_CMP;
-                        if (dists[i] < min_distance) {
-                            min_distance = dists[i];
+                    float dist = min_vectorized(dists);
 
+                    INS_CMP;
+                    INS_MUL;
+                    if (dist > EPS * t) {
+                        min_distance = dist;
+                    } else {
+                        _mm256_store_ps(dists_tmp, dists);
+                        for (int i = 0; i < 8; i++) {
                             INS_CMP;
-                            INS_MUL;
-                            if (min_distance <= EPS * t) {
+                            if (dists_tmp[i] == dist) {
                                 box s = scene.boxes[k + i];
-                                vec normal = box_normal(s, pos);
-                                color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
-                                return {true, t, steps, color};
+                                vec normal = box_normal(s, vec256_get(p_obj, i));
+                                return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                             }
                         }
                     }
@@ -425,7 +640,8 @@ namespace impl::vec3 {
 
             // remaining box iterations
             for (; k < scene.num_boxes; k++) {
-                float distance = box_distance_short(scene.boxes[k], pos, min_distance);
+                vec p_obj = trace_ray(r_boxes[k], t);
+                float distance = box_distance_short(scene.boxes[k], p_obj, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -435,34 +651,35 @@ namespace impl::vec3 {
                     INS_MUL;
                     if (min_distance <= EPS * t) {
                         box s = scene.boxes[k];
-                        vec normal = box_normal(s, pos);
-                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
-                        return {true, t, steps, color};
+                        vec normal = box_normal(s, p_obj);
+                        return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                     }
                 }
             }
 
             // tori
             for (k = 0; k < scene.num_tori - 7; k += 8) {
-                float dists[8];
+                vec256 p_obj = trace_ray_vectorized(k, tori_o_x, tori_o_y, tori_o_z, tori_d_x, tori_d_y, tori_d_z, t);
+                __m256 dists;
 
-                int not_terminate_early = torus_distance_short_vectorized(k, dists, scene.torus_vecs.center_x,
-                    scene.torus_vecs.center_y, scene.torus_vecs.center_z, scene.torus_vecs.r1, scene.torus_vecs.r2,
-                    scene.torus_vecs.r, scene.torus_vecs.inv_rot, pos, min_distance);
+                int not_terminate_early = torus_distance_short_vectorized(
+                    k, &dists, scene.torus_vecs.r1, scene.torus_vecs.r2, scene.torus_vecs.r, p_obj, min_distance);
 
                 if (not_terminate_early) {
-                    for (int i = 0; i < 8; i++) {
-                        INS_CMP;
-                        if (dists[i] < min_distance) {
-                            min_distance = dists[i];
+                    float dist = min_vectorized(dists);
 
+                    INS_CMP;
+                    INS_MUL;
+                    if (dist > EPS * t) {
+                        min_distance = dist;
+                    } else {
+                        _mm256_store_ps(dists_tmp, dists);
+                        for (int i = 0; i < 8; i++) {
                             INS_CMP;
-                            INS_MUL;
-                            if (min_distance <= EPS * t) {
+                            if (dists_tmp[i] == dist) {
                                 torus s = scene.tori[k + i];
-                                vec normal = torus_normal(s, pos);
-                                color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
-                                return {true, t, steps, color};
+                                vec normal = torus_normal(s, vec256_get(p_obj, i));
+                                return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                             }
                         }
                     }
@@ -471,7 +688,8 @@ namespace impl::vec3 {
 
             // remaining torus iterations
             for (; k < scene.num_tori; k++) {
-                float distance = torus_distance_short(scene.tori[k], pos, min_distance);
+                vec p_obj = trace_ray(r_tori[k], t);
+                float distance = torus_distance_short(scene.tori[k], p_obj, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -481,34 +699,37 @@ namespace impl::vec3 {
                     INS_MUL;
                     if (min_distance <= EPS * t) {
                         torus s = scene.tori[k];
-                        vec normal = torus_normal(s, pos);
-                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
-                        return {true, t, steps, color};
+                        vec normal = torus_normal(s, p_obj);
+                        return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                     }
                 }
             }
 
             // cones
             for (k = 0; k < scene.num_cones - 7; k += 8) {
-                float dists[8];
+                vec256 p_obj =
+                    trace_ray_vectorized(k, cones_o_x, cones_o_y, cones_o_z, cones_d_x, cones_d_y, cones_d_z, t);
+                __m256 dists;
 
-                int not_terminate_early = cone_distance_short_vectorized(k, dists, scene.cone_vecs.center_x,
-                    scene.cone_vecs.center_y, scene.cone_vecs.center_z, scene.cone_vecs.r1, scene.cone_vecs.r2,
-                    scene.cone_vecs.height, scene.cone_vecs.r, scene.cone_vecs.inv_rot, pos, min_distance);
+                int not_terminate_early =
+                    cone_distance_short_vectorized(k, &dists, scene.cone_vecs.r1, scene.cone_vecs.r2,
+                        scene.cone_vecs.height, scene.cone_vecs.r, scene.cone_vecs.k2d2inv, p_obj, min_distance);
 
                 if (not_terminate_early) {
-                    for (int i = 0; i < 8; i++) {
-                        INS_CMP;
-                        if (dists[i] < min_distance) {
-                            min_distance = dists[i];
+                    float dist = min_vectorized(dists);
 
+                    INS_CMP;
+                    INS_MUL;
+                    if (dist > EPS * t) {
+                        min_distance = dist;
+                    } else {
+                        _mm256_store_ps(dists_tmp, dists);
+                        for (int i = 0; i < 8; i++) {
                             INS_CMP;
-                            INS_MUL;
-                            if (min_distance <= EPS * t) {
+                            if (dists_tmp[i] == dist) {
                                 cone s = scene.cones[k + i];
-                                vec normal = cone_normal(s, pos);
-                                color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
-                                return {true, t, steps, color};
+                                vec normal = cone_normal(s, vec256_get(p_obj, i));
+                                return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                             }
                         }
                     }
@@ -517,7 +738,8 @@ namespace impl::vec3 {
 
             // remaining cone iterations
             for (; k < scene.num_cones; k++) {
-                float distance = cone_distance_short(scene.cones[k], pos, min_distance);
+                vec p_obj = trace_ray(r_cones[k], t);
+                float distance = cone_distance_short(scene.cones[k], p_obj, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -527,34 +749,36 @@ namespace impl::vec3 {
                     INS_MUL;
                     if (min_distance <= EPS * t) {
                         cone s = scene.cones[k];
-                        vec normal = cone_normal(s, pos);
-                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
-                        return {true, t, steps, color};
+                        vec normal = cone_normal(s, p_obj);
+                        return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                     }
                 }
             }
 
             // octahedra
             for (k = 0; k < scene.num_octahedra - 7; k += 8) {
-                float dists[8];
+                vec256 p_obj = trace_ray_vectorized(
+                    k, octahedra_o_x, octahedra_o_y, octahedra_o_z, octahedra_d_x, octahedra_d_y, octahedra_d_z, t);
+                __m256 dists;
 
                 int not_terminate_early =
-                    octahedron_distance_short_vectorized(k, dists, scene.octa_vecs.center_x, scene.octa_vecs.center_y,
-                        scene.octa_vecs.center_z, scene.octa_vecs.s, scene.octa_vecs.inv_rot, pos, min_distance);
+                    octahedron_distance_short_vectorized(k, &dists, scene.octa_vecs.s, p_obj, min_distance);
 
                 if (not_terminate_early) {
-                    for (int i = 0; i < 8; i++) {
-                        INS_CMP;
-                        if (dists[i] < min_distance) {
-                            min_distance = dists[i];
+                    float dist = min_vectorized(dists);
 
+                    INS_CMP;
+                    INS_MUL;
+                    if (dist > EPS * t) {
+                        min_distance = dist;
+                    } else {
+                        _mm256_store_ps(dists_tmp, dists);
+                        for (int i = 0; i < 8; i++) {
                             INS_CMP;
-                            INS_MUL;
-                            if (min_distance <= EPS * t) {
+                            if (dists_tmp[i] == dist) {
                                 octa s = scene.octahedra[k + i];
-                                vec normal = octahedron_normal(s, pos);
-                                color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
-                                return {true, t, steps, color};
+                                vec normal = octahedron_normal(s, vec256_get(p_obj, i));
+                                return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                             }
                         }
                     }
@@ -563,7 +787,8 @@ namespace impl::vec3 {
 
             // remaining octahedron iterations
             for (; k < scene.num_octahedra; k++) {
-                float distance = octahedron_distance_short(scene.octahedra[k], pos, min_distance);
+                vec p_obj = trace_ray(r_octahedra[k], t);
+                float distance = octahedron_distance_short(scene.octahedra[k], p_obj, min_distance);
 
                 INS_CMP;
                 if (distance < min_distance) {
@@ -573,40 +798,149 @@ namespace impl::vec3 {
                     INS_MUL;
                     if (min_distance <= EPS * t) {
                         octa s = scene.octahedra[k];
-                        vec normal = octahedron_normal(s, pos);
-                        color = shade(normal, s.shininess, s.reflection, s.color, pos, dir, t);
-                        return {true, t, steps, color};
+                        vec normal = octahedron_normal(s, p_obj);
+                        return shade(normal, s.shininess, s.reflection, s.color, p_world, d, t);
                     }
                 }
             }
 
             t = FADD(t, min_distance);
-            steps++;
         }
 
-        return hit{false, t, steps, {0, 0, 0}};
+        return {0, 0, 0};
     }
 
     void render_init(std::string input) {
-        // convert scene from reference format to custom format
-        // std::cout << "Reference scene already loaded (" << input << "), converting to required format" << std::endl;
-        // from_ref_scene();
-
-        // alternatively, we can just read the scene again from the json file
-        std::cout << "Loading scene again" << std::endl;
         load_scene(input);
     }
 
     void render(int width, int height, float* pixels) {
-        m44 camera_matrix = get_transf_matrix(scene.cam.pos, scene.cam.rotation);
+        m33 camera_rotation = get_rot_matrix_33(scene.cam.rotation);
         INS_DIV;
         INS_DIV;
         INS_MUL;
         INS_TAN;
         float fov_factor = tanf(TO_RAD(scene.cam.fov / 2));
 
+        r_boxes = (struct Ray*)malloc(sizeof(Ray) * scene.num_boxes);
+        r_tori = (struct Ray*)malloc(sizeof(Ray) * scene.num_tori);
+        r_cones = (struct Ray*)malloc(sizeof(Ray) * scene.num_cones);
+        r_octahedra = (struct Ray*)malloc(sizeof(Ray) * scene.num_octahedra);
+
+        r_boxes_shade = (struct Ray*)malloc(sizeof(Ray) * scene.num_boxes);
+        r_tori_shade = (struct Ray*)malloc(sizeof(Ray) * scene.num_tori);
+        r_cones_shade = (struct Ray*)malloc(sizeof(Ray) * scene.num_cones);
+        r_octahedra_shade = (struct Ray*)malloc(sizeof(Ray) * scene.num_octahedra);
+
+        boxes_o_x = (float*)aligned_alloc_wrapper(32, 4 * scene.num_boxes);
+        boxes_o_y = (float*)aligned_alloc_wrapper(32, 4 * scene.num_boxes);
+        boxes_o_z = (float*)aligned_alloc_wrapper(32, 4 * scene.num_boxes);
+
+        boxes_d_x = (float*)aligned_alloc_wrapper(32, 4 * scene.num_boxes);
+        boxes_d_y = (float*)aligned_alloc_wrapper(32, 4 * scene.num_boxes);
+        boxes_d_z = (float*)aligned_alloc_wrapper(32, 4 * scene.num_boxes);
+
+        boxes_o_shade_x = (float*)aligned_alloc_wrapper(32, 4 * scene.num_boxes);
+        boxes_o_shade_y = (float*)aligned_alloc_wrapper(32, 4 * scene.num_boxes);
+        boxes_o_shade_z = (float*)aligned_alloc_wrapper(32, 4 * scene.num_boxes);
+
+        tori_o_x = (float*)aligned_alloc_wrapper(32, 4 * scene.num_tori);
+        tori_o_y = (float*)aligned_alloc_wrapper(32, 4 * scene.num_tori);
+        tori_o_z = (float*)aligned_alloc_wrapper(32, 4 * scene.num_tori);
+
+        tori_d_x = (float*)aligned_alloc_wrapper(32, 4 * scene.num_tori);
+        tori_d_y = (float*)aligned_alloc_wrapper(32, 4 * scene.num_tori);
+        tori_d_z = (float*)aligned_alloc_wrapper(32, 4 * scene.num_tori);
+
+        tori_o_shade_x = (float*)aligned_alloc_wrapper(32, 4 * scene.num_tori);
+        tori_o_shade_y = (float*)aligned_alloc_wrapper(32, 4 * scene.num_tori);
+        tori_o_shade_z = (float*)aligned_alloc_wrapper(32, 4 * scene.num_tori);
+
+        cones_o_x = (float*)aligned_alloc_wrapper(32, 4 * scene.num_cones);
+        cones_o_y = (float*)aligned_alloc_wrapper(32, 4 * scene.num_cones);
+        cones_o_z = (float*)aligned_alloc_wrapper(32, 4 * scene.num_cones);
+
+        cones_d_x = (float*)aligned_alloc_wrapper(32, 4 * scene.num_cones);
+        cones_d_y = (float*)aligned_alloc_wrapper(32, 4 * scene.num_cones);
+        cones_d_z = (float*)aligned_alloc_wrapper(32, 4 * scene.num_cones);
+
+        cones_o_shade_x = (float*)aligned_alloc_wrapper(32, 4 * scene.num_cones);
+        cones_o_shade_y = (float*)aligned_alloc_wrapper(32, 4 * scene.num_cones);
+        cones_o_shade_z = (float*)aligned_alloc_wrapper(32, 4 * scene.num_cones);
+
+        octahedra_o_x = (float*)aligned_alloc_wrapper(32, 4 * scene.num_octahedra);
+        octahedra_o_y = (float*)aligned_alloc_wrapper(32, 4 * scene.num_octahedra);
+        octahedra_o_z = (float*)aligned_alloc_wrapper(32, 4 * scene.num_octahedra);
+
+        octahedra_d_x = (float*)aligned_alloc_wrapper(32, 4 * scene.num_octahedra);
+        octahedra_d_y = (float*)aligned_alloc_wrapper(32, 4 * scene.num_octahedra);
+        octahedra_d_z = (float*)aligned_alloc_wrapper(32, 4 * scene.num_octahedra);
+
+        octahedra_o_shade_x = (float*)aligned_alloc_wrapper(32, 4 * scene.num_octahedra);
+        octahedra_o_shade_y = (float*)aligned_alloc_wrapper(32, 4 * scene.num_octahedra);
+        octahedra_o_shade_z = (float*)aligned_alloc_wrapper(32, 4 * scene.num_octahedra);
+
+        /* Precompute camera ray origin in object coordinates */
+        int k = 0;
+        for (; k < scene.num_boxes - 7; k += 8) {
+            vec256 pos = invtransform_point_vectorized(k, scene.box_vecs.inv_rot, scene.box_vecs.bottom_left_x,
+                scene.box_vecs.bottom_left_y, scene.box_vecs.bottom_left_z, scene.cam.pos);
+            _mm256_store_ps(boxes_o_x + k, pos.x);
+            _mm256_store_ps(boxes_o_y + k, pos.y);
+            _mm256_store_ps(boxes_o_z + k, pos.z);
+        }
+
+        for (; k < scene.num_boxes; k++) {
+            r_boxes[k].o = invtransform_point(scene.boxes[k].inv_rot, scene.boxes[k].bottom_left, scene.cam.pos);
+        }
+
+        k = 0;
+        for (; k < scene.num_tori - 7; k += 8) {
+            vec256 pos = invtransform_point_vectorized(k, scene.torus_vecs.inv_rot, scene.torus_vecs.center_x,
+                scene.torus_vecs.center_y, scene.torus_vecs.center_z, scene.cam.pos);
+            _mm256_store_ps(tori_o_x + k, pos.x);
+            _mm256_store_ps(tori_o_y + k, pos.y);
+            _mm256_store_ps(tori_o_z + k, pos.z);
+        }
+
+        for (; k < scene.num_tori; k++) {
+            r_tori[k].o = invtransform_point(scene.tori[k].inv_rot, scene.tori[k].center, scene.cam.pos);
+        }
+
+        k = 0;
+        for (; k < scene.num_cones - 7; k += 8) {
+            vec256 pos = invtransform_point_vectorized(k, scene.cone_vecs.inv_rot, scene.cone_vecs.center_x,
+                scene.cone_vecs.center_y, scene.cone_vecs.center_z, scene.cam.pos);
+            _mm256_store_ps(cones_o_x + k, pos.x);
+            _mm256_store_ps(cones_o_y + k, pos.y);
+            _mm256_store_ps(cones_o_z + k, pos.z);
+        }
+        for (; k < scene.num_cones; k++) {
+            r_cones[k].o = invtransform_point(scene.cones[k].inv_rot, scene.cones[k].center, scene.cam.pos);
+        }
+
+        k = 0;
+        for (; k < scene.num_octahedra - 7; k += 8) {
+            vec256 pos = invtransform_point_vectorized(k, scene.octa_vecs.inv_rot, scene.octa_vecs.center_x,
+                scene.octa_vecs.center_y, scene.octa_vecs.center_z, scene.cam.pos);
+            _mm256_store_ps(octahedra_o_x + k, pos.x);
+            _mm256_store_ps(octahedra_o_y + k, pos.y);
+            _mm256_store_ps(octahedra_o_z + k, pos.z);
+        }
+
+        for (; k < scene.num_octahedra; k++) {
+            r_octahedra[k].o = invtransform_point(scene.octahedra[k].inv_rot, scene.octahedra[k].center, scene.cam.pos);
+        }
+
+        float fwidth = width;
+        float fheight = height;
+
         INS_DIV;
-        float aspect_ratio = static_cast<float>(width) / height;
+        float aspect_ratio = fwidth / fheight;
+
+        INS_MUL;
+        float fov_aspect = aspect_ratio * fov_factor;
+
         for (int py = 0; py < height; py++) {
             for (int px = 0; px < width; px++) {
                 /*
@@ -616,27 +950,29 @@ namespace impl::vec3 {
                  * image plane is one unit away from the camera (z = -1 in this
                  * case).
                  */
-                INS_INC1(add, 4);
-                INS_INC1(mul, 5);
+                INS_INC1(add, 2);
+                INS_INC1(mul, 2);
                 INS_INC1(div, 2);
-                float x = (2 * (px + 0.5) / width - 1) * aspect_ratio * fov_factor;
-                float y = (1 - 2 * (py + 0.5) / height) * fov_factor;
+
+                /*
+                 * 2 * (px + 0.5) == 2 * px + 1
+                 *
+                 * Now we only use integer operations
+                 */
+                float px_1 = static_cast<float>(2 * px + 1);
+                float py_1 = static_cast<float>(2 * py + 1);
+
+                float x = (px_1 / fwidth - 1) * fov_aspect;
+                float y = (1 - py_1 / fheight) * fov_factor;
                 float z = 1;
 
                 // Direction in camera space.
-                vec dir = vec_normalize({x, y, z});
+                vec d = m33_mul_vec(camera_rotation, vec_normalize({x, y, z}));
 
-                vec4 world_dir = m44_mul_vec(camera_matrix, vec4_from_dir(dir));
+                vec color = sphere_trace(d);
 
-                auto h = sphere_trace(scene.cam.pos, vec4_to_vec(world_dir));
-
-                vec color = h.is_hit ? h.color : vec{0, 0, 0};
-
-                pixels[3 * (width * py + px)] = color.x;
-                pixels[3 * (width * py + px) + 1] = color.y;
-                pixels[3 * (width * py + px) + 2] = color.z;
+                memcpy(pixels + (3 * (width * py + px)), &color, 12);
             }
         }
     }
-
 } // namespace impl::vec3

@@ -59,11 +59,4 @@ namespace impl::opt5 {
 
         return m_t;
     }
-
-    /**
-     * Creates a object-space to world-space transformation matrix
-     *
-     * pos is the origin of the object space and the direction of the axis is given
-     * as rotation along the three axis in degrees.
-     */
 } // namespace impl::opt5
