@@ -270,6 +270,121 @@ namespace impl::vec4 {
         return aligned_alloc(alignment, rounded);
     }
 
+    static sphere load_null_sphere() {
+        return make_sphere({INFINITY, INFINITY, INFINITY}, 0, {0, 0, 0}, 0, 0);
+    }
+
+    static box load_null_box() {
+        return make_box({INFINITY, INFINITY, INFINITY}, {0, 0, 0}, {0, 0, 0}, 0, 0, identity_33, identity_33);
+    }
+
+    static torus load_null_torus() {
+        return make_torus({INFINITY, INFINITY, INFINITY}, 0, 0, {0, 0, 0}, 0, 0, identity_33, identity_33);
+    }
+
+    static cone load_null_cone() {
+        return make_cone({INFINITY, INFINITY, INFINITY}, 0, 0, 0, {0, 0, 0}, 0, 0, identity_33, identity_33);
+    }
+
+    static octa load_null_octa() {
+        return make_octahedron({INFINITY, INFINITY, INFINITY}, 0, {0, 0, 0}, 0, 0, identity_33, identity_33);
+    }
+
+    static void load_sphere_vectorized(int sphere_idx) {
+        scene.sphere_vecs.center_x[sphere_idx] = scene.spheres[sphere_idx].center.x;
+        scene.sphere_vecs.center_y[sphere_idx] = scene.spheres[sphere_idx].center.y;
+        scene.sphere_vecs.center_z[sphere_idx] = scene.spheres[sphere_idx].center.z;
+        scene.sphere_vecs.radius[sphere_idx] = scene.spheres[sphere_idx].radius;
+    }
+
+    static void load_box_vectorized(int box_idx) {
+        scene.box_vecs.bottom_left_x[box_idx] = scene.boxes[box_idx].bottom_left.x;
+        scene.box_vecs.bottom_left_y[box_idx] = scene.boxes[box_idx].bottom_left.y;
+        scene.box_vecs.bottom_left_z[box_idx] = scene.boxes[box_idx].bottom_left.z;
+
+        scene.box_vecs.extents_x[box_idx] = scene.boxes[box_idx].extents.x;
+        scene.box_vecs.extents_y[box_idx] = scene.boxes[box_idx].extents.y;
+        scene.box_vecs.extents_z[box_idx] = scene.boxes[box_idx].extents.z;
+        scene.box_vecs.r[box_idx] = scene.boxes[box_idx].r;
+
+        scene.box_vecs.inv_rot[0][0][box_idx] = scene.boxes[box_idx].inv_rot.val[0][0];
+        scene.box_vecs.inv_rot[0][1][box_idx] = scene.boxes[box_idx].inv_rot.val[0][1];
+        scene.box_vecs.inv_rot[0][2][box_idx] = scene.boxes[box_idx].inv_rot.val[0][2];
+        scene.box_vecs.inv_rot[1][0][box_idx] = scene.boxes[box_idx].inv_rot.val[1][0];
+        scene.box_vecs.inv_rot[1][1][box_idx] = scene.boxes[box_idx].inv_rot.val[1][1];
+        scene.box_vecs.inv_rot[1][2][box_idx] = scene.boxes[box_idx].inv_rot.val[1][2];
+        scene.box_vecs.inv_rot[2][0][box_idx] = scene.boxes[box_idx].inv_rot.val[2][0];
+        scene.box_vecs.inv_rot[2][1][box_idx] = scene.boxes[box_idx].inv_rot.val[2][1];
+        scene.box_vecs.inv_rot[2][2][box_idx] = scene.boxes[box_idx].inv_rot.val[2][2];
+    }
+
+    static void load_torus_vectorized(int torus_idx) {
+        scene.torus_vecs.center_x[torus_idx] = scene.tori[torus_idx].center.x;
+        scene.torus_vecs.center_y[torus_idx] = scene.tori[torus_idx].center.y;
+        scene.torus_vecs.center_z[torus_idx] = scene.tori[torus_idx].center.z;
+        scene.torus_vecs.r1[torus_idx] = scene.tori[torus_idx].r1;
+        scene.torus_vecs.r2[torus_idx] = scene.tori[torus_idx].r2;
+        scene.torus_vecs.r[torus_idx] = scene.tori[torus_idx].r;
+
+        scene.torus_vecs.inv_rot[0][0][torus_idx] = scene.tori[torus_idx].inv_rot.val[0][0];
+        scene.torus_vecs.inv_rot[0][1][torus_idx] = scene.tori[torus_idx].inv_rot.val[0][1];
+        scene.torus_vecs.inv_rot[0][2][torus_idx] = scene.tori[torus_idx].inv_rot.val[0][2];
+        scene.torus_vecs.inv_rot[1][0][torus_idx] = scene.tori[torus_idx].inv_rot.val[1][0];
+        scene.torus_vecs.inv_rot[1][1][torus_idx] = scene.tori[torus_idx].inv_rot.val[1][1];
+        scene.torus_vecs.inv_rot[1][2][torus_idx] = scene.tori[torus_idx].inv_rot.val[1][2];
+        scene.torus_vecs.inv_rot[2][0][torus_idx] = scene.tori[torus_idx].inv_rot.val[2][0];
+        scene.torus_vecs.inv_rot[2][1][torus_idx] = scene.tori[torus_idx].inv_rot.val[2][1];
+        scene.torus_vecs.inv_rot[2][2][torus_idx] = scene.tori[torus_idx].inv_rot.val[2][2];
+    }
+
+    static void load_cone_vectorized(int cone_idx) {
+        scene.cone_vecs.center_x[cone_idx] = scene.cones[cone_idx].center.x;
+        scene.cone_vecs.center_y[cone_idx] = scene.cones[cone_idx].center.y;
+        scene.cone_vecs.center_z[cone_idx] = scene.cones[cone_idx].center.z;
+        scene.cone_vecs.r1[cone_idx] = scene.cones[cone_idx].r1;
+        scene.cone_vecs.r2[cone_idx] = scene.cones[cone_idx].r2;
+        scene.cone_vecs.height[cone_idx] = scene.cones[cone_idx].height;
+        scene.cone_vecs.r[cone_idx] = scene.cones[cone_idx].r;
+        scene.cone_vecs.k2d2inv[cone_idx] = scene.cones[cone_idx].k2d2inv;
+        scene.cone_vecs.inv_rot[0][0][cone_idx] = scene.cones[cone_idx].inv_rot.val[0][0];
+        scene.cone_vecs.inv_rot[0][1][cone_idx] = scene.cones[cone_idx].inv_rot.val[0][1];
+        scene.cone_vecs.inv_rot[0][2][cone_idx] = scene.cones[cone_idx].inv_rot.val[0][2];
+        scene.cone_vecs.inv_rot[1][0][cone_idx] = scene.cones[cone_idx].inv_rot.val[1][0];
+        scene.cone_vecs.inv_rot[1][1][cone_idx] = scene.cones[cone_idx].inv_rot.val[1][1];
+        scene.cone_vecs.inv_rot[1][2][cone_idx] = scene.cones[cone_idx].inv_rot.val[1][2];
+        scene.cone_vecs.inv_rot[2][0][cone_idx] = scene.cones[cone_idx].inv_rot.val[2][0];
+        scene.cone_vecs.inv_rot[2][1][cone_idx] = scene.cones[cone_idx].inv_rot.val[2][1];
+        scene.cone_vecs.inv_rot[2][2][cone_idx] = scene.cones[cone_idx].inv_rot.val[2][2];
+    }
+
+    static void load_octa_vectorized(int octa_idx) {
+        scene.octa_vecs.center_x[octa_idx] = scene.octahedra[octa_idx].center.x;
+        scene.octa_vecs.center_y[octa_idx] = scene.octahedra[octa_idx].center.y;
+        scene.octa_vecs.center_z[octa_idx] = scene.octahedra[octa_idx].center.z;
+        scene.octa_vecs.s[octa_idx] = scene.octahedra[octa_idx].s;
+
+        scene.octa_vecs.inv_rot[0][0][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[0][0];
+        scene.octa_vecs.inv_rot[0][1][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[0][1];
+        scene.octa_vecs.inv_rot[0][2][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[0][2];
+        scene.octa_vecs.inv_rot[1][0][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[1][0];
+        scene.octa_vecs.inv_rot[1][1][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[1][1];
+        scene.octa_vecs.inv_rot[1][2][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[1][2];
+        scene.octa_vecs.inv_rot[2][0][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[2][0];
+        scene.octa_vecs.inv_rot[2][1][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[2][1];
+        scene.octa_vecs.inv_rot[2][2][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[2][2];
+    }
+
+    /**
+     * Pad the number of shapes to a multiple of 8 if 8 % num is above a certain threshold
+     */
+    static void pad_shapes(int *num, int threshold) {
+        int remain = *num % 8;
+
+        if (remain > threshold) {
+            *num += (8 - remain);
+        }
+    }
+
     static void load_shapes(json& j) {
         int num_shapes = j["objects"].size();
 
@@ -300,6 +415,36 @@ namespace impl::vec4 {
                 throw std::runtime_error("Unknown shape " + current);
             }
         }
+
+#ifndef SPHERE_THRESH
+#define SPHERE_THRESH 2
+#endif
+
+
+#ifndef BOX_THRESH
+#define BOX_THRESH 2
+#endif
+
+
+#ifndef TORUS_THRESH
+#define TORUS_THRESH 2
+#endif
+
+
+#ifndef CONE_THRESH
+#define CONE_THRESH 2
+#endif
+
+
+#ifndef OCTA_THRESH
+#define OCTA_THRESH 2
+#endif
+
+        pad_shapes(&scene.num_spheres, SPHERE_THRESH);
+        pad_shapes(&scene.num_boxes, BOX_THRESH);
+        pad_shapes(&scene.num_tori, TORUS_THRESH);
+        pad_shapes(&scene.num_cones, CONE_THRESH);
+        pad_shapes(&scene.num_octahedra, OCTA_THRESH);
 
         // allocate memory for the shape arrays
         scene.spheres = (sphere*)malloc(sizeof(sphere) * scene.num_spheres);
@@ -403,11 +548,7 @@ namespace impl::vec4 {
                 scene.spheres[sphere_idx] = load_sphere(current_shape);
 
                 // vectorized data layout
-                scene.sphere_vecs.center_x[sphere_idx] = scene.spheres[sphere_idx].center.x;
-                scene.sphere_vecs.center_y[sphere_idx] = scene.spheres[sphere_idx].center.y;
-                scene.sphere_vecs.center_z[sphere_idx] = scene.spheres[sphere_idx].center.z;
-                scene.sphere_vecs.radius[sphere_idx] = scene.spheres[sphere_idx].radius;
-
+                load_sphere_vectorized(sphere_idx);
                 sphere_idx++;
 
             } else if (current == "plane") {
@@ -416,97 +557,67 @@ namespace impl::vec4 {
                 scene.boxes[box_idx] = load_box(current_shape);
 
                 // vectorized data layout
-                scene.box_vecs.bottom_left_x[box_idx] = scene.boxes[box_idx].bottom_left.x;
-                scene.box_vecs.bottom_left_y[box_idx] = scene.boxes[box_idx].bottom_left.y;
-                scene.box_vecs.bottom_left_z[box_idx] = scene.boxes[box_idx].bottom_left.z;
-
-                scene.box_vecs.extents_x[box_idx] = scene.boxes[box_idx].extents.x;
-                scene.box_vecs.extents_y[box_idx] = scene.boxes[box_idx].extents.y;
-                scene.box_vecs.extents_z[box_idx] = scene.boxes[box_idx].extents.z;
-                scene.box_vecs.r[box_idx] = scene.boxes[box_idx].r;
-
-                scene.box_vecs.inv_rot[0][0][box_idx] = scene.boxes[box_idx].inv_rot.val[0][0];
-                scene.box_vecs.inv_rot[0][1][box_idx] = scene.boxes[box_idx].inv_rot.val[0][1];
-                scene.box_vecs.inv_rot[0][2][box_idx] = scene.boxes[box_idx].inv_rot.val[0][2];
-                scene.box_vecs.inv_rot[1][0][box_idx] = scene.boxes[box_idx].inv_rot.val[1][0];
-                scene.box_vecs.inv_rot[1][1][box_idx] = scene.boxes[box_idx].inv_rot.val[1][1];
-                scene.box_vecs.inv_rot[1][2][box_idx] = scene.boxes[box_idx].inv_rot.val[1][2];
-                scene.box_vecs.inv_rot[2][0][box_idx] = scene.boxes[box_idx].inv_rot.val[2][0];
-                scene.box_vecs.inv_rot[2][1][box_idx] = scene.boxes[box_idx].inv_rot.val[2][1];
-                scene.box_vecs.inv_rot[2][2][box_idx] = scene.boxes[box_idx].inv_rot.val[2][2];
-
+                load_box_vectorized(box_idx);
                 box_idx++;
 
             } else if (current == "torus") {
                 scene.tori[torus_idx] = load_torus(current_shape);
 
                 // vectorized data layout
-                scene.torus_vecs.center_x[torus_idx] = scene.tori[torus_idx].center.x;
-                scene.torus_vecs.center_y[torus_idx] = scene.tori[torus_idx].center.y;
-                scene.torus_vecs.center_z[torus_idx] = scene.tori[torus_idx].center.z;
-                scene.torus_vecs.r1[torus_idx] = scene.tori[torus_idx].r1;
-                scene.torus_vecs.r2[torus_idx] = scene.tori[torus_idx].r2;
-                scene.torus_vecs.r[torus_idx] = scene.tori[torus_idx].r;
-
-                scene.torus_vecs.inv_rot[0][0][torus_idx] = scene.tori[torus_idx].inv_rot.val[0][0];
-                scene.torus_vecs.inv_rot[0][1][torus_idx] = scene.tori[torus_idx].inv_rot.val[0][1];
-                scene.torus_vecs.inv_rot[0][2][torus_idx] = scene.tori[torus_idx].inv_rot.val[0][2];
-                scene.torus_vecs.inv_rot[1][0][torus_idx] = scene.tori[torus_idx].inv_rot.val[1][0];
-                scene.torus_vecs.inv_rot[1][1][torus_idx] = scene.tori[torus_idx].inv_rot.val[1][1];
-                scene.torus_vecs.inv_rot[1][2][torus_idx] = scene.tori[torus_idx].inv_rot.val[1][2];
-                scene.torus_vecs.inv_rot[2][0][torus_idx] = scene.tori[torus_idx].inv_rot.val[2][0];
-                scene.torus_vecs.inv_rot[2][1][torus_idx] = scene.tori[torus_idx].inv_rot.val[2][1];
-                scene.torus_vecs.inv_rot[2][2][torus_idx] = scene.tori[torus_idx].inv_rot.val[2][2];
-
+                load_torus_vectorized(torus_idx);
                 torus_idx++;
 
             } else if (current == "cone") {
                 scene.cones[cone_idx] = load_cone(current_shape);
 
                 // vectorized data layout
-                scene.cone_vecs.center_x[cone_idx] = scene.cones[cone_idx].center.x;
-                scene.cone_vecs.center_y[cone_idx] = scene.cones[cone_idx].center.y;
-                scene.cone_vecs.center_z[cone_idx] = scene.cones[cone_idx].center.z;
-                scene.cone_vecs.r1[cone_idx] = scene.cones[cone_idx].r1;
-                scene.cone_vecs.r2[cone_idx] = scene.cones[cone_idx].r2;
-                scene.cone_vecs.height[cone_idx] = scene.cones[cone_idx].height;
-                scene.cone_vecs.r[cone_idx] = scene.cones[cone_idx].r;
-                scene.cone_vecs.k2d2inv[cone_idx] = scene.cones[cone_idx].k2d2inv;
-                scene.cone_vecs.inv_rot[0][0][cone_idx] = scene.cones[cone_idx].inv_rot.val[0][0];
-                scene.cone_vecs.inv_rot[0][1][cone_idx] = scene.cones[cone_idx].inv_rot.val[0][1];
-                scene.cone_vecs.inv_rot[0][2][cone_idx] = scene.cones[cone_idx].inv_rot.val[0][2];
-                scene.cone_vecs.inv_rot[1][0][cone_idx] = scene.cones[cone_idx].inv_rot.val[1][0];
-                scene.cone_vecs.inv_rot[1][1][cone_idx] = scene.cones[cone_idx].inv_rot.val[1][1];
-                scene.cone_vecs.inv_rot[1][2][cone_idx] = scene.cones[cone_idx].inv_rot.val[1][2];
-                scene.cone_vecs.inv_rot[2][0][cone_idx] = scene.cones[cone_idx].inv_rot.val[2][0];
-                scene.cone_vecs.inv_rot[2][1][cone_idx] = scene.cones[cone_idx].inv_rot.val[2][1];
-                scene.cone_vecs.inv_rot[2][2][cone_idx] = scene.cones[cone_idx].inv_rot.val[2][2];
-
+                load_cone_vectorized(cone_idx);
                 cone_idx++;
 
             } else if (current == "octahedron") {
                 scene.octahedra[octa_idx] = load_octa(current_shape);
 
                 // vectorized data layout
-                scene.octa_vecs.center_x[octa_idx] = scene.octahedra[octa_idx].center.x;
-                scene.octa_vecs.center_y[octa_idx] = scene.octahedra[octa_idx].center.y;
-                scene.octa_vecs.center_z[octa_idx] = scene.octahedra[octa_idx].center.z;
-                scene.octa_vecs.s[octa_idx] = scene.octahedra[octa_idx].s;
-
-                scene.octa_vecs.inv_rot[0][0][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[0][0];
-                scene.octa_vecs.inv_rot[0][1][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[0][1];
-                scene.octa_vecs.inv_rot[0][2][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[0][2];
-                scene.octa_vecs.inv_rot[1][0][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[1][0];
-                scene.octa_vecs.inv_rot[1][1][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[1][1];
-                scene.octa_vecs.inv_rot[1][2][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[1][2];
-                scene.octa_vecs.inv_rot[2][0][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[2][0];
-                scene.octa_vecs.inv_rot[2][1][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[2][1];
-                scene.octa_vecs.inv_rot[2][2][octa_idx] = scene.octahedra[octa_idx].inv_rot.val[2][2];
-
+                load_octa_vectorized(octa_idx);
                 octa_idx++;
             } else {
                 throw std::runtime_error("Unknown shape " + current);
             }
+        }
+
+        for (; sphere_idx < scene.num_spheres; sphere_idx++) {
+            scene.spheres[sphere_idx] = load_null_sphere();
+
+            // vectorized data layout
+            load_sphere_vectorized(sphere_idx);
+        }
+
+        for (; box_idx < scene.num_boxes; box_idx++) {
+            scene.boxes[box_idx] = load_null_box();
+
+            // vectorized data layout
+            load_box_vectorized(box_idx);
+        }
+
+        for (; torus_idx < scene.num_tori; torus_idx++) {
+            scene.tori[torus_idx] = load_null_torus();
+
+            // vectorized data layout
+            load_torus_vectorized(torus_idx);
+        }
+
+        for (; cone_idx < scene.num_cones; cone_idx++) {
+            scene.cones[cone_idx] = load_null_cone();
+
+            // vectorized data layout
+            load_cone_vectorized(cone_idx);
+        }
+
+        for (; octa_idx < scene.num_octahedra; octa_idx++) {
+            scene.octahedra[octa_idx] = load_null_octa();
+
+            // vectorized data layout
+            load_octa_vectorized(octa_idx);
         }
     }
 
