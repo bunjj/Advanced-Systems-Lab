@@ -334,7 +334,7 @@ namespace impl::vec3 {
 
         // vec max_q_0 = vec_max(q, 0);
         __m256 zero = _mm256_setzero_ps();
-        INS_INC1(cmp, 24);
+        INS_INC1(max, 24);
         __m256 max_q_0_x = _mm256_max_ps(q_x, zero);
         __m256 max_q_0_y = _mm256_max_ps(q_y, zero);
         __m256 max_q_0_z = _mm256_max_ps(q_z, zero);
@@ -343,15 +343,15 @@ namespace impl::vec3 {
         __m256 left_square = vectorized_vec_dot(max_q_0_x, max_q_0_y, max_q_0_z, max_q_0_x, max_q_0_y, max_q_0_z);
 
         // float max_qx_qy = max(q.x, q.y);
-        INS_INC1(cmp, 8);
+        INS_INC1(max, 8);
         __m256 max_qx_qy = _mm256_max_ps(q_x, q_y);
 
         // float max_qx_qy_qz = max(max_qx_qy, q.z);
-        INS_INC1(cmp, 8);
+        INS_INC1(max, 8);
         __m256 max_qx_qy_qz = _mm256_max_ps(max_qx_qy, q_z);
 
         // float right = min(0.0f, max_qx_qy_qz);
-        INS_INC1(cmp, 8);
+        INS_INC1(max, 8);
         __m256 right = _mm256_min_ps(zero, max_qx_qy_qz);
 
         // short circuit termination mask
@@ -597,7 +597,7 @@ namespace impl::vec3 {
         __m256 r1_or_r2 = _mm256_blendv_ps(r2, r1, qy_lt_0_mask);
 
         // float min_qx_r1_or_r2 = min(q.x, r1_or_r2);
-        INS_INC1(cmp, 8);
+        INS_INC1(max, 8);
         __m256 min_qx_r1_or_r2 = _mm256_min_ps(xz_len, r1_or_r2);
 
         // float ca1 = q.x - min_qx_r1_or_r2;
@@ -646,7 +646,7 @@ namespace impl::vec3 {
 
         // float clamped = clamp(to_clamp, 0.0f, 1.0f);
         __m256 one = _mm256_set1_ps(1.f);
-        INS_INC1(cmp, 16);
+        INS_INC1(max, 16);
         __m256 clamped_upper = _mm256_min_ps(to_clamp, one);
         __m256 clamped = _mm256_max_ps(clamped_upper, zero);
 
@@ -680,7 +680,7 @@ namespace impl::vec3 {
         __m256 cb_dot2 = _mm256_fmadd_ps(cb2, cb2, cb1_square);
 
         // float min_square = min(ca_dot2, cb_dot2);
-        INS_INC1(cmp, 8);
+        INS_INC1(max, 8);
         __m256 min_square = _mm256_min_ps(ca_dot2, cb_dot2);
 
         // short circuit termination mask
@@ -863,10 +863,10 @@ namespace impl::vec3 {
         __m256 to_clamp = _mm256_mul_ps(pointfive, qz_minus_qy_plus_s);
 
         // float k = clamp(to_clamp, 0.0f, s);
-        INS_INC1(cmp, 8);
+        INS_INC1(max, 8);
         __m256 clamped_upper = _mm256_min_ps(to_clamp, s);
         __m256 zero = _mm256_setzero_ps();
-        INS_INC1(cmp, 8);
+        INS_INC1(max, 8);
         __m256 k = _mm256_max_ps(zero, clamped_upper);
 
         // vec dist_vec = {q.x, q.y - s + k, q.z - k};
