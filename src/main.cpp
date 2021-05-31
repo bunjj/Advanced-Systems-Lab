@@ -25,6 +25,7 @@
 #include "impl_vec1/impl.hpp"
 #include "impl_vec2/impl.hpp"
 #include "impl_vec3/impl.hpp"
+#include "impl_vec4/impl.hpp"
 
 flops_t flops_counter;
 
@@ -225,6 +226,9 @@ void set_render_fp(const std::string& impl) {
     } else if (impl == "vec3") {
         fun_render_init = &impl::vec3::render_init;
         fun_render = &impl::vec3::render;
+    } else if (impl == "vec4") {
+        fun_render_init = &impl::vec4::render_init;
+        fun_render = &impl::vec4::render;
     } else {
         throw std::runtime_error("Unknown implementation '" + impl + "'");
     }
