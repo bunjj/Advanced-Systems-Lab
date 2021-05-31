@@ -15,13 +15,55 @@ all_shapes_scene_creator = script_dir / ".." / \
     "benchmark" / "create_scene_all_shapes.py"
 
 # Fields to collect from the program output
-fields = ["Flops", "Cycles", "Microseconds"]
+fields = [
+    "Flops",
+    "Cycles",
+    "Microseconds",
+    "ADD",
+    "MUL",
+    "FMA",
+    "DIV",
+    "SQRT",
+    "ABS",
+    "CMP",
+    "MAX",
+    "POW",
+    "TAN",
+    "SPHERE",
+    "SPHERE_R",
+    "PLANE",
+    "BOX",
+    "BOX_R",
+    "TORUS",
+    "TORUS_R",
+    "CONE",
+    "CONE_R",
+    "OCTA",
+    "OCTA_R",
+    "SPHERE_N",
+    "PLANE_N",
+    "BOX_N",
+    "TORUS_N",
+    "CONE_N",
+    "OCTA_N"]
+
 
 datapoints = []
 
 shape_scenes = {}
 
-impls = ["ref", "opt0", "opt1", "opt3", "opt4", "opt5", "vec1", "vec2", "vec3", "vec4"]
+impls = [
+    "ref",
+    "opt0",
+    "opt1",
+    "opt3",
+    "opt4",
+    "opt5",
+    "vec1",
+    "vec2",
+    "vec3",
+    "vec4"]
+
 shapes = ["all", "box", "sphere", "cone", "torus", "octahedron"]
 bench_types = ["size"] + shapes
 # flags = [
@@ -101,6 +143,8 @@ def run_single(impl, scene, width, height, datapoint_base: dict):
     for line in p.stderr.decode().split('\n'):
         if ': ' in line:
             key, value = line.split(': ')
+            key = key.strip()
+            value = value.strip()
 
             if key in fields:
                 datapoint[key] = value
@@ -142,7 +186,8 @@ def run_with_flags(flag, do_instrument, datapoint_base: dict):
     build(flag, do_instrument)
     for impl in impls:
         for bench_type in bench_types:
-            print_header(f"Running benchmark type '{bench_type}' for implementation '{impl}' with flags '{flag}'")
+            print_header(
+                f"Running benchmark type '{bench_type}' for implementation '{impl}' with flags '{flag}'")
 
             datapoint_base2 = datapoint_base.copy()
             datapoint_base2.update({
@@ -155,8 +200,10 @@ def run_with_flags(flag, do_instrument, datapoint_base: dict):
             else:
                 run_shape_benchmark(impl, bench_type, datapoint_base2)
 
+
 def print_header(name):
     eprint(f"\033[32;1m{name}\033[0m")
+
 
 def main(temp_dir):
 
@@ -171,6 +218,7 @@ def main(temp_dir):
         run_with_flags(flag, False, {"has_flops": False})
 
     print(json.dumps(datapoints, indent=4))
+
 
 if __name__ == "__main__":
     try:

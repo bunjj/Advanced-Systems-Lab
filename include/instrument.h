@@ -84,7 +84,7 @@ static inline void ins_dump(const char* title) {
     fprintf(stderr, "PLANE_N  : %12" PRIu64 "\n", flops_counter.plane_n);
     fprintf(stderr, "BOX_N    : %12" PRIu64 "\n", flops_counter.box_n);
     fprintf(stderr, "TORUS_N  : %12" PRIu64 "\n", flops_counter.torus_n);
-    fprintf(stderr, "CONE _N  : %12" PRIu64 "\n", flops_counter.cone_n);
+    fprintf(stderr, "CONE_N   : %12" PRIu64 "\n", flops_counter.cone_n);
     fprintf(stderr, "OCTA_N   : %12" PRIu64 "\n", flops_counter.octa_n);
     fprintf(stderr, "=======================\n");
     fprintf(stderr, "TOTAL    : %12" PRIu64 "\n", ins_total());
