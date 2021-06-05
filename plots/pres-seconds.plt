@@ -38,8 +38,6 @@ array label_eval = [ \
     "set label '{/:Italic Vectorization}' at 260, 25 textcolor ls 5" \
 ]
 
-set style arrow 1 heads filled size 8,15
-
 array arrows = [ \
     "set arrow from first 370, first 165 to first 370, first 365 as 1 ls 14", \
     "set arrow from first 370, first 89 to first 370, first 151 as 1 ls 14", \

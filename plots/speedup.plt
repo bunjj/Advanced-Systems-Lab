@@ -1,33 +1,31 @@
-# gnuplot -c speedup.plt <bench_type> <y-index> <output-basename>
-set terminal pngcairo enhanced color
-bench_type = ARG1
-y_index = ARG2 + 0
-base_name = ARG3
-pdf_name = base_name.".png"
-
-set output pdf_name
+# gnuplot speedup.plt 
+set terminal pdf enhanced color size 4.14in,3.38in font ",12"
+set output "speedup.pdf"
 
 load "common.plt"
 array impls = ["ref", "opt1", "opt3", "opt5", "vec3"]
-
-datafile = "-".bench_type.".dat"
+array bench_types = ["size", "all", "box", "cone", "octahedron", "sphere", "torus"]
 
 set tmargin 2
 
-firstrow = system('head -1 '.impls[1].datafile)
-
-set table $reference
-plot impls[1].datafile using 3 with table
-unset table
 
 # set offsets 0, 0, graph 0.3, graph 0
 set key outside
 
-set xtics 100
+set label "[speedup]" at graph 0, graph 1.08
 
-set xlabel word(firstrow, 1)
-set label "[speedup]" at graph -0.065, graph 1.08
+do for [i=1:|bench_types|] {
+    datafile = "-".bench_types[i].".dat"
 
-plot for [i=2:|impls|] impls[i].datafile using 1:($reference[$0]/column(y_index)) with linespoints linestyle i title impls[i]
+    firstrow = system('head -1 '.impls[1].datafile)
+    set xlabel word(firstrow, 1)
+
+    set table $reference
+    plot impls[1].datafile using 3 with table
+    unset table
+
+
+    plot for [j=2:|impls|] impls[j].datafile using 1:($reference[$0]/column(3)) with linespoints linestyle j title impls[j]
+}
 
 # vim:set ft=gnuplot:
