@@ -8,7 +8,7 @@ pdf_name = base_name.".png"
 set output pdf_name
 
 load "common.plt"
-array impls = ["ref", "opt1", "opt3", "opt5", "vec2", "vec3"]
+array impls = ["ref", "opt1", "opt3", "opt5", "vec3"]
 
 datafile = "-".bench_type.".dat"
 
