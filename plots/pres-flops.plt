@@ -27,7 +27,7 @@ set xtics 100
 # set yrange [8:512]
 # set ytics 2
 
-# set xlabel word(firstrow, 1)
+set xlabel word(firstrow, 1)
 set label "[".y_label."]" at graph -0.075, graph 1.08
 
 array label_eval = [ \
