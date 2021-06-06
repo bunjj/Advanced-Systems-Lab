@@ -811,6 +811,12 @@ namespace impl::vec3 {
     }
 
     void render_init(std::string input) {
+        size_t total = 0;
+
+        total += sizeof(sphere) + sizeof(plane) + sizeof(box) + sizeof(torus) + sizeof(cone) + sizeof(octa);
+        total += (sizeof(sphere_vectors) + sizeof(box_vectors) + sizeof(torus_vectors) + sizeof(cone_vectors) + sizeof(octa)) / 2;
+
+        std::cout << "TOTAL: " << total << std::endl;
         load_scene(input);
     }
 

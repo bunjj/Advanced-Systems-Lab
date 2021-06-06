@@ -100,6 +100,7 @@ def gen_data_file(path : Path, filtered, bench_type):
         seconds = float(dp["Microseconds"]) / 1e6
         cycles = float(dp["Cycles"])
 
+        print(f"{dp['flags']} == {flag}")
         assert(dp["flags"] == flag)
 
         lines[-1].extend([str(seconds), str(cycles), str(flop / cycles)])
