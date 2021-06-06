@@ -10,7 +10,7 @@ set tmargin 2
 
 
 # set offsets 0, 0, graph 0.3, graph 0
-set key outside
+set key left
 
 set label "[speedup]" at graph 0, graph 1.08
 
