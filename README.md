@@ -58,7 +58,7 @@ image file should be written (any existing file will be overwritten). If the
 argument is not specified, no image will be written.  The last optional argument
 is the path to the reference ppm image (used for output validation).
 
-##Create Benchmark scenes
+## Create Benchmark scenes
 Running the Python scripts will create benchmark scenes with random objects.
 create_scene.py creates n scenes of type shape
 
