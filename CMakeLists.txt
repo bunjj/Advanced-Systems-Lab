@@ -32,6 +32,10 @@ set(files
     src/impl_opt1/geometry.cpp
     src/impl_opt1/scene.cpp
 
+    src/impl_opt2/impl.cpp
+    src/impl_opt2/geometry.cpp
+    src/impl_opt2/scene.cpp
+
     src/impl_opt3/impl.cpp
     src/impl_opt3/geometry.cpp
     src/impl_opt3/scene.cpp
