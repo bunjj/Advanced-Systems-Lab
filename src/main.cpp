@@ -23,6 +23,7 @@
 #include "impl_opt3/impl.hpp"
 #include "impl_opt4/impl.hpp"
 #include "impl_opt5/impl.hpp"
+#include "impl_vec0/impl.hpp"
 #include "impl_vec1/impl.hpp"
 #include "impl_vec2/impl.hpp"
 #include "impl_vec3/impl.hpp"
@@ -221,6 +222,9 @@ void set_render_fp(const std::string& impl) {
     } else if (impl == "opt5") {
         fun_render_init = &impl::opt5::render_init;
         fun_render = &impl::opt5::render;
+    } else if (impl == "vec0") {
+        fun_render_init = &impl::vec0::render_init;
+        fun_render = &impl::vec0::render;
     } else if (impl == "vec1") {
         fun_render_init = &impl::vec1::render_init;
         fun_render = &impl::vec1::render;
