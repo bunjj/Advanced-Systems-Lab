@@ -44,6 +44,10 @@ set(files
     src/impl_opt5/geometry.cpp
     src/impl_opt5/scene.cpp
 
+    src/impl_vec0/impl.cpp
+    src/impl_vec0/geometry.cpp
+    src/impl_vec0/scene.cpp
+
     src/impl_vec1/impl.cpp
     src/impl_vec1/geometry.cpp
     src/impl_vec1/scene.cpp
