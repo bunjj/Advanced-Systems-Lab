@@ -102,7 +102,9 @@ def gen_shape_scenes(temp_dir):
             fname = f"{shape}-{num_shapes}.json"
             scene_path = temp_dir / fname
 
-            if shape == "all":
+            if scene_path.exists():
+                eprint(f"\033[34mReusing scene file {str(scene_path)}\033[0m")
+            elif shape == "all":
                 subprocess.run([str(all_shapes_scene_creator), str(
                     num_shapes // 5), str(scene_path)], check=True)
             else:
@@ -222,8 +224,17 @@ def main(temp_dir):
 
 if __name__ == "__main__":
     try:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            main(Path(temp_dir))
+        if len(sys.argv) == 2:
+            d = Path(sys.argv[1])
+            if not d.exists():
+                d.mkdir(parents = True)
+
+            assert(d.is_dir())
+
+            main(d)
+        else:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                main(Path(temp_dir))
     except subprocess.CalledProcessError as e:
         eprint(e.stdout.decode())
         eprint(f"\033[31;1m{e.stderr.decode()}\033[0m")
