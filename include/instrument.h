@@ -50,7 +50,7 @@ extern flops_t flops_counter;
 
 static inline uint64_t ins_total() {
     return flops_counter.add + flops_counter.mul + 2 * flops_counter.fma + flops_counter.div + flops_counter.sqrt +
-           flops_counter.abs + flops_counter.cmp + flops_counter.max + flops_counter.pow + flops_counter.tan;
+           flops_counter.abs + flops_counter.cmp + flops_counter.max + 30 * flops_counter.pow + 30 * flops_counter.tan;
 }
 
 static inline void ins_dump(const char* title) {
