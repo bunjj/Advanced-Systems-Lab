@@ -221,7 +221,7 @@ def print_header(name):
 
 
 def main(conf, temp_dir):
-
+    datapoints = []
     print_header("Generate Shape Scenes")
     gen_shape_scenes(conf, temp_dir)
 
