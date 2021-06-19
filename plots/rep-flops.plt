@@ -16,7 +16,6 @@ datafile = "-".bench_type.".dat"
 
 firstrow = system('head -1 '.impls[1].datafile)
 
-y_axis_pos = -0.01
 set label "{/=12:Bold Sphere Trace (single precision) on Skylake 2.60GHz}" at character 0.01, screen 0.95
 
 set xtics 100
