@@ -2,6 +2,7 @@
 
 import sys
 import json
+from itertools import groupby
 
 from pathlib import Path
 plot_dir = Path(__file__).parent / ".." / "plots"
@@ -21,6 +22,7 @@ def print_line(file, line, quotes=False):
     print("\t".join(line), file=file)
 
 impls = []
+compilers = []
 flags = []
 bench_types = []
 shapes = []
@@ -28,6 +30,7 @@ shapes = []
 
 def collect_categories(datapoints: list):
     global impls
+    global compilers
     global flags
     global bench_types
     global shapes
@@ -37,6 +40,7 @@ def collect_categories(datapoints: list):
 
         if not dp["has_flops"]:
             flags.append(dp["flags"])
+            compilers.append(dp["compiler"])
 
         bench_type = dp["type"]
 
@@ -46,12 +50,14 @@ def collect_categories(datapoints: list):
             shapes.append(bench_type)
 
     impls = sorted(list(set(impls)))
+    compilers = sorted(list(set(compilers)))
     flags = sorted(list(set(flags)))
     bench_types = sorted(list(set(bench_types)))
     shapes = sorted(list(set(shapes)))
 
     eprint(f"Loaded {len(datapoints)} datapoints")
     eprint(f"Loaded implementations: {', '.join(impls)}")
+    eprint(f"Loaded compilers: {', '.join(compilers)}")
     eprint(f"Loaded flags: {', '.join(flags)}")
     eprint(f"Loaded benchmark types: {', '.join(bench_types)}")
 
@@ -72,40 +78,45 @@ def gen_data_file(path : Path, filtered, bench_type):
     # all entries with the same x value appear next to each other and are
     # sorted by flags
     filtered = [v for v in filtered if not v["has_flops"]]
-    filtered = sorted(filtered, key=lambda v: (v[x_field], v["flags"]))
+    filtered = sorted(filtered, key=lambda v: (v[x_field], v["compiler"], v["flags"]))
+
+    grouped_by_x = [(k, list(it)) for k, it in groupby(filtered, lambda v : v[x_field])]
 
     header = [x_name, "GFlops"]
     lines = []
 
-    for flag in flags:
-        header.extend(
-            [f"{flag} - seconds", f"{flag} - cycles", f"{flag} - flops/cycle"])
+    for compiler in compilers:
+        for flag in flags:
+            header.extend(
+                [f"{compiler} {flag} - seconds", f"{compiler} {flag} - cycles", f"{compiler} {flag} - flops/cycle"])
 
     file = open(path, 'w')
 
-    i = 0
-    x_val_old = -1
+    flag_idx = 0
+    compiler_old = None
 
-    for dp in filtered:
-        x_val = dp[x_field]
-
+    for x_val, dps in grouped_by_x:
         flop = float(flops[x_val])
+        lines.append([])
+        lines[-1].extend([str(x_val), str(flop / 1e9)])
 
-        if x_val != x_val_old:
-            i = 0
-            lines.append([])
-            lines[-1].extend([str(x_val), str(flop / 1e9)])
+        flag_idx = 0
 
-        flag = flags[i]
-        seconds = float(dp["Microseconds"]) / 1e6
-        cycles = float(dp["Cycles"])
+        for dp in dps:
+            compiler = dp["compiler"]
 
-        print(f"{dp['flags']} == {flag}")
-        assert(dp["flags"] == flag)
+            if compiler_old != compiler:
+                compiler_old = compiler
+                flag_idx = 0
 
-        lines[-1].extend([str(seconds), str(cycles), str(flop / cycles)])
+            flag = flags[flag_idx]
+            seconds = float(dp["Microseconds"]) / 1e6
+            cycles = float(dp["Cycles"])
+            assert(dp["flags"] == flag)
 
-        i += 1
+            lines[-1].extend([str(seconds), str(cycles), str(flop / cycles)])
+
+            flag_idx += 1
 
     print_line(file, header, True)
 
@@ -115,10 +126,15 @@ def gen_data_file(path : Path, filtered, bench_type):
 
 def main():
     if len(sys.argv) < 2:
-        eprint(f"Usage: {sys.argv[0]} <json>")
+        eprint(f"Usage: {sys.argv[0]} <json> [<prefix>]")
         sys.exit(1)
 
     input_file = sys.argv[1]
+
+    prefix = ""
+
+    if len(sys.argv) >= 3:
+        prefix = sys.argv[2]
 
     if input_file == "-":
         json_data = "\n".join(sys.stdin.read())
@@ -130,7 +146,7 @@ def main():
 
     for impl in impls:
         for bench_type in bench_types:
-            data_file = plot_dir / f"{impl}-{bench_type}.dat"
+            data_file = plot_dir / f"{prefix}-{impl}-{bench_type}.dat"
             filtered = [
                 v for v in datapoints if (
                     v["impl"] == impl and v["type"] == bench_type)]
