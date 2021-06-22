@@ -8,7 +8,7 @@ set output pdf_name
 load "common.plt"
 array impls = ["ref", "opt1", "opt3", "opt5", "vec4"]
 
-set margins 5.5, 12.75, 1.5, 3.02
+set margins 5, 12.75, 1.5, 3.02
 
 set key outside right top vertical Left reverse noenhanced autotitle columnhead nobox
 set key invert samplen 4 spacing 1 width 0 height 0 
@@ -17,15 +17,15 @@ datafile = "flops-".bench_type.".dat"
 
 set label "{/=12:Bold Sphere Trace (single precision) on Skylake 2.60GHz}" at character 0.01, screen 0.95
 
-set label "Flop distribution" at character 0.01, screen 0.89
+set label "Flop distribution [GFlops]" at character 0.01, screen 0.89
 
 set style arrow 1 heads filled size 6,15
 
 set style data histograms
 set style histogram rowstacked
 
-set yrange [0:100]
-set format y "%g%%"
+set yrange [0:1000]
+set ytics 200
 set style fill solid border -1
 set boxwidth 0.75
 
@@ -40,6 +40,6 @@ set linetype 8 lc rgb "#e61f0f"
 set linetype 9 lc rgb "cyan"
 set linetype 10 lc rgb "sea-green"
 
-plot for [j=3:12] datafile using (100. * column(j) / $2):xtic(1) title column(j) fs pattern 3 lw 1
+plot for [j=3:12] datafile using (column(j) / 10**9):xtic(1) title column(j) fs pattern 3 lw 1
 
 # vim:set ft=gnuplot:
