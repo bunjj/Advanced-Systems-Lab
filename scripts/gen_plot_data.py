@@ -134,7 +134,7 @@ def main():
     prefix = ""
 
     if len(sys.argv) >= 3:
-        prefix = sys.argv[2]
+        prefix = sys.argv[2] + "-"
 
     if input_file == "-":
         json_data = "\n".join(sys.stdin.read())
@@ -146,7 +146,7 @@ def main():
 
     for impl in impls:
         for bench_type in bench_types:
-            data_file = plot_dir / f"{prefix}-{impl}-{bench_type}.dat"
+            data_file = plot_dir / f"{prefix}{impl}-{bench_type}.dat"
             filtered = [
                 v for v in datapoints if (
                     v["impl"] == impl and v["type"] == bench_type)]

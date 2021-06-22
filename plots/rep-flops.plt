@@ -1,29 +1,21 @@
 # gnuplot -c rep-flops.plt
-set terminal pdf enhanced color size 3.1482in,2.1318in font ",10"
 bench_type = "all"
 y_index = 2
 y_label = "GFlops"
 pdf_name = "rep-".bench_type."-flops.pdf"
+subtitle = "Operations [".y_label."] vs. number of shapes (mixed scene)"
+load "rep-common.plt"
 
 set output pdf_name
 
-load "common.plt"
-array impls = ["ref", "opt1", "opt3", "opt5", "vec4"]
-
-set margins 5, 1.75, 1.5, 3
+set lmargin 5
 
 datafile = "-".bench_type.".dat"
-
-firstrow = system('head -1 '.impls[1].datafile)
-
-set label "{/=12:Bold Sphere Trace (single precision) on Skylake 2.60GHz}" at character 0.01, screen 0.95
 
 set xtics 100
 
 set yrange [0:1000]
 set ytics 200
-
-set label "Operations [".y_label."] vs. number of shapes (mixed scene)" at character 0.01, screen 0.88
 
 set style arrow 1 heads filled size 6,15
 

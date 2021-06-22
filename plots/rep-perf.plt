@@ -1,20 +1,13 @@
-# gnuplot -c rep-perf.plt
-
-set terminal pdf enhanced color size 3.1482in,2.1318in font ",10"
+# gnuplot rep-perf.plt
 bench_type = "all"
 pdf_name = "rep-".bench_type."-perf.pdf"
+subtitle = "Performance [flops/cycle] vs number of shapes (mixed scene)"
+load "rep-common.plt"
 
 set output pdf_name
-
-load "common.plt"
 datafile = "-".bench_type.".dat"
 
-firstrow = system('head -1 '.impls[1].datafile)
-
-set label "{/=12:Bold Sphere Trace (single precision) on Skylake 2.60GHz}" at character 0.01, screen 0.95
-set label "Performance [flops/cycle] vs number of shapes (mixed scene)" at character 0.01, graph 1.09
-
-set margins 2, 1.75, 1.5, 3
+set lmargin 2
 
 set yrange [0:7]
 
