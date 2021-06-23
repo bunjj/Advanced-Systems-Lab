@@ -1,7 +1,8 @@
 # gnuplot -c rep-seconds-vect.plt
 bench_type = "all"
 pdf_name = "rep-".bench_type."-seconds-vect.pdf"
-subtitle = "Runtime [seconds] vs. number of shapes (mixed scene)"
+title = "Performance of Scalar and Vectorized Versions"
+subtitle = "Runtime [seconds] vs. #shapes"
 load "rep-common.plt"
 
 set output pdf_name

@@ -1,7 +1,8 @@
 # gnuplot -c rep-flops-hist.plt
 bench_type = "all"
 pdf_name = "rep-".bench_type."-flops-hist.pdf"
-subtitle = "Flop distribution [GFlops]"
+title = "Flop Distributions in Different Implementations"
+subtitle = "Operations [GFlops]"
 load "rep-common.plt"
 
 set output pdf_name
@@ -10,7 +11,7 @@ set lmargin 5
 set rmargin 12
 
 set key outside right top vertical Left reverse noenhanced autotitle columnhead nobox
-set key invert samplen 4 spacing 1 width 0 height 0 
+set key invert samplen 4 spacing 1.23204 width 0 height 0 
 
 datafile = "flops-".bench_type.".dat"
 

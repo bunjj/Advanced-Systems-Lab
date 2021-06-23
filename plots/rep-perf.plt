@@ -1,7 +1,8 @@
 # gnuplot rep-perf.plt
 bench_type = "all"
 pdf_name = "rep-".bench_type."-perf.pdf"
-subtitle = "Performance [flops/cycle] vs number of shapes (mixed scene)"
+title = "Performance of Scalar and Vectorized Versions"
+subtitle = "Performance [flops/cycle] vs #shapes"
 load "rep-common.plt"
 
 set output pdf_name

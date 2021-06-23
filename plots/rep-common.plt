@@ -6,7 +6,7 @@ set rmargin 1.75
 set bmargin 1.5
 set tmargin 3
 
-set label "{/=12:Bold Sphere Trace (single precision) on Skylake 2.60GHz}" at character 0.01, screen 0.95
+set label "{/=12:Bold ".title."}" at character 0.01, screen 0.95
 
 set label subtitle at character 0.01, screen 0.88
 

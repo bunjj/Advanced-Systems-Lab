@@ -2,7 +2,8 @@
 bench_type = "all"
 y_index = 3
 pdf_name = "rep-".bench_type."-seconds.pdf"
-subtitle = "Runtime [seconds] vs. number of shapes (mixed scene)"
+title = "Runtime Comparison of Different Implementations"
+subtitle = "Runtime [seconds] vs. #shapes"
 
 set output pdf_name
 

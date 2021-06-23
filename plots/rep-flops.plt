@@ -1,9 +1,9 @@
 # gnuplot -c rep-flops.plt
 bench_type = "all"
 y_index = 2
-y_label = "GFlops"
 pdf_name = "rep-".bench_type."-flops.pdf"
-subtitle = "Operations [".y_label."] vs. number of shapes (mixed scene)"
+title = "Number of Operations for Different Implementations"
+subtitle = "Operations [GFlops] vs. #shapes"
 load "rep-common.plt"
 
 set output pdf_name
