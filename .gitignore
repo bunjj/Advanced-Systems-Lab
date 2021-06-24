@@ -16,3 +16,4 @@ __pycache__/
 .DS_Store
 .root
 .fuse_hidden*
+*converted-to.pdf
