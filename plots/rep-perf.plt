@@ -2,7 +2,7 @@
 bench_type = "all"
 pdf_name = "rep-".bench_type."-perf.pdf"
 title = "Performance of Scalar and Vectorized Versions"
-subtitle = "Performance [flops/cycle] vs #shapes"
+subtitle = "Performance [flops/cycle] vs. #shapes"
 load "rep-common.plt"
 
 set output pdf_name
