@@ -2,6 +2,8 @@
 
 *By Felix Sarnthein, Irfan Bunjaku, Lukas Heimes, and Patrick Ziegler*
 
+Project Work for MSc Advanced Systems Lab course offered at ETH Zurich (263-0007-00L). For details on implementation, algorithm, optimizations and evaluation check out **03_report.pdf**.
+
 ## Compiling
 
 This project uses the standard cmake build process:
